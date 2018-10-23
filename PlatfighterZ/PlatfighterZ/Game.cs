@@ -2,34 +2,32 @@
 using System.Drawing;
 using System.Windows.Forms;
 
-class Program : Form
+class Game
 {
-    static void Main() { new Program(); }
+    static void Main() { new Game(); }
 
+    Form Form;
     BufferedGraphics graphics_buffer;
     Graphics graphics_context;
     bool[] keys_down = new bool[256];
     bool[] keys_stale = new bool[256];
 
-    Program()
+    Game()
     {
-        ClientSize = new Size(640, 480);
+        Form = new Form();
+        Form.ClientSize = new Size(640, 480);
 
-        graphics_buffer = BufferedGraphicsManager.Current.Allocate(CreateGraphics(), DisplayRectangle);
+        graphics_buffer = BufferedGraphicsManager.Current.Allocate(Form.CreateGraphics(), Form.DisplayRectangle);
         graphics_context = graphics_buffer.Graphics;
 
         //Initialize Input
         {
-            KeyDown += (s, e) => { keys_down[(int)e.KeyCode] = true; };
-            KeyUp += (s, e) =>
-            {
-                keys_down[(int)e.KeyCode] = false;
-                keys_stale[(int)e.KeyCode] = false;
-            };
+            Form.KeyDown += (s, e) => { keys_down[(int)e.KeyCode] = true; };
+            Form.KeyUp += (s, e) => { keys_down[(int)e.KeyCode] = false; keys_stale[(int)e.KeyCode] = false; };
         }
 
         Application.Idle += GameLoop;
-        Application.Run(this);
+        Application.Run(Form);
     }
 
     void GameLoop(object sender, System.EventArgs e)
@@ -38,16 +36,21 @@ class Program : Form
         {
             //Update
             {
-                for (int i = 0; i < keys_stale.Length; i++)
+                //TODO gameplay logic
+
+                //Set Stale Keys
                 {
-                    if (keys_down[i])
-                        keys_stale[i] = true;
+                    for (int i = 0; i < keys_stale.Length; i++)
+                    {
+                        if (keys_down[i])
+                            keys_stale[i] = true;
+                    }
                 }
             }
 
             //Render
             {
-                graphics_context.FillRectangle(Brushes.Black, DisplayRectangle);
+                graphics_context.FillRectangle(Brushes.Black, Form.DisplayRectangle);
                 graphics_buffer.Render();
             }
         }
