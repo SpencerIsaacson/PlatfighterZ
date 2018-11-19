@@ -51,12 +51,13 @@ class AvatarDemo : IDemo
 
     public void Update()
     {
-        if(keys_down[(int)Keys.D])
-            avatar[0].position.x += .01f;
+        float delta = 5f * time_step;
+        if (keys_down[(int)Keys.D])
+            avatar[0].position.x += delta;
         if (keys_down[(int)Keys.A])
-            avatar[0].position.x -= .01f;
+            avatar[0].position.x -= delta;
         if (keys_down[(int)Keys.Space])
-            avatar[0].rotation.y += .01f;
+            avatar[0].rotation.y += delta;
 
         graphics.FillRectangle(Brushes.Black, window.ClientRectangle);
         

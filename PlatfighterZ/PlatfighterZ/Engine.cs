@@ -5,7 +5,7 @@ namespace Engine
 {
     struct Player
     {
-        public Entity avatar;
+        public int entityID;
         public bool defeated;
         public int stock;
         public float health;
@@ -39,7 +39,7 @@ namespace Engine
         public static Vector3 operator -(Vector3 a, Vector3 b) { return new Vector3(a.x - b.x, a.y - b.y, a.z - b.z); }
         public static Vector3 operator *(Vector3 v, float s) { return new Vector3(v.x * s, v.y * s, v.z * s); }
         public static Vector3 operator /(Vector3 v, float s) { return new Vector3(v.x / s, v.y / s, v.z / s); }
-        public override string ToString() { return $"[{x}, {y}, {z}]"; }
+        public override string ToString() { return $"[{x:F2}, {y:F2}, {z:F2}]"; }
     }
 
 
@@ -169,9 +169,10 @@ namespace Engine
 
         public override string ToString()
         {
-            return $"[{m11}, {m12}, {m13}, {m14}, {m21}, {m22}, {m23}, {m24}, {m31}, {m32}, {m33}, {m34}, {m41}, {m42}, {m43}, {m44}]";
+            return $"[{m11:F2}, {m12:F2}, {m13:F2}, {m14:F2}, {m21:F2}, {m22:F2}, {m23:F2}, {m24:F2}, {m31:F2}, {m32:F2}, {m33:F2}, {m34:F2}, {m41:F2}, {m42:F2}, {m43:F2}, {m44:F2}]";
         }
     }
+
 
     interface IDemo
     {
