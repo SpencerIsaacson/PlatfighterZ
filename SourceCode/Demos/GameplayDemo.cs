@@ -91,6 +91,20 @@ class GameplayDemo : IDemo
 
                             entities[players[i].entityID] = playerEntity;
                         }
+
+						//Hurt Player
+						{
+							players[i].health -= time_step * (i + 1);
+
+							if(players[i].health <= 0)
+							{
+								players[i].stock--;
+								if(players[i].stock > 0)
+									players[i].health = max_health;
+								else
+									players[i].defeated = true;
+							}
+						}
                     }
 
                     //Update Camera
@@ -180,21 +194,44 @@ class GameplayDemo : IDemo
 
             //Draw Heads-Up Display
             {
-                for (int i = 0; i < PLAYER_COUNT; i++)
+				var available_space = WIDTH / PLAYER_COUNT;
+				Point indent = new Point(30, 10);
+				Pen stroke = new Pen(Color.Black, 3f);
+                int healthWidth = available_space - indent.X * 2;
+                int healthHeight = 15;
+
+                for (int player = 0; player < PLAYER_COUNT; player++)
                 {
-                    //DrawHealthBar
+					//Draw HealthBar
                     {
-                        graphics.TranslateTransform(i * WIDTH / PLAYER_COUNT, 0);
-                        float percent = (float)(Math.Truncate(players[i].health) / max_health);
-                        float indent = 10;
-                        float healthWidth = WIDTH / PLAYER_COUNT - indent * 2;
-                        float healthHeight = 10;
-                        float myWidth = percent * healthWidth;
-                        graphics.FillRectangle(Brushes.Red, indent, indent, healthWidth, healthHeight);
-                        graphics.FillRectangle(Brushes.Green, indent, indent, myWidth, healthHeight);
-                        graphics.ResetTransform();
+                        float percent = (float)(players[player].health) / max_health;                        
+                        int myWidth = (int)(percent * (float)healthWidth);
+						Rectangle rect = new Rectangle(indent.X, indent.Y, healthWidth, healthHeight);
+
+                        graphics.FillRectangle(Brushes.Red, rect);
+						rect.Width = myWidth;
+                        graphics.FillRectangle(Brushes.Green, rect);
+						rect.Width = healthWidth;
+						graphics.DrawRectangle(stroke, rect);
                     }
+
+					//Draw Stocks
+					{
+						Rectangle rect = new Rectangle(indent.X, 30, 20, 20);
+
+						for (int stock = 0; stock < players[player].stock; stock++)
+						{
+							graphics.FillEllipse(Brushes.Blue, rect);
+							graphics.DrawEllipse(stroke, rect);
+							graphics.FillEllipse(Brushes.RoyalBlue, rect.X + 4, rect.Y + 4, 10, 10);
+							rect.X += 25;
+						}
+					}
+
+                    graphics.TranslateTransform(available_space, 0);                    
                 }
+
+                graphics.ResetTransform();
 
                 //Draw Timer
                 {
@@ -230,10 +267,10 @@ class GameplayDemo : IDemo
 
                 //Display Game Stats
                 {
-                    graphics.DrawString(string.Format("FPS: {0:F2}", frames_per_second), Control.DefaultFont, Brushes.DarkBlue, PIXELS_PER_UNIT / 2, 32);
-                    graphics.DrawString(string.Format("delta_time: {0:F9}", time_since_last_frame), Control.DefaultFont, Brushes.DarkBlue, PIXELS_PER_UNIT / 2, 48);
-                    graphics.DrawString(string.Format("current_second: {0:F3}", portion_of_current_second_complete), Control.DefaultFont, Brushes.DarkBlue, PIXELS_PER_UNIT / 2, 64);
-                    graphics.DrawString(string.Format("entities: {0}", entities.Count), Control.DefaultFont, Brushes.DarkBlue, PIXELS_PER_UNIT / 2, 80);
+                    graphics.DrawString(string.Format("FPS: {0:F2}", frames_per_second), Control.DefaultFont, Brushes.Yellow, PIXELS_PER_UNIT / 2, 32);
+                    graphics.DrawString(string.Format("delta_time: {0:F9}", delta_time), Control.DefaultFont, Brushes.Yellow, PIXELS_PER_UNIT / 2, 48);
+                    graphics.DrawString(string.Format("current_second: {0:F3}", portion_of_current_second_complete), Control.DefaultFont, Brushes.Yellow, PIXELS_PER_UNIT / 2, 64);
+                    graphics.DrawString(string.Format("entities: {0}", entities.Count), Control.DefaultFont, Brushes.Yellow, PIXELS_PER_UNIT / 2, 80);
                 }
 
                 //Display Player Stats
@@ -247,7 +284,7 @@ class GameplayDemo : IDemo
                                 p.defeated,
                                 p.health,
                                 p.y_velocity),
-                            Control.DefaultFont, Brushes.DarkBlue, WIDTH / PLAYER_COUNT * i + 32, PIXELS_PER_UNIT * 2f);
+                            Control.DefaultFont, Brushes.Yellow, WIDTH / PLAYER_COUNT * i + 32, PIXELS_PER_UNIT * 2f);
                     }
                     graphics.ResetTransform();
                 }
@@ -275,7 +312,7 @@ class GameplayDemo : IDemo
             players[i].health = max_health;
             players[i].defeated = false;
             players[i].entityID = entities.Count;
-
+			players[i].stock = 5;
             entities.Add(entity);
         }
 

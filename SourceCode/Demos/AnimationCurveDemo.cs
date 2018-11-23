@@ -12,8 +12,8 @@ class AnimationCurveDemo : IDemo
 
     public AnimationCurveDemo()
     {
-        a = new KeyFrame() { frame = 1, value = 0, outTangent = new PointF(0, 1) };
-        b = new KeyFrame() { frame = 3, value = 1, inTangent = new PointF(0, 1) };
+        a = new KeyFrame() { frame = 1, value = 0, outTangent = new PointF(.1f, 1) };
+        b = new KeyFrame() { frame = 3, value = 0, inTangent = new PointF(.1f, 1) };
     }
 
     Pen pen = new Pen(Color.White, 2f);
@@ -21,20 +21,26 @@ class AnimationCurveDemo : IDemo
     float sample;
     float frame = 2f;
     float timer = 0f;
+	float radius = 0.8f;
     public void Update()
     {
+		a.outTangent = new PointF((float)Math.Cos(timer)*radius,(float)Math.Sin(timer)*radius);
+		b.inTangent = new PointF((float)Math.Cos(timer+.1f)*radius,(float)Math.Sin(timer+.1f)*radius);
+        timer += 0.1f;
+		radius+=.01f;
+
         sample = Sample(a, b, frame);
         graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
         graphics.FillRectangle(Brushes.Black, window.ClientRectangle);
         graphics.DrawString(frame.ToString("F2") + ": " + sample.ToString(), Control.DefaultFont, Brushes.White, 0, 0);
         graphics.TranslateTransform(window.ClientSize.Width / 2, window.ClientSize.Height / 2);
 
-        for (int x = -10; x <= 10; x++)
+        for (float x = -10; x <= 10; x+=.5f)
         {
             graphics.DrawLine(Pens.DarkGray, x * PIXELS_PER_UNIT, -10 * PIXELS_PER_UNIT, x * PIXELS_PER_UNIT, 10 * PIXELS_PER_UNIT);
             graphics.DrawString(x.ToString(), Control.DefaultFont, Brushes.White, x * PIXELS_PER_UNIT + 1, 1);
         }
-        for (int y = -10; y <= 10; y++)
+        for (float y = -10; y <= 10; y+=.5f)
         {
             graphics.DrawLine(Pens.DarkGray, -10 * PIXELS_PER_UNIT, y * PIXELS_PER_UNIT, 10 * PIXELS_PER_UNIT, y * PIXELS_PER_UNIT);
             graphics.DrawString((-y).ToString(), Control.DefaultFont, Brushes.White, 1, y * PIXELS_PER_UNIT + 1);
@@ -52,9 +58,9 @@ class AnimationCurveDemo : IDemo
         c3 = new PointF((b.frame + b.inTangent.X) * PIXELS_PER_UNIT, (b.value + b.inTangent.Y) * PIXELS_PER_UNIT);
         c4 = new PointF(b.frame * PIXELS_PER_UNIT, b.value * PIXELS_PER_UNIT);
 
-        float frames_apart = (b.frame - a.frame);
+        float range = (b.frame - a.frame);
         float frames_in = (frame - a.frame);
-        float t = frames_in / frames_apart;
+        float t = frames_in / range;
 
         PointF d = Lerp(c1, c2, t);
         PointF e = Lerp(c2, c3, t);
@@ -98,10 +104,9 @@ class AnimationCurveDemo : IDemo
         graphics.FillEllipse(Brushes.Blue, c3.X - width / 2, c3.Y - width / 2, width, width);
         graphics.DrawLine(Pens.Red, frame * PIXELS_PER_UNIT, 0, frame * PIXELS_PER_UNIT, 10 * PIXELS_PER_UNIT);
 
-        a.outTangent.X = (float)Math.Sin(timer) - 1;
-        timer += 0.001f;
         graphics_buffer.Render();
         graphics.ResetTransform();
+		System.Threading.Thread.Sleep(2000);
     }
 
     public struct KeyFrame
@@ -114,23 +119,49 @@ class AnimationCurveDemo : IDemo
 
     float Sample(KeyFrame a, KeyFrame b, float frame)
     {
-        float frames_apart = (b.frame - a.frame);
-        float frames_in = (frame - a.frame);
-        float t = frames_in / frames_apart;
+        float range = (b.frame - a.frame);
+        float t = .5f;
+		float step = .25f;
+		PointF j;
 
-        PointF c1 = new PointF(a.frame, a.value);
-        PointF c2 = new PointF(a.frame + a.outTangent.X * frames_apart, a.value + a.outTangent.Y);
-        PointF c3 = new PointF(b.frame + b.inTangent.X * frames_apart, b.value + b.inTangent.Y);
-        PointF c4 = new PointF(b.frame, b.value);
+		int iterations_run = 0;
+		while(true)
+		{
+			PointF c1 = new PointF(a.frame, a.value);
+			PointF c2 = new PointF(a.frame + a.outTangent.X * range, a.value + a.outTangent.Y);
+			PointF c3 = new PointF(b.frame + b.inTangent.X * range, b.value + b.inTangent.Y);
+			PointF c4 = new PointF(b.frame, b.value);
 
-        PointF d = Lerp(c1, c2, t);
-        PointF e = Lerp(c2, c3, t);
-        PointF f = Lerp(c3, c4, t);
+			PointF d = Lerp(c1, c2, t);
+			PointF e = Lerp(c2, c3, t);
+			PointF f = Lerp(c3, c4, t);
 
-        PointF h = Lerp(d, e, t);
-        PointF i = Lerp(e, f, t);
+			PointF h = Lerp(d, e, t);
+			PointF i = Lerp(e, f, t);
 
-        PointF j = Lerp(h, i, t);
+			j = Lerp(h, i, t);
+			
+			var difference = Math.Abs(j.X-frame);
+			//Console.WriteLine(difference);
+			if(difference < .00001f)
+			{
+				Console.WriteLine("Converged in " + iterations_run + " iterations. T: " + t);
+				break;
+			}
+			else if(j.X > frame)
+				t -= step;
+			else
+				t += step;
+			
+			step /= 2;
+
+			if(++iterations_run > 100)
+			{
+				Console.WriteLine("Taking too long to compute sample");
+				break;
+			}
+		}
+
         return j.Y;
     }
 
