@@ -43,6 +43,8 @@ class Game
     };
 
     IDemo demo;
+	IDemo[] demos = new IDemo[]{new GameplayDemo(), new AvatarDemo(), new AnimationCurveTest()};
+	int demo_index;
     public static Transform[] transforms;
 
     Game()
@@ -69,7 +71,7 @@ class Game
 
         //Start Game Loop
         {
-            demo = new GameplayDemo();
+            demo = demos[0];
             Application.Idle += GameLoop;
             Application.Run(window);
         }
@@ -90,18 +92,21 @@ class Game
 
             //Update The Active Demo
             {
-                if (KeyDownFresh(Keys.Tab))
-                {
-                    //Cycle Through Demos
-                    {
-                        if(demo is GameplayDemo)
-                            demo = new AvatarDemo();
-                        else if(demo is AvatarDemo)
-                            demo = new AnimationCurveDemo();
-                        else if(demo is AnimationCurveDemo)
-                            demo = new GameplayDemo();
-                    }
-                }
+				//Cycle Through Demos
+				{
+		            if (KeyDownFresh(Keys.Tab))
+		            {
+						demo_index = (demo_index + 1) % demos.Length;
+						demo = demos[demo_index];
+		            }
+					else if (KeyDownFresh(Keys.Z))
+					{
+						demo_index--;
+						if(demo_index < 0)
+							demo_index+= demos.Length;
+						demo = demos[demo_index];
+					}
+				}
 
                 if (!fixed_framerate || delta_time > STANDARD_TIMESTEP)
                 {
@@ -138,26 +143,26 @@ class Game
     bool WindowIsIdle()
     {
         #if Windows
-        NativeMessage result;
-        return PeekMessage(out result, IntPtr.Zero, 0, 0, 0) == 0;
+		    NativeMessage result;
+		    return PeekMessage(out result, IntPtr.Zero, 0, 0, 0) == 0;
         #else
-        return false;
+        	return false;
         #endif
     }
 
     #if Windows
-    //Imports a native Win32 function for checking the windows message queue
-    [System.Runtime.InteropServices.DllImport("User32.dll")]
-    static extern int PeekMessage(out NativeMessage message, IntPtr handle, uint filterMin, uint filterMax, uint remove);
+		//Imports a native Win32 function for checking the windows message queue
+		[System.Runtime.InteropServices.DllImport("User32.dll")]
+		static extern int PeekMessage(out NativeMessage message, IntPtr handle, uint filterMin, uint filterMax, uint remove);
 
-    struct NativeMessage
-    {
-        IntPtr Handle;
-        uint Message;
-        IntPtr WParameter;
-        IntPtr LParameter;
-        uint Time;
-        Point Location;
-    }
+		struct NativeMessage
+		{
+		    IntPtr Handle;
+		    uint Message;
+		    IntPtr WParameter;
+		    IntPtr LParameter;
+		    uint Time;
+		    Point Location;
+		}
     #endif
 }

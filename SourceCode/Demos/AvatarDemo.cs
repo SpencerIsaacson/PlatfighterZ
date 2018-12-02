@@ -49,6 +49,7 @@ class AvatarDemo : IDemo
         avatar[0].rotation.y = (float)-Math.PI / 2;
     }
 
+    float t;
     public void Update()
     {
         float delta = 5f * time_step;
@@ -59,6 +60,8 @@ class AvatarDemo : IDemo
         if (keys_down[(int)Keys.Space])
             avatar[0].rotation.y += delta;
 
+        t+= delta;
+        
         graphics.FillRectangle(Brushes.Black, window.ClientRectangle);
         
         //Draw Entities
