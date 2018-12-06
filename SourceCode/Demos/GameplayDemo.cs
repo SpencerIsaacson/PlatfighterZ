@@ -22,6 +22,7 @@ class GameplayDemo : IDemo
     float time_remaining;
     float max_health = 10;
 
+    Color[] player_colors = new Color[]{Color.Red,Color.Green,Color.Blue,Color.Purple};
     public GameplayDemo()
     {
         ResetGame();
@@ -94,7 +95,7 @@ class GameplayDemo : IDemo
 
 						//Hurt Player
 						{
-							players[i].health -= time_step * (i + 1);
+							players[i].health -= time_step * (6*i + 1);
 
 							if(players[i].health <= 0)
 							{
@@ -168,7 +169,10 @@ class GameplayDemo : IDemo
         {
             //Draw Background
             {
-                graphics.FillRectangle(Brushes.Gray, window.ClientRectangle);
+                if(view_debug)
+                    graphics.FillRectangle(Brushes.Gray, window.ClientRectangle);
+                else
+                    graphics.FillRectangle(new SolidBrush(Color.FromArgb(255,30,30,40)), window.ClientRectangle);                    
                 graphics.FillRectangle(Brushes.DarkSlateGray, 0, HEIGHT - PIXELS_PER_UNIT, WIDTH, PIXELS_PER_UNIT);
             }
 
@@ -186,7 +190,7 @@ class GameplayDemo : IDemo
                         m = Matrix4x4.Concat(m, camera.GetMatrix());
 
                         Vector3 center = Matrix4x4.TransformVector(m, Vector3.Zero) * PIXELS_PER_UNIT;
-                        graphics.FillEllipse(Brushes.Blue, center.x - PIXELS_PER_UNIT / 8, center.y - PIXELS_PER_UNIT / 8, PIXELS_PER_UNIT / 4, PIXELS_PER_UNIT / 4);
+                        graphics.FillEllipse(new SolidBrush(player_colors[i]), center.x - PIXELS_PER_UNIT / 8, center.y - PIXELS_PER_UNIT / 8, PIXELS_PER_UNIT / 4, PIXELS_PER_UNIT / 4);
                     }
                 }
                 graphics.ResetTransform();
@@ -221,9 +225,9 @@ class GameplayDemo : IDemo
 
 						for (int stock = 0; stock < players[player].stock; stock++)
 						{
-							graphics.FillEllipse(Brushes.Blue, rect);
+							graphics.FillEllipse(new SolidBrush(player_colors[player]), rect);
 							graphics.DrawEllipse(stroke, rect);
-							graphics.FillEllipse(Brushes.RoyalBlue, rect.X + 4, rect.Y + 4, 10, 10);
+							graphics.FillEllipse(new SolidBrush(ControlPaint.Light(player_colors[player])), rect.X + 4, rect.Y + 4, 10, 10);
 							rect.X += 25;
 						}
 					}
@@ -235,19 +239,23 @@ class GameplayDemo : IDemo
 
                 //Draw Timer
                 {
-                    graphics.TranslateTransform(WIDTH / 2, 0);
-                    graphics.DrawString(string.Format("{0:F0}", time_remaining), Control.DefaultFont, Brushes.White, -6, 25);
+                    graphics.TranslateTransform(WIDTH / 2 -2, 0);
+                    graphics.ScaleTransform(2f, 2f);
+                    graphics.DrawString(string.Format("{0:F0}", time_remaining), Control.DefaultFont, Brushes.White, -6, 5);
+                    graphics.ScaleTransform(.5f, .5f);
                 }
 
                 if (game_over)
                 {
                     //Draw Game End Message
                     {
+                        Point offset = new Point(-40, -20);
+                        string message = (winner == 0) ? "TIE!" : ("PLAYER " + winner + " WINS!");
                         graphics.TranslateTransform(0, HEIGHT / 2);
-                        Point offset = new Point(24, -4);
-                        string message;
-                        message = (winner == 0) ? "Tie!" : ("Player " + winner + " wins!");
-                        graphics.DrawString(message, Control.DefaultFont, Brushes.Red, offset.X, offset.Y);
+                        graphics.ScaleTransform(4, 4);
+                        graphics.DrawString(message, Control.DefaultFont, Brushes.Black, offset.X-1, offset.Y+1);
+                        graphics.DrawString(message, Control.DefaultFont, Brushes.Yellow, offset.X, offset.Y);
+                        graphics.ScaleTransform(.25f, .25f);
                     }
                 }
 
@@ -267,26 +275,10 @@ class GameplayDemo : IDemo
 
                 //Display Game Stats
                 {
-                    graphics.DrawString(string.Format("FPS: {0:F2}", frames_per_second), Control.DefaultFont, Brushes.Yellow, PIXELS_PER_UNIT / 2, 32);
-                    graphics.DrawString(string.Format("delta_time: {0:F9}", delta_time), Control.DefaultFont, Brushes.Yellow, PIXELS_PER_UNIT / 2, 48);
-                    graphics.DrawString(string.Format("current_second: {0:F3}", portion_of_current_second_complete), Control.DefaultFont, Brushes.Yellow, PIXELS_PER_UNIT / 2, 64);
-                    graphics.DrawString(string.Format("entities: {0}", entities.Count), Control.DefaultFont, Brushes.Yellow, PIXELS_PER_UNIT / 2, 80);
-                }
-
-                //Display Player Stats
-                {
-                    for (int i = 0; i < PLAYER_COUNT; i++)
-                    {
-                        var p = players[i];
-                        graphics.DrawString(
-                            string.Format("pos: {0}\ndefeated: {1}\nhealth: {2}\nyvel: {3:F2}",
-                                entities[p.entityID].transform.position,
-                                p.defeated,
-                                p.health,
-                                p.y_velocity),
-                            Control.DefaultFont, Brushes.Yellow, WIDTH / PLAYER_COUNT * i + 32, PIXELS_PER_UNIT * 2f);
-                    }
-                    graphics.ResetTransform();
+                    graphics.DrawString(string.Format("FPS: {0:F2}", frames_per_second), Control.DefaultFont, Brushes.Yellow, PIXELS_PER_UNIT / 2, 50);
+                    graphics.DrawString(string.Format("delta_time: {0:F9}", delta_time), Control.DefaultFont, Brushes.Yellow, PIXELS_PER_UNIT / 2, 65);
+                    graphics.DrawString(string.Format("current_second: {0:F3}", portion_of_current_second_complete), Control.DefaultFont, Brushes.Yellow, PIXELS_PER_UNIT / 2, 80);
+                    graphics.DrawString(string.Format("entities: {0}", entities.Count), Control.DefaultFont, Brushes.Yellow, PIXELS_PER_UNIT / 2, 95);
                 }
             }
 

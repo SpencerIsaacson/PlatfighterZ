@@ -21,17 +21,18 @@ class Game
 
     //Timing
     public static Stopwatch stopwatch = new Stopwatch();
-    public static bool fixed_framerate = false;
+    public static bool fixed_framerate = true;
     public static float TARGET_FRAMERATE = 60;
     public static float STANDARD_TIMESTEP = 1 / TARGET_FRAMERATE;
     public static float time_step;
     public static float delta_time;
+    public static float time_since_last_frame;
     public static float frames_per_second;
     public static float portion_of_current_second_complete;
     public static int frames_since_last_second;
     public static float previous_time;
 
-    //Inputasdfasdfasdf
+    //Input
     public static bool[] keys_down = new bool[256];
     public static bool[] keys_stale = new bool[256]; //whether a key has been pressed for more than one consecutive frame
     public static int[,] control_mappings = //each row represents a player's control scheme
@@ -43,7 +44,7 @@ class Game
     };
 
     IDemo demo;
-	IDemo[] demos = new IDemo[]{new GameplayDemo(), new AvatarDemo(), new AnimationCurveTest()};
+	IDemo[] demos = new IDemo[]{new GameplayDemo(), new AnimationCurveTest(), new AvatarDemo()};
 	int demo_index;
     public static Transform[] transforms;
 
@@ -73,6 +74,7 @@ class Game
         {
             demo = demos[0];
             Application.Idle += GameLoop;
+            stopwatch.Start();
             Application.Run(window);
         }
     }
@@ -80,8 +82,25 @@ class Game
 
     void GameLoop(object sender, EventArgs e)
     {
-        do
+        while (WindowIsIdle())
         {        
+
+            //Cycle Through Demos
+            {
+                if (KeyDownFresh(Keys.Tab))
+                {
+                    demo_index = (demo_index + 1) % demos.Length;
+                    demo = demos[demo_index];
+                }
+                else if (KeyDownFresh(Keys.Z))
+                {
+                    demo_index--;
+                    if(demo_index < 0)
+                        demo_index+= demos.Length;
+                    demo = demos[demo_index];
+                }
+            }
+
             //Set TimeStep
             {
                 if (fixed_framerate)
@@ -89,30 +108,15 @@ class Game
                 else
                     time_step = delta_time;
             }
-
-            //Update The Active Demo
+            
+            //Update The Game
             {
-				//Cycle Through Demos
-				{
-		            if (KeyDownFresh(Keys.Tab))
-		            {
-						demo_index = (demo_index + 1) % demos.Length;
-						demo = demos[demo_index];
-		            }
-					else if (KeyDownFresh(Keys.Z))
-					{
-						demo_index--;
-						if(demo_index < 0)
-							demo_index+= demos.Length;
-						demo = demos[demo_index];
-					}
-				}
-
-                if (!fixed_framerate || delta_time > STANDARD_TIMESTEP)
+                if (!fixed_framerate || time_since_last_frame > STANDARD_TIMESTEP)
                 {
+
                     frames_since_last_second++;
                     demo.Update();
-                    delta_time = 0;
+                    time_since_last_frame = 0;
                 }
 
                 //Set Stale Keys
@@ -126,27 +130,30 @@ class Game
             {
                 delta_time = (float)(stopwatch.Elapsed.TotalSeconds - previous_time);
                 portion_of_current_second_complete += delta_time;
-
+                time_since_last_frame += delta_time;
                 if (portion_of_current_second_complete >= 1)
                 {
                     frames_per_second = frames_since_last_second / portion_of_current_second_complete;
                     portion_of_current_second_complete = frames_since_last_second = 0;
                 }
-
                 previous_time = (float)stopwatch.Elapsed.TotalSeconds;
             }
-        } while (WindowIsIdle());
+        }
     }
 
     public static bool KeyDownFresh(Keys key) { return keys_down[(int)key] && !keys_stale[(int)key]; }
 
+    int i = 0;
     bool WindowIsIdle()
     {
         #if Windows
 		    NativeMessage result;
 		    return PeekMessage(out result, IntPtr.Zero, 0, 0, 0) == 0;
         #else
+        if(i++ ==0)
         	return false;
+        i = 0;
+        return true;
         #endif
     }
 

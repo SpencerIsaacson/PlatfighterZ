@@ -16,6 +16,22 @@ class AnimationCurveTest : IDemo
         {
             key_frames.Add(new KeyFrame(){frame = i, value = 0, inTangent = new PointF(-.25f,2f), outTangent = new PointF(.25f,2f)});
         }
+
+        var foo = key_frames[key_frames.Count-1];
+        foo.value = 1;
+        foo.inTangent.X = -.5f;
+        foo.inTangent.Y = 0f;
+        key_frames[key_frames.Count-1] = foo;
+
+        foo = key_frames[0];
+        foo.value = 1;
+        key_frames[0] = foo;
+
+        foo = key_frames[3];
+        foo.inTangent = new PointF(-.25f, 0);
+        foo.outTangent = new PointF(.25f, 0);
+        foo.value = 2.5f;
+        key_frames[3] = foo;
     }
 
     Pen pen = new Pen(Color.White, 2f);
@@ -30,7 +46,7 @@ class AnimationCurveTest : IDemo
 		{
 		    elapsed_time += time_step;
 			frame = 1 + elapsed_time % (6);
-            
+
             for(int i = 0; i < key_frames.Count-1; i++)
             {
                 KeyFrame a = key_frames[i];
