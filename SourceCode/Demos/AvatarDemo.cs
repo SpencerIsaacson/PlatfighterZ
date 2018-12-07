@@ -153,8 +153,10 @@ class AvatarDemo : IDemo
                 var foo  = new KeyFrame();
                 foo.frame = reader.ReadSingle();
                 foo.value = reader.ReadSingle();
-                foo.inTangent = new PointF(reader.ReadSingle(), reader.ReadSingle());
-                foo.outTangent = new PointF(reader.ReadSingle(), reader.ReadSingle());
+                foo.left_handle_x = reader.ReadSingle();
+                foo.left_handle_y = reader.ReadSingle();
+                foo.right_handle_x = reader.ReadSingle();
+                foo.right_handle_y = reader.ReadSingle();
                 floo.Add(foo);
             }
             return floo.ToArray();
@@ -170,10 +172,10 @@ class AvatarDemo : IDemo
             {
                 writer.Write(curve[i].frame);
                 writer.Write(curve[i].value);
-                writer.Write(curve[i].inTangent.X);
-                writer.Write(curve[i].inTangent.Y);
-                writer.Write(curve[i].outTangent.X);
-                writer.Write(curve[i].outTangent.Y);
+                writer.Write(curve[i].left_handle_x);
+                writer.Write(curve[i].left_handle_y);
+                writer.Write(curve[i].right_handle_x);
+                writer.Write(curve[i].right_handle_y);
             }
         }        
     }
@@ -181,10 +183,13 @@ class AvatarDemo : IDemo
 
     public struct KeyFrame
     {
-        public float frame;
-        public float value;
-        public PointF inTangent;
-        public PointF outTangent;
+        public float 
+			frame, 
+			value, 
+			left_handle_x, 
+			left_handle_y, 
+			right_handle_x, 
+			right_handle_y;
     }
 
 
@@ -193,8 +198,8 @@ class AvatarDemo : IDemo
         float t = .5f;
         float step = .25f;
         PointF c1 = new PointF(a.frame, a.value);
-        PointF c2 = new PointF(a.frame + a.outTangent.X, a.value + a.outTangent.Y);
-        PointF c3 = new PointF(b.frame + b.inTangent.X, b.value + b.inTangent.Y);
+        PointF c2 = new PointF(a.frame + a.right_handle_x, a.value + a.right_handle_y);
+        PointF c3 = new PointF(b.frame + b.left_handle_x, b.value + b.left_handle_y);
         PointF c4 = new PointF(b.frame, b.value);
 
         while(true)
