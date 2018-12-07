@@ -2,24 +2,23 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 using static Game;
 
 class AvatarDemo : IDemo
-{
+{	
+    Transform[] avatar; //Transform hierarchy is currently hardcoded
 
-	//Transform hierarchy and all animation curves are currently hardcoded, will soon be creating a more general solution
-    Transform[] avatar;
-    List<KeyFrame> root_position_x_curve = new List<KeyFrame>();
-    List<KeyFrame> hip_position_y_curve = new List<KeyFrame>();
-    List<KeyFrame> torso_rotation_y_curve = new List<KeyFrame>();
-    List<KeyFrame> posiition_y_curve = new List<KeyFrame>();
-    List<KeyFrame> left_arm_rotation_curve = new List<KeyFrame>();
-    List<KeyFrame> right_arm_rotation_curve = new List<KeyFrame>();
-    List<KeyFrame> left_leg_rotation_curve = new List<KeyFrame>();
-    List<KeyFrame> right_leg_rotation_curve = new List<KeyFrame>();
-    List<KeyFrame> left_knee_rotation_curve = new List<KeyFrame>();
-    List<KeyFrame> right_knee_rotation_curve = new List<KeyFrame>();
+    KeyFrame[] root_position_x_curve;
+    KeyFrame[] hip_position_y_curve;
+    KeyFrame[] torso_rotation_y_curve;
+    KeyFrame[] left_arm_rotation_curve;
+    KeyFrame[] right_arm_rotation_curve;
+    KeyFrame[] left_leg_rotation_curve;
+    KeyFrame[] right_leg_rotation_curve;
+    KeyFrame[] left_knee_rotation_curve;
+    KeyFrame[] right_knee_rotation_curve;
 
     public AvatarDemo()
     {
@@ -67,80 +66,17 @@ class AvatarDemo : IDemo
 		avatar[4].rotation.z = -1.4f;
 		avatar[5].rotation.y = -.4f;
 		avatar[6].rotation.z = 1.4f;
-		avatar[7].rotation.y = .4f;
+		avatar[7].rotation.y = .4f;        
 
-		root_position_x_curve = new List<KeyFrame>()
-		{
-        	new KeyFrame { frame = 1, value = -5, inTangent = new PointF(-.25f,-.25f), outTangent = new PointF(.25f,.25f)},
-        	new KeyFrame { frame = 61, value = 5, inTangent = new PointF(-.25f,-.25f), outTangent = new PointF(.25f,.25f)},
-		};
-
-		left_leg_rotation_curve = new List<KeyFrame>()
-		{
-			new KeyFrame { frame = 1, value = -.75f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-			new KeyFrame { frame = 21, value = 1.2f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-			new KeyFrame { frame = 41, value = -.75f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-			new KeyFrame { frame = 61, value = 1.2f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-		};
-
-		right_leg_rotation_curve = new List<KeyFrame>()
-		{
-			new KeyFrame { frame = 1, value = 1.2f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-			new KeyFrame { frame = 21, value = -.75f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-			new KeyFrame { frame = 41, value = 1.2f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-			new KeyFrame { frame = 61, value = -.75f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-		};
-
-		left_knee_rotation_curve = new List<KeyFrame>()
-		{
-			new KeyFrame { frame = 1, value = 0f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-			new KeyFrame { frame = 21, value = -1f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-			new KeyFrame { frame = 41, value = 0f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-			new KeyFrame { frame = 61, value = -1f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-		};
-
-		right_knee_rotation_curve = new List<KeyFrame>()
-		{
-			new KeyFrame { frame = 1, value = -1f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-			new KeyFrame { frame = 21, value = 0, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-			new KeyFrame { frame = 41, value = -1f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-			new KeyFrame { frame = 61, value = 0, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-		};
-
-        hip_position_y_curve = new List<KeyFrame>()
-        {
-            new KeyFrame { frame = 1, value = .5f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-            new KeyFrame { frame = 11, value = 1f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-            new KeyFrame { frame = 21, value = .5f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-            new KeyFrame { frame = 31, value = 1f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-            new KeyFrame { frame = 41, value = .5f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-            new KeyFrame { frame = 51, value = 1f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-            new KeyFrame { frame = 61, value = .5f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-        };
-
-        torso_rotation_y_curve = new List<KeyFrame>()
-        {
-            new KeyFrame { frame = 1, value = .5f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-            new KeyFrame { frame = 21, value = -.5f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-            new KeyFrame { frame = 41, value = .5f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-            new KeyFrame { frame = 61, value = -.5f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-        };
-
-        left_arm_rotation_curve = new List<KeyFrame>()
-        {
-            new KeyFrame { frame = 1, value = 1f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-            new KeyFrame { frame = 21, value = -1f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-            new KeyFrame { frame = 41, value = 1f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-            new KeyFrame { frame = 61, value = -1f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-        };
-
-        right_arm_rotation_curve = new List<KeyFrame>()
-        {
-            new KeyFrame { frame = 1, value = 1f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-            new KeyFrame { frame = 21, value = -1f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-            new KeyFrame { frame = 41, value = 1f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-            new KeyFrame { frame = 61, value = -1f, inTangent = new PointF(-.25f,0), outTangent = new PointF(.25f,0)},
-        };
+		root_position_x_curve = LoadKeyFrames("Assets/root_position_x_curve");
+		left_leg_rotation_curve = LoadKeyFrames("Assets/left_leg_rotation_curve");
+		right_leg_rotation_curve = LoadKeyFrames("Assets/right_leg_rotation_curve");
+		left_knee_rotation_curve = LoadKeyFrames("Assets/left_knee_rotation_curve");
+		right_knee_rotation_curve = LoadKeyFrames("Assets/right_knee_rotation_curve");
+        hip_position_y_curve = LoadKeyFrames("Assets/hip_position_y_curve");
+        torso_rotation_y_curve = LoadKeyFrames("Assets/torso_rotation_y_curve");
+        left_arm_rotation_curve = LoadKeyFrames("Assets/left_arm_rotation_curve");
+        right_arm_rotation_curve = LoadKeyFrames("Assets/right_arm_rotation_curve");
     }
 
     float frame = 1;
@@ -159,10 +95,9 @@ class AvatarDemo : IDemo
             frame = 1;
 
         animate_property(root_position_x_curve, out avatar[0].position.x);
-        animate_property(posiition_y_curve, out avatar[0].position.y);
+        animate_property(hip_position_y_curve, out avatar[1].position.y);
         animate_property(left_leg_rotation_curve, out avatar[11].rotation.x);
         animate_property(right_leg_rotation_curve, out avatar[8].rotation.x);
-        animate_property(hip_position_y_curve, out avatar[1].position.y);
         animate_property(torso_rotation_y_curve, out avatar[2].rotation.y);
         animate_property(left_arm_rotation_curve, out avatar[6].rotation.y);
         animate_property(right_arm_rotation_curve, out avatar[4].rotation.y);
@@ -183,17 +118,17 @@ class AvatarDemo : IDemo
                 var d = .75f - position.z / 10f;
                 graphics.DrawEllipse(Pens.Blue, position.x / d * PIXELS_PER_UNIT, position.y / d * PIXELS_PER_UNIT, PIXELS_PER_UNIT / (d * 8), PIXELS_PER_UNIT / (d * 8));
             }
-
         }
-
 
         graphics.ResetTransform();
         graphics.DrawString(frame.ToString(),Control.DefaultFont,Brushes.White,0,0);
+		graphics_buffer.Render();
     }
 
-    void animate_property(List<KeyFrame> curve, out float property)
+
+    void animate_property(KeyFrame[] curve, out float property)
     {
-        for(int i = 0; i < curve.Count-1; i++)
+        for(int i = 0; i < curve.Length-1; i++)
         {
             KeyFrame a = curve[i];
             KeyFrame b = curve[i + 1];
@@ -207,6 +142,43 @@ class AvatarDemo : IDemo
         property = 0;
     }
 
+
+    KeyFrame[] LoadKeyFrames(string path)
+    {
+        using (BinaryReader reader = new BinaryReader(File.Open(path, FileMode.Open)))
+        {
+            List<KeyFrame> floo = new List<KeyFrame>();
+            while(reader.BaseStream.Position != reader.BaseStream.Length)
+            {
+                var foo  = new KeyFrame();
+                foo.frame = reader.ReadSingle();
+                foo.value = reader.ReadSingle();
+                foo.inTangent = new PointF(reader.ReadSingle(), reader.ReadSingle());
+                foo.outTangent = new PointF(reader.ReadSingle(), reader.ReadSingle());
+                floo.Add(foo);
+            }
+            return floo.ToArray();
+        }
+    }
+
+
+    void SaveKeyFrames(string path, KeyFrame[] curve)
+    {
+        using (BinaryWriter writer = new BinaryWriter(File.Open(path, FileMode.Create)))
+        {
+            for(int i = 0; i < curve.Length; i++)
+            {
+                writer.Write(curve[i].frame);
+                writer.Write(curve[i].value);
+                writer.Write(curve[i].inTangent.X);
+                writer.Write(curve[i].inTangent.Y);
+                writer.Write(curve[i].outTangent.X);
+                writer.Write(curve[i].outTangent.Y);
+            }
+        }        
+    }
+
+
     public struct KeyFrame
     {
         public float frame;
@@ -214,6 +186,7 @@ class AvatarDemo : IDemo
         public PointF inTangent;
         public PointF outTangent;
     }
+
 
     float Sample(KeyFrame a, KeyFrame b, float frame)
     {
@@ -245,12 +218,14 @@ class AvatarDemo : IDemo
         }
     }
 
+
     PointF Lerp(PointF a, PointF b, float t)
     {
         float x = a.X + t * (b.X - a.X);
         float y = a.Y + t * (b.Y - a.Y);
         return new PointF(x,y);
     }
+
 
     float Lerp(float a,float b, float t)
     {

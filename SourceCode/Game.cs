@@ -21,7 +21,7 @@ class Game
 
     //Timing
     public static Stopwatch stopwatch = new Stopwatch();
-    public static bool fixed_framerate = true;
+    public static bool fixed_framerate = false;
     public static float TARGET_FRAMERATE = 60;
     public static float STANDARD_TIMESTEP = 1 / TARGET_FRAMERATE;
     public static float time_step;
@@ -150,7 +150,7 @@ class Game
 		    NativeMessage result;
 		    return PeekMessage(out result, IntPtr.Zero, 0, 0, 0) == 0;
         #else
-        if(i++ ==0)
+        if(i++ == 0)
         	return false;
         i = 0;
         return true;
