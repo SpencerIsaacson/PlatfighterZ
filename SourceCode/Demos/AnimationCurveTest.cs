@@ -3,6 +3,7 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Collections.Generic;
+using static Engine.Global;
 using static Game;
 
 class AnimationCurveTest : IDemo
@@ -14,13 +15,13 @@ class AnimationCurveTest : IDemo
     {
         for(int i = 1; i < 6; i ++)
         {
-            key_frames.Add(new KeyFrame(){frame = i, value = 0, inTangent = new PointF(-.25f,2f), outTangent = new PointF(.25f,2f)});
+            key_frames.Add(new KeyFrame { frame = i, value = 0, left_handle_x = -.25f,  left_handle_y = 2f, right_handle_x = .25f,right_handle_y = 2f });
         }
 
         var foo = key_frames[key_frames.Count-1];
         foo.value = 1;
-        foo.inTangent.X = -.5f;
-        foo.inTangent.Y = 0f;
+        foo.left_handle_x = -.5f;
+        foo.left_handle_y = 0f;
         key_frames[key_frames.Count-1] = foo;
 
         foo = key_frames[0];
@@ -28,8 +29,10 @@ class AnimationCurveTest : IDemo
         key_frames[0] = foo;
 
         foo = key_frames[3];
-        foo.inTangent = new PointF(-.25f, 0);
-        foo.outTangent = new PointF(.25f, 0);
+        foo.left_handle_x = -.25f;
+        foo.left_handle_y = 0;
+        foo.right_handle_x = .25f;
+        foo.right_handle_y = 0;
         foo.value = 2.5f;
         key_frames[3] = foo;
     }
@@ -46,17 +49,7 @@ class AnimationCurveTest : IDemo
 		{
 		    elapsed_time += time_step;
 			frame = 1 + elapsed_time % (6);
-
-            for(int i = 0; i < key_frames.Count-1; i++)
-            {
-                KeyFrame a = key_frames[i];
-                KeyFrame b = key_frames[i + 1];
-                if (frame > a.frame && frame < b.frame)
-                {
-                    sample = Sample(a, b, frame);
-                    break;
-                }
-            }
+			AnimateProperty(key_frames.ToArray(), frame, out sample);
 		}
 
         graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
@@ -89,8 +82,8 @@ class AnimationCurveTest : IDemo
             KeyFrame b = key_frames[i + 1];
             PointF c1, c2, c3, c4;
             c1 = new PointF(a.frame * PIXELS_PER_UNIT, a.value * PIXELS_PER_UNIT);
-            c2 = new PointF((a.frame + a.outTangent.X) * PIXELS_PER_UNIT, (a.value + a.outTangent.Y) * PIXELS_PER_UNIT);
-            c3 = new PointF((b.frame + b.inTangent.X) * PIXELS_PER_UNIT, (b.value + b.inTangent.Y) * PIXELS_PER_UNIT);
+            c2 = new PointF((a.frame + a.right_handle_x) * PIXELS_PER_UNIT, (a.value + a.right_handle_y) * PIXELS_PER_UNIT);
+            c3 = new PointF((b.frame + b.left_handle_x) * PIXELS_PER_UNIT, (b.value + b.left_handle_y) * PIXELS_PER_UNIT);
             c4 = new PointF(b.frame * PIXELS_PER_UNIT, b.value * PIXELS_PER_UNIT);
 
             //DrawSpline
@@ -116,54 +109,4 @@ class AnimationCurveTest : IDemo
         graphics_buffer.Render();
         graphics.ResetTransform();
     }
-
-    public struct KeyFrame
-    {
-        public float frame;
-        public float value;
-        public PointF inTangent;
-        public PointF outTangent;
-    }
-
-    float Sample(KeyFrame a, KeyFrame b, float frame)
-    {
-        float t = .5f;
-		float step = .25f;
-		PointF c1 = new PointF(a.frame, a.value);
-		PointF c2 = new PointF(a.frame + a.outTangent.X, a.value + a.outTangent.Y);
-		PointF c3 = new PointF(b.frame + b.inTangent.X, b.value + b.inTangent.Y);
-		PointF c4 = new PointF(b.frame, b.value);
-
-		while(true)
-		{
-			PointF d = Lerp(c1, c2, t);
-			PointF e = Lerp(c2, c3, t);
-			PointF f = Lerp(c3, c4, t);
-			PointF g = Lerp(d, e, t);
-			PointF h = Lerp(e, f, t);
-			PointF i = Lerp(g, h, t);
-
-            if(i.X > frame) 
-                t -= step;
-            else 
-                t += step;
-			
-			step /= 2;
-
-            if(Math.Abs(i.X - frame) < .001f)
-            	return i.Y;
-		}
-    }
-
-	PointF Lerp(PointF a, PointF b, float t)
-	{
-		float x = a.X + t * (b.X - a.X);
-		float y = a.Y + t * (b.Y - a.Y);
-		return new PointF(x,y);
-	}
-
-	float Lerp(float a,float b, float t)
-	{
-		return a + t * (b - a);
-	}
 }

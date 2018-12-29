@@ -1,8 +1,8 @@
 #!/bin/bash
-csc -out:DebugBuild/Game.exe -recurse:SourceCode/*.cs -nologo
+csc -recurse:SourceCode/*.cs -nologo
 
 if [ $? -eq 0 ]
 then
-	mono DebugBuild/Game.exe
+	mono Game.exe
 fi
 

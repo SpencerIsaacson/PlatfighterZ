@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 using static Game;
+using static Engine.Global;
 
 class GameplayDemo : IDemo
 {
@@ -11,7 +12,7 @@ class GameplayDemo : IDemo
 
     //Game World
     Transform camera = new Transform();
-    List<Entity> entities = new List<Entity>();
+    List<Transform> entities = new List<Transform>();
     Player[] players = new Player[PLAYER_COUNT];
 
     //Play variables
@@ -38,9 +39,9 @@ class GameplayDemo : IDemo
                 {
                     for (int i = 0; i < PLAYER_COUNT; i++)
                     {
-                        Entity playerEntity = entities[players[i].entityID];
+                        Transform playerEntity = entities[players[i].entity_ID];
                         Vector3 velocity = Vector3.Zero;
-                        if (playerEntity.transform.position.y > 0)
+                        if (playerEntity.position.y > 0)
                         {
                             var gravity = 10;
                             players[i].y_velocity -= gravity * time_step;
@@ -51,23 +52,23 @@ class GameplayDemo : IDemo
                             bool moving = false;
                             if (keys_down[control_mappings[i, 0]])
                             {
-                                playerEntity.transform.rotation.y = (float)Math.PI;
+                                playerEntity.rotation.y = (float)Math.PI;
                                 moving = true;
                             }
                             if (keys_down[control_mappings[i, 1]])
                             {
-                                playerEntity.transform.rotation.y = 0;
+                                playerEntity.rotation.y = 0;
                                 moving = true;
                             }
 
                             if (moving)
                             {
-                                var rotation = playerEntity.transform.rotation;
+                                var rotation = playerEntity.rotation;
                                 var playerSpeed = 5f;
-                                velocity.x = Matrix4x4.TransformVector(Matrix4x4.Rotation(rotation.x, rotation.y, rotation.z), Vector3.Right).x * playerSpeed;
+                                velocity.x = TransformVector(Rotation(rotation.x, rotation.y, rotation.z), Vector3.Right).x * playerSpeed;
                             }
 
-                            if (playerEntity.transform.position.y == 0 && keys_down[control_mappings[i, 3]])
+                            if (playerEntity.position.y == 0 && keys_down[control_mappings[i, 3]])
                                 players[i].y_velocity = 10;
 
 
@@ -82,30 +83,30 @@ class GameplayDemo : IDemo
                         {
                             velocity.y = players[i].y_velocity;
                             velocity *= time_step;
-                            playerEntity.transform.position += velocity;
+                            playerEntity.position += velocity;
 
-                            if (playerEntity.transform.position.y < 0)
+                            if (playerEntity.position.y < 0)
                             {
-                                playerEntity.transform.position.y = 0;
+                                playerEntity.position.y = 0;
                                 players[i].y_velocity = 0;
                             }
 
-                            entities[players[i].entityID] = playerEntity;
+                            entities[players[i].entity_ID] = playerEntity;
                         }
 
-						//Hurt Player
-						{
-							players[i].health -= time_step * (6*i + 1);
+						// //Hurt Player
+						// {
+						// 	players[i].health -= time_step * (6*i + 1);
 
-							if(players[i].health <= 0)
-							{
-								players[i].stock--;
-								if(players[i].stock > 0)
-									players[i].health = max_health;
-								else
-									players[i].defeated = true;
-							}
-						}
+						// 	if(players[i].health <= 0)
+						// 	{
+						// 		players[i].stock--;
+						// 		if(players[i].stock > 0)
+						// 			players[i].health = max_health;
+						// 		else
+						// 			players[i].defeated = true;
+						// 	}
+						// }
                     }
 
                     //Update Camera
@@ -113,7 +114,7 @@ class GameplayDemo : IDemo
                         float average_x = 0;
                         foreach (var player in players)
                         {
-                            average_x += entities[player.entityID].transform.position.x;
+                            average_x += entities[player.entity_ID].position.x;
                         }
                         average_x /= PLAYER_COUNT;
 
@@ -185,11 +186,11 @@ class GameplayDemo : IDemo
                 {
                     //DrawTransform
                     {
-                        Transform t = entities[i].transform;
-                        Matrix4x4 m = t.GetMatrix();
-                        m = Matrix4x4.Concat(m, camera.GetMatrix());
+                        Transform t = entities[i];
+                        Matrix4x4 m = GetMatrix(t);
+                        m = Concat(m, GetMatrix(camera));
 
-                        Vector3 center = Matrix4x4.TransformVector(m, Vector3.Zero) * PIXELS_PER_UNIT;
+                        Vector3 center = TransformVector(m, Vector3.Zero) * PIXELS_PER_UNIT;
                         graphics.FillEllipse(new SolidBrush(player_colors[i]), center.x - PIXELS_PER_UNIT / 8, center.y - PIXELS_PER_UNIT / 8, PIXELS_PER_UNIT / 4, PIXELS_PER_UNIT / 4);
                     }
                 }
@@ -297,13 +298,13 @@ class GameplayDemo : IDemo
 
         for (int i = 0; i < PLAYER_COUNT; i++)
         {
-            Entity entity = new Entity();
-            entity.transform.position.x = leftmost_position + i * distance_apart;
-            entity.transform.scale = Vector3.One;
+            Transform entity = new Transform();
+            entity.position.x = leftmost_position + i * distance_apart;
+            entity.scale = Vector3.One;
 
             players[i].health = max_health;
             players[i].defeated = false;
-            players[i].entityID = entities.Count;
+            players[i].entity_ID = entities.Count;
 			players[i].stock = 5;
             entities.Add(entity);
         }
@@ -313,7 +314,7 @@ class GameplayDemo : IDemo
             keys_stale[i] = false;
         }
 
-        camera.position = new Vector3(0, -3, 0);
+        camera.position = new Vector3 { x = 0, y = -3, z = 0 };
         camera.scale = Vector3.One;
         stopwatch.Start();
     }

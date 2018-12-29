@@ -44,8 +44,8 @@ class Game
     };
 
     IDemo demo;
-	IDemo[] demos = new IDemo[]{new GameplayDemo(), new AnimationCurveTest(), new AvatarDemo()};
-	int demo_index;
+	IDemo[] demos = new IDemo[]{new GameplayDemo(), new AnimationCurveTest(), new AvatarDemo(), new HitBoxDemo()};
+	int demo_index = 3;
     public static Transform[] transforms;
 
     Game()
@@ -72,7 +72,7 @@ class Game
 
         //Start Game Loop
         {
-            demo = demos[0];
+            demo = demos[demo_index];
             Application.Idle += GameLoop;
             stopwatch.Start();
             Application.Run(window);
@@ -83,22 +83,21 @@ class Game
     void GameLoop(object sender, EventArgs e)
     {
         while (WindowIsIdle())
-        {        
-
+        {
             //Cycle Through Demos
             {
                 if (KeyDownFresh(Keys.Tab))
                 {
                     demo_index = (demo_index + 1) % demos.Length;
-                    demo = demos[demo_index];
                 }
                 else if (KeyDownFresh(Keys.Z))
                 {
                     demo_index--;
                     if(demo_index < 0)
                         demo_index+= demos.Length;
-                    demo = demos[demo_index];
                 }
+
+                demo = demos[demo_index];
             }
 
             //Set TimeStep
@@ -142,7 +141,7 @@ class Game
     }
 
     public static bool KeyDownFresh(Keys key) { return keys_down[(int)key] && !keys_stale[(int)key]; }
-
+	public static bool KeyDown(Keys key) { return keys_down[(int)key];}
     int i = 0;
     bool WindowIsIdle()
     {
@@ -151,9 +150,9 @@ class Game
 		    return PeekMessage(out result, IntPtr.Zero, 0, 0, 0) == 0;
         #else
         if(i++ == 0)
-        	return false;
+        	return true;
         i = 0;
-        return true;
+        return false;
         #endif
     }
 
