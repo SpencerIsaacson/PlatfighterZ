@@ -44,8 +44,9 @@ class Game
     };
 
     IDemo demo;
-	IDemo[] demos = new IDemo[]{new GameplayDemo(), new AnimationCurveTest(), new AvatarDemo(), new HitBoxDemo()};
-	int demo_index = 3;
+	IDemo[] demos = new IDemo[]{new GameplayDemo(), new AnimationCurveTest(), new AvatarDemo(), new HitBoxDemo(), new MeshDemo()};
+	int demo_index = 4;
+
     public static Transform[] transforms;
 
     Game()
@@ -62,6 +63,7 @@ class Game
         {
             graphics_buffer = BufferedGraphicsManager.Current.Allocate(window.CreateGraphics(), window.DisplayRectangle);
             graphics = graphics_buffer.Graphics;
+			graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
         }
 
         //Bind Input

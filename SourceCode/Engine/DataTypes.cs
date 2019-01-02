@@ -31,19 +31,73 @@ namespace Engine
 		public float right_handle_y;
     }
 
+    public struct Vector2
+    {
+        public float x, y;
+
+        public static readonly Vector2 Right = new Vector2 { x = 1, y = 0 };
+        public static readonly Vector2 Up = new Vector2 { x = 0, y = 1 };
+        public static readonly Vector2 Zero = new Vector2 { x = 0, y = 0 };
+        public static readonly Vector2 One = new Vector2 { x = 1, y = 1 };
+
+        public static Vector2 operator + (Vector2 a, Vector2 b) { return new Vector2 { x = a.x + b.x, y = a.y + b.y }; }
+        public static Vector2 operator - (Vector2 a, Vector2 b) { return new Vector2 { x = a.x - b.x, y = a.y - b.y }; }
+        public static Vector2 operator * (Vector2 v, float s) { return new Vector2 { x = v.x * s, y = v.y * s }; }
+        public static Vector2 operator / (Vector2 v, float s) { return new Vector2 { x = v.x / s, y = v.y / s }; }
+    }
+
     public struct Vector3
     {
         public float x, y, z;
 
+        public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
+
         public static readonly Vector3 Right = new Vector3 { x = 1, y = 0, z = 0 };
         public static readonly Vector3 Up = new Vector3 { x = 0, y = 1, z = 0 };
+        public static readonly Vector3 Forward = new Vector3 { x = 0, y = 0, z = 1 };
         public static readonly Vector3 Zero = new Vector3 { x = 0, y = 0, z = 0 };
         public static readonly Vector3 One = new Vector3 { x = 1, y = 1, z = 1 };
 
+        public static Vector3 operator - (Vector3 v) { return new Vector3 { x = -v.x, y = -v.y, z = -v.z }; }
         public static Vector3 operator + (Vector3 a, Vector3 b) { return new Vector3 { x = a.x + b.x, y = a.y + b.y, z = a.z + b.z }; }
         public static Vector3 operator - (Vector3 a, Vector3 b) { return new Vector3 { x = a.x - b.x, y = a.y - b.y, z = a.z - b.z }; }
         public static Vector3 operator * (Vector3 v, float s) { return new Vector3 { x = v.x * s, y = v.y * s, z = v.z * s }; }
         public static Vector3 operator / (Vector3 v, float s) { return new Vector3 { x = v.x / s, y = v.y / s, z = v.z / s }; }
+		
+        
+        public Vector3 Normalized() { return this / Magnitude(); }
+        public float Magnitude() { return (float)Sqrt(x * x + y * y + z * z); }
+        
+		public static float DotProduct(Vector3 a, Vector3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+		
+        public static Vector3 CrossProduct(Vector3 a, Vector3 b) 
+		{
+			return new Vector3()
+			{
+				x = a.y * b.z - a.z * b.y,
+				y = a.z * b.x - a.x * b.z,
+				z = a.x * b.y - a.y * b.x,
+			};
+		}
+
+        public override string ToString()
+        {
+            return $"[{x}, {y}, {z}]";
+        }
+    }
+
+
+    public struct Vector4
+    {
+        public float x, y, z, w;
+
+        public Vector4(float x, float y, float z, float w) 
+        { 
+            this.x = x; 
+            this.y = y; 
+            this.z = z; 
+            this.w = w; 
+        }
     }
 
     public struct Matrix4x4
@@ -77,6 +131,12 @@ namespace Engine
 
         public Matrix4x4 Concat(Matrix4x4 b) { return Engine.Global.Concat(this, b); }
     }
+
+	public struct Mesh
+	{
+		public Vector3[] vertices;
+		public int[] indices;
+	}
 
     interface IDemo
     {

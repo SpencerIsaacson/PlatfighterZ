@@ -3,11 +3,14 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using static System.Math;
+using static Game;
 
 namespace Engine
 {
     public static class Global
     {
+        public const float Tau = 6.28318530717958f;
+
         #region Linear Algebra
 
         
@@ -16,7 +19,7 @@ namespace Engine
             return Matrix4x4.identity
                 .Concat(Scale(t.scale.x, t.scale.y, t.scale.z))
                 .Concat(Rotation(t.rotation.x, t.rotation.y, t.rotation.z))
-                .Concat(Translation(t.position.x, t.position.y, t.position.z));//TODO pre-concatenate at compile-time
+                .Concat(Translation(t.position.x, t.position.y, t.position.z));//TODO pre-concatenate
         }
 
 
@@ -73,8 +76,7 @@ namespace Engine
             return new Matrix4x4(new float[] {x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1 });
         }
 
-
-        public static Matrix4x4 Rotation(float x, float y, float z)
+        public static Matrix4x4 Rotation_old(float x, float y, float z)
         {
             return new Matrix4x4()
             {
@@ -91,10 +93,36 @@ namespace Engine
             };
         }
 
-
-        public static Matrix4x4 Perspective(float d)
+        public static Matrix4x4 Rotation(float x, float y, float z)
         {
-            return new Matrix4x4() { m11 = 1, m22 = 1, m33 = 1, m34 = 1 / d };
+            return new Matrix4x4()
+            {
+                m11 = (float)(Cos(y) * Cos(z) - Sin(y) * Sin(x) * Sin(z)),
+                m12 = (float)(Cos(y) * Sin(z) + Sin(y) * Sin(x) * Cos(z)),
+                m13 = (float)(-Sin(y) * Cos(x)),
+                m21 = (float)(-Sin(z) * Cos(x)),
+                m22 = (float)(Cos(z) * Cos(x)),
+                m23 = (float)(Sin(x)),
+                m31 = (float)(Sin(y) * Cos(z) + Cos(y) * Sin(x) * Sin(z)),
+                m32 = (float)(Sin(z) * Sin(y) - Cos(y) * Sin(x) * Cos(z)),
+                m33 = (float)(Cos(y) * Cos(x)),
+                m44 = 1
+            };
+        }
+
+        public static Matrix4x4 Perspective(float near, float far, float field_of_view)
+        {
+            float aspect_ratio = HEIGHT / (float)WIDTH;
+            float zoom = (float)(1/Tan(field_of_view/2));
+            float q = far / (far - near);
+            
+            return new Matrix4x4(new float[]
+            {
+                aspect_ratio * zoom, 0, 0, 0,
+                0,-zoom,0,0,
+                0,0,q,near * q,
+                0,0,1,0
+            });
         }
 
 
@@ -104,11 +132,20 @@ namespace Engine
             { 
                 x = m.m11 * v.x + m.m21 * v.y + m.m31 * v.z + m.m41, 
                 y = m.m12 * v.x + m.m22 * v.y + m.m32 * v.z + m.m42, 
-                z = m.m13 * v.x + m.m23 * v.y + m.m33 * v.z + m.m43
+                z = m.m13 * v.x + m.m23 * v.y + m.m33 * v.z + m.m43,
             };
         }
         
-
+        public static Vector4 TransformVector(Matrix4x4 m, Vector4 v)
+        {
+            return new Vector4
+            { 
+                x = m.m11 * v.x + m.m21 * v.y + m.m31 * v.z + m.m41 * v.w, 
+                y = m.m12 * v.x + m.m22 * v.y + m.m32 * v.z + m.m42 * v.w, 
+                z = m.m13 * v.x + m.m23 * v.y + m.m33 * v.z + m.m43 * v.w,
+                w = m.m14 * v.x + m.m24 * v.y + m.m34 * v.z + m.m44 * v.w,
+            };
+        }
         #endregion
 
         #region Animation
@@ -180,6 +217,34 @@ namespace Engine
     
         #region FileIO
 
+        public static Mesh LoadMesh(string file_name)
+        {
+            using (StreamReader reader = new StreamReader("Assets/" + file_name))
+            {
+                List<Vector3> vertexList = new List<Vector3>();
+                List<int> indexList = new List<int>();
+                
+                string line;
+                while ( ( line = reader.ReadLine() ) != null)
+                {
+                    var subs = line.Split(' ');
+
+                    switch(subs[0])
+                    {
+                        case "v":
+                            vertexList.Add( new Vector3 { x = float.Parse(subs[1]), y = float.Parse(subs[2]), z = float.Parse( subs[3] ) } );
+                            break;
+                        case "f":
+                            indexList.Add(int.Parse(subs[1]) - 1);
+                            indexList.Add(int.Parse(subs[2]) - 1);
+                            indexList.Add(int.Parse(subs[3]) - 1);
+                            break;
+                    }
+                }
+
+                return new Mesh() { vertices = vertexList.ToArray(), indices = indexList.ToArray() };
+            }            
+        }    
 
         public static void SaveKeyFrames(string path, KeyFrame[] curve)
         {

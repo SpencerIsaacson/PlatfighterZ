@@ -52,7 +52,6 @@ class AnimationCurveTest : IDemo
 			AnimateProperty(key_frames.ToArray(), frame, out sample);
 		}
 
-        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
         graphics.FillRectangle(Brushes.Black, window.ClientRectangle);
         graphics.DrawString(frame.ToString("F2") + ": " + sample.ToString(), Control.DefaultFont, Brushes.White, 0, 0);
         graphics.TranslateTransform(WIDTH / 2, HEIGHT / 2);

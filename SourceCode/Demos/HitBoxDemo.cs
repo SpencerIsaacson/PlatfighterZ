@@ -1,25 +1,57 @@
 using Engine;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 using static Game;
 
 class HitBoxDemo: IDemo
 {
-	float x1 = 0 , y1 = 0, x2 = 0, y2 = 0;
+	HitBox a = new HitBox(){ radius = 10 };
+	HitBox b = new HitBox(){ radius = 32 };
+	static Pen pen = new Pen(Color.White, 2f);
+	
 	public void Update()
 	{
-		if(KeyDown(Keys.D))
-			x1++;		
-		
+		var bar = 100 * time_step;
+		var foo = 10 * time_step;
 
+		if(KeyDown(Keys.D))
+			a.position.x += bar;
+		if(KeyDown(Keys.A))
+			a.position.x -= bar;
+		if(KeyDown(Keys.S))
+			a.position.y += bar;
+		if(KeyDown(Keys.W))
+			a.position.y -= bar;
+		if(KeyDown(Keys.Q))
+			a.radius -= foo;
+		if(KeyDown(Keys.E))
+			a.radius += foo;
+	
 		//Render
 		{
+			var d = a.position - b.position;
+			var distance = Math.Sqrt(d.x*d.x + d.y*d.y);
+			pen.Color = (distance <= (a.radius + b.radius)) ? Color.Red : Color.Green;
 			graphics.ResetTransform();
-			graphics.FillRectangle(Brushes.Black, window.ClientRectangle);
+			graphics.Clear(Color.Black);
+
 			graphics.TranslateTransform(WIDTH / 2,HEIGHT / 2);
-			graphics.DrawEllipse(Pens.Green, x1 - 32, y1 - 32, 64, 64);
-			graphics.DrawEllipse(Pens.Green, x2 - 32, y2 - 32, 64, 64);
+			a.Draw();
+			b.Draw();
 			graphics_buffer.Render();
 		}
+	}
+
+	struct HitBox
+	{
+		public Vector2 position;
+		public float radius;
+		
+		public void Draw()
+		{
+			graphics.DrawEllipse(pen, position.x - radius, position.y - radius, radius * 2, radius * 2);
+		}
+
 	}
 }
