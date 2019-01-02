@@ -36,7 +36,9 @@ namespace Engine
         public float x, y;
 
         public static readonly Vector2 Right = new Vector2 { x = 1, y = 0 };
+        public static readonly Vector2 Left = new Vector2 { x = -1, y = 0 };
         public static readonly Vector2 Up = new Vector2 { x = 0, y = 1 };
+        public static readonly Vector2 Down = new Vector2 { x = 0, y = -1 };
         public static readonly Vector2 Zero = new Vector2 { x = 0, y = 0 };
         public static readonly Vector2 One = new Vector2 { x = 1, y = 1 };
 
@@ -53,8 +55,11 @@ namespace Engine
         public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
 
         public static readonly Vector3 Right = new Vector3 { x = 1, y = 0, z = 0 };
+        public static readonly Vector3 Left = new Vector3 { x = -1, y = 0, z = 0 };
         public static readonly Vector3 Up = new Vector3 { x = 0, y = 1, z = 0 };
+        public static readonly Vector3 Down = new Vector3 { x = 0, y = -1, z = 0 };
         public static readonly Vector3 Forward = new Vector3 { x = 0, y = 0, z = 1 };
+        public static readonly Vector3 Backward = new Vector3 { x = 0, y = 0, z = -1 };
         public static readonly Vector3 Zero = new Vector3 { x = 0, y = 0, z = 0 };
         public static readonly Vector3 One = new Vector3 { x = 1, y = 1, z = 1 };
 
