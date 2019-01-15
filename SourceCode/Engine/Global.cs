@@ -75,23 +75,7 @@ namespace Engine
         {
             return new Matrix4x4(new float[] {x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1 });
         }
-
-        public static Matrix4x4 Rotation_old(float x, float y, float z)
-        {
-            return new Matrix4x4()
-            {
-                m11 = (float)(Cos(y) * Cos(z) + Sin(y) * Sin(x) * Sin(z)),
-                m12 = (float)(-Cos(y) * Sin(z) + Sin(y) * Sin(x) * Cos(z)),
-                m13 = (float)(Sin(y) * Cos(x)),
-                m21 = (float)(Sin(z) * Cos(x)),
-                m22 = (float)(Cos(z) * Cos(x)),
-                m23 = (float)(-Sin(x)),
-                m31 = (float)(-Sin(y) * Cos(z) + Cos(y) * Sin(x) * Sin(z)),
-                m32 = (float)(Sin(z) * Sin(y) + Cos(y) * Sin(x) * Cos(z)),
-                m33 = (float)(Cos(y) * Cos(x)),
-                m44 = 1
-            };
-        }
+        
 
         public static Matrix4x4 Rotation(float x, float y, float z)
         {
@@ -328,6 +312,7 @@ namespace Engine
                 return hierarchy.ToArray();
             }        
         }
+        
 
         #endregion
     }

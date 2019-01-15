@@ -1,0 +1,64 @@
+Transform ID: 1
+POSY
+1: 0
+30: -0.07
+60: 0
+Transform ID: 1
+ROTY
+1: 0.3
+60: 0.3
+Transform ID: 2
+ROTY
+1: 0
+30: 0.3
+60: 0
+Transform ID: 4
+ROTZ
+1: 1.570796
+30: 1.256637
+60: 1.570796
+Transform ID: 4
+ROTY
+1: 1.047198
+30: 0.7853982
+60: 1.047198
+Transform ID: 5
+ROTY
+1: 1.570796
+30: 2.094395
+60: 1.570796
+Transform ID: 6
+ROTZ
+1: -1.570796
+30: -1.256637
+60: -1.570796
+Transform ID: 6
+ROTY
+1: -1.047198
+30: -0.7853982
+60: -1.047198
+Transform ID: 7
+ROTY
+1: -1.570796
+30: -2.094395
+60: -1.570796
+Transform ID: 8
+ROTX
+1: 0
+30: -0.3
+60: 0
+Transform ID: 9
+ROTX
+1: 0
+30: 0.6
+60: 0
+Transform ID: 11
+ROTX
+1: 0.3
+30: 0
+60: 0.3
+Transform ID: 12
+ROTX
+1: 0
+30: 0.6
+60: 0

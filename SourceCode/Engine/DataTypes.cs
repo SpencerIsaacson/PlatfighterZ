@@ -13,6 +13,7 @@ namespace Engine
         public float y_velocity;
     }
 
+    
     public struct Transform
     {
         public int parent;
@@ -20,7 +21,8 @@ namespace Engine
         public Vector3 rotation;
         public Vector3 scale;
     }
-
+    
+    
     public struct KeyFrame
     {
         public float frame;
@@ -31,6 +33,7 @@ namespace Engine
 		public float right_handle_y;
     }
 
+    
     public struct Vector2
     {
         public float x, y;
@@ -47,6 +50,7 @@ namespace Engine
         public static Vector2 operator * (Vector2 v, float s) { return new Vector2 { x = v.x * s, y = v.y * s }; }
         public static Vector2 operator / (Vector2 v, float s) { return new Vector2 { x = v.x / s, y = v.y / s }; }
     }
+
 
     public struct Vector3
     {
@@ -105,6 +109,7 @@ namespace Engine
         }
     }
 
+
     public struct Matrix4x4
     {
         public float m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34, m41, m42, m43, m44;
@@ -137,11 +142,13 @@ namespace Engine
         public Matrix4x4 Concat(Matrix4x4 b) { return Engine.Global.Concat(this, b); }
     }
 
+
 	public struct Mesh
 	{
 		public Vector3[] vertices;
 		public int[] indices;
 	}
+
 
     interface IDemo
     {

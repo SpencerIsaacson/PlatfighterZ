@@ -7,7 +7,18 @@ using System.Windows.Forms;
 
 class Game
 {
-    static void Main() { new Game(); }
+    static void Main() 
+    { 
+        try
+        {
+            new Game();
+        }
+        catch(Exception e)
+        {
+            Console.WriteLine(e.Message);
+            Console.ReadLine();
+        }
+    }
 
     //Resolution
     public static int PIXELS_PER_UNIT = 64;
@@ -45,7 +56,7 @@ class Game
 
     IDemo demo;
 	IDemo[] demos = new IDemo[]{new GameplayDemo(), new AnimationCurveTest(), new AvatarDemo(), new HitBoxDemo(), new MeshDemo()};
-	int demo_index = 4;
+	int demo_index = 2;
 
     public static Transform[] transforms;
 
@@ -63,7 +74,6 @@ class Game
         {
             graphics_buffer = BufferedGraphicsManager.Current.Allocate(window.CreateGraphics(), window.DisplayRectangle);
             graphics = graphics_buffer.Graphics;
-			graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
         }
 
         //Bind Input
