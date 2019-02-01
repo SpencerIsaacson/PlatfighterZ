@@ -1,6 +1,5 @@
-﻿using System.Drawing;
+﻿using System.Collections.Generic;
 using static System.Math;
-using static Engine.Global;
 
 namespace Engine
 {
@@ -13,16 +12,27 @@ namespace Engine
         public float y_velocity;
     }
 
-    
-    public struct Transform
+    struct HitBox
     {
-        public int parent;
-        public Vector3 position;
-        public Vector3 rotation;
-        public Vector3 scale;
+        public int transform_id;
+        public float radius;
     }
-    
-    
+
+    struct Animator
+    {
+        public float current_frame;
+        public List<AnimationCurve> current_animation;
+    }
+
+
+    struct AnimationCurve
+    {
+        public int transform_id;
+        public byte property_tag;
+        public KeyFrame[] keyframes;
+    }
+
+
     public struct KeyFrame
     {
         public float frame;
@@ -31,6 +41,26 @@ namespace Engine
 		public float left_handle_y;
 		public float right_handle_x;
 		public float right_handle_y;
+    }
+    
+    
+    public struct Transform
+    {
+        public int parent;
+        public Vector3 position;
+        public Vector3 rotation;
+        public Vector3 scale;
+
+        public static Transform Default()
+        {
+            return new Transform()
+            {
+                parent = -1,
+                position = Vector3.Zero,
+                rotation = Vector3.Zero,
+                scale = Vector3.One
+            };
+        }
     }
 
     
@@ -150,7 +180,7 @@ namespace Engine
 	}
 
 
-    interface IDemo
+    interface IGameState
     {
         void Update();
     }

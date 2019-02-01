@@ -1,25 +1,12 @@
 ﻿using Engine;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 class Game
 {
-    static void Main() 
-    { 
-        try
-        {
-            new Game();
-        }
-        catch(Exception e)
-        {
-            Console.WriteLine(e.Message);
-            Console.ReadLine();
-        }
-    }
-
     //Resolution
     public static int PIXELS_PER_UNIT = 64;
     public static int WIDTH = 1024;
@@ -29,36 +16,49 @@ class Game
     public static Form window = new Form();
     public static BufferedGraphics graphics_buffer;
     public static Graphics graphics;
+    public static StringFormat centered_format = new StringFormat() { LineAlignment = StringAlignment.Center, Alignment = StringAlignment.Center, };
 
     //Timing
+    public const float TIME_RECALCULATION_INTERVAL = 1;
+    public const float TARGET_FRAMERATE = 60;
+    public const float STANDARD_TIMESTEP = 1 / TARGET_FRAMERATE;
     public static Stopwatch stopwatch = new Stopwatch();
-    public static bool fixed_framerate = false;
-    public static float TARGET_FRAMERATE = 60;
-    public static float STANDARD_TIMESTEP = 1 / TARGET_FRAMERATE;
-    public static float time_step;
+    public static float previous_time;
     public static float delta_time;
+    public static float time_step;
     public static float time_since_last_frame;
     public static float frames_per_second;
-    public static float portion_of_current_second_complete;
+    public static float time_since_timing_recalculated;
+    public static bool fixed_framerate = false;
     public static int frames_since_last_second;
-    public static float previous_time;
 
-    //Input
-    public static bool[] keys_down = new bool[256];
-    public static bool[] keys_stale = new bool[256]; //whether a key has been pressed for more than one consecutive frame
-    public static int[,] control_mappings = //each row represents a player's control scheme
+    IGameState current_game_state;
+    IGameState[] game_states = new IGameState[] 
     {
-            {(int)Keys.A,       (int)Keys.D ,       (int)Keys.S,        (int)Keys.W,       (int)Keys.Q},
-            {(int)Keys.J,       (int)Keys.L,        (int)Keys.K,        (int)Keys.I,       (int)Keys.U},
-            {(int)Keys.Left,    (int)Keys.Right,    (int)Keys.Down,     (int)Keys.Up,      (int)Keys.Back},
-            {(int)Keys.NumPad4, (int)Keys.NumPad6,  (int)Keys.NumPad5,  (int)Keys.NumPad8, (int)Keys.NumPad7}
+        new TitleScreen(),
+        new CharacterSelect(),
+        new GameplayDemo(),
+        new AnimationCurveTest(),
+        new AvatarDemo(),
+        new HitBoxDemo(),
+        new MeshDemo(),
+        new PlatformerPhysicsTest(),
     };
 
-    IDemo demo;
-	IDemo[] demos = new IDemo[]{new GameplayDemo(), new AnimationCurveTest(), new AvatarDemo(), new HitBoxDemo(), new MeshDemo()};
-	int demo_index = 2;
+    public static int game_state_index = 5;
 
-    public static Transform[] transforms;
+    static void Main()
+    {
+        try
+        {
+            new Game();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            Console.ReadLine();
+        }
+    }
 
     Game()
     {
@@ -67,7 +67,7 @@ class Game
             window.ClientSize = new Size(WIDTH, HEIGHT);
             window.FormBorderStyle = FormBorderStyle.FixedSingle;
             window.MaximizeBox = false;
-			window.Text = "Platfighter Z";
+            window.Text = "Platfighter Z";
         }
 
         //Initialize Graphics
@@ -76,15 +76,9 @@ class Game
             graphics = graphics_buffer.Graphics;
         }
 
-        //Bind Input
-        {
-            window.KeyDown += (s, e) => { keys_down[(int)e.KeyCode] = true; };
-            window.KeyUp += (s, e) => { keys_down[(int)e.KeyCode] = keys_stale[(int)e.KeyCode] = false; };
-        }
-
         //Start Game Loop
         {
-            demo = demos[demo_index];
+            current_game_state = game_states[game_state_index];
             Application.Idle += GameLoop;
             stopwatch.Start();
             Application.Run(window);
@@ -96,91 +90,84 @@ class Game
     {
         while (WindowIsIdle())
         {
-            //Cycle Through Demos
+            if (!fixed_framerate || time_since_last_frame > STANDARD_TIMESTEP)
             {
-                if (KeyDownFresh(Keys.Tab))
+                //Set TimeStep
                 {
-                    demo_index = (demo_index + 1) % demos.Length;
-                }
-                else if (KeyDownFresh(Keys.Z))
-                {
-                    demo_index--;
-                    if(demo_index < 0)
-                        demo_index+= demos.Length;
+                    if (fixed_framerate)
+                        time_step = STANDARD_TIMESTEP;
+                    else
+                        time_step = delta_time;
                 }
 
-                demo = demos[demo_index];
-            }
-
-            //Set TimeStep
-            {
-                if (fixed_framerate)
-                    time_step = STANDARD_TIMESTEP;
-                else
-                    time_step = delta_time;
-            }
-            
-            //Update The Game
-            {
-                if (!fixed_framerate || time_since_last_frame > STANDARD_TIMESTEP)
+                //Update Input Devices
                 {
-
-                    frames_since_last_second++;
-                    demo.Update();
-                    time_since_last_frame = 0;
+                    Input.PollKeyboard();
                 }
 
-                //Set Stale Keys
+                //Cycle Through Demos
                 {
-                    for (int i = 0; i < keys_stale.Length; i++)
-                        keys_stale[i] = keys_down[i];
+                    if (Input.KeyDownFresh(Keys.Tab))
+                    {
+                        fixed_framerate = false;
+                        game_state_index = (game_state_index + 1) % game_states.Length;
+                    }
+                    else if (Input.KeyDownFresh(Keys.Z))
+                    {
+                        game_state_index--;
+                        if (game_state_index < 0)
+                            game_state_index += game_states.Length;
+                        fixed_framerate = false;
+                    }
+
+                    current_game_state = game_states[game_state_index];
                 }
+
+                frames_since_last_second++;
+                current_game_state.Update();
+                graphics_buffer.Render();
+                time_since_last_frame = 0;
             }
 
             //Update Timing
             {
                 delta_time = (float)(stopwatch.Elapsed.TotalSeconds - previous_time);
-                portion_of_current_second_complete += delta_time;
                 time_since_last_frame += delta_time;
-                if (portion_of_current_second_complete >= 1)
+                time_since_timing_recalculated += delta_time;
+
+                if (time_since_timing_recalculated >= TIME_RECALCULATION_INTERVAL)
                 {
-                    frames_per_second = frames_since_last_second / portion_of_current_second_complete;
-                    portion_of_current_second_complete = frames_since_last_second = 0;
+                    frames_per_second = frames_since_last_second / time_since_timing_recalculated;
+                    time_since_timing_recalculated = frames_since_last_second = 0;
                 }
                 previous_time = (float)stopwatch.Elapsed.TotalSeconds;
             }
         }
     }
 
-    public static bool KeyDownFresh(Keys key) { return keys_down[(int)key] && !keys_stale[(int)key]; }
-	public static bool KeyDown(Keys key) { return keys_down[(int)key];}
-    int i = 0;
+
     bool WindowIsIdle()
     {
-        #if Windows
-		    NativeMessage result;
-		    return PeekMessage(out result, IntPtr.Zero, 0, 0, 0) == 0;
-        #else
-        if(i++ == 0)
-        	return true;
-        i = 0;
-        return false;
-        #endif
+#if Windows
+        return PeekMessage(out NativeMessage result, IntPtr.Zero, 0, 0, 0) == 0;
+#else
+        throw new NotImplementedException();//TODO
+#endif
     }
 
-    #if Windows
-		//Imports a native Win32 function for checking the windows message queue
-		[System.Runtime.InteropServices.DllImport("User32.dll")]
-		static extern int PeekMessage(out NativeMessage message, IntPtr handle, uint filterMin, uint filterMax, uint remove);
+#if Windows
+    //Imports a native Win32 function for checking the windows message queue
+    [DllImport("User32.dll")]
+    static extern int PeekMessage(out NativeMessage message, IntPtr handle, uint filterMin, uint filterMax, uint remove);
 
-		struct NativeMessage
-		{
-		    IntPtr Handle;
-		    uint Message;
-		    IntPtr WParameter;
-		    IntPtr LParameter;
-		    uint Time;
-		    Point Location;
-		}
-    #endif
+    struct NativeMessage
+    {
+        IntPtr Handle;
+        uint Message;
+        IntPtr WParameter;
+        IntPtr LParameter;
+        uint Time;
+        Point Location;
+    }
+#endif
 }

@@ -1,8 +1,0 @@
-#!/bin/bash
-csc -recurse:SourceCode/*.cs -nologo
-
-if [ $? -eq 0 ]
-then
-	mono Game.exe
-fi
-

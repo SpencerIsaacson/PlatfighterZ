@@ -1,21 +1,19 @@
 ﻿using Engine;
-using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
-using System.Collections.Generic;
 using static Engine.Global;
 using static Game;
 
-class AnimationCurveTest : IDemo
+class AnimationCurveTest : IGameState
 {
-
     List<KeyFrame> key_frames = new List<KeyFrame>();
 
     public AnimationCurveTest()
     {
         for(int i = 1; i < 6; i ++)
         {
-            key_frames.Add(new KeyFrame { frame = i, value = 0, left_handle_x = -.25f,  left_handle_y = 2f, right_handle_x = .25f,right_handle_y = 2f });
+            key_frames.Add(new KeyFrame { frame = i, value = 0, left_handle_x = -.25f, left_handle_y = 2f, right_handle_x = .25f, right_handle_y = 2f });
         }
 
         var foo = key_frames[key_frames.Count-1];
@@ -45,11 +43,11 @@ class AnimationCurveTest : IDemo
 
     public void Update()
     {
-		if(!keys_down[(int)Keys.Space]) // if not paused
+		if(!Input.KeyDown(Keys.Space)) // if not paused
 		{
 		    elapsed_time += time_step;
 			frame = 1 + elapsed_time % (6);
-			AnimateProperty(key_frames.ToArray(), frame, out sample);
+			AnimateProperty(key_frames.ToArray(), frame, ref sample);
 		}
 
         graphics.FillRectangle(Brushes.Black, window.ClientRectangle);
@@ -105,7 +103,6 @@ class AnimationCurveTest : IDemo
         PointF sample_point = new PointF(frame * PIXELS_PER_UNIT, sample * PIXELS_PER_UNIT);
         graphics.FillEllipse(Brushes.Red, sample_point.X - width / 2, sample_point.Y - width / 2, width, width);
         
-        graphics_buffer.Render();
         graphics.ResetTransform();
     }
 }

@@ -8,7 +8,7 @@ using System.Windows.Forms;
 using static Engine.Global;
 using static Game;
 
-class MeshDemo : IDemo
+class MeshDemo : IGameState
 {
 	Mesh mesh;
 	Transform camera = new Transform() { position = Vector3.Forward * -10, scale = Vector3.One };
@@ -29,21 +29,21 @@ class MeshDemo : IDemo
 			float camera_rotation_speed = Tau/4 * time_step;
 			float cube_rotation_speed = Tau / 16 * time_step;
 			
-			if(KeyDown(Keys.E))
+			if(Input.KeyDown(Keys.E))
 				camera.rotation.y += camera_rotation_speed;
-			if(KeyDown(Keys.Q))
+			if(Input.KeyDown(Keys.Q))
 				camera.rotation.y -= camera_rotation_speed;
-			if(KeyDown(Keys.W))
+			if(Input.KeyDown(Keys.W))
 				camera.position.z += camera_move_speed;
-			if(KeyDown(Keys.A))
+			if(Input.KeyDown(Keys.A))
 				camera.position.x -= camera_move_speed;
-			if(KeyDown(Keys.S))
+			if(Input.KeyDown(Keys.S))
 				camera.position.z -= camera_move_speed;
-			if(KeyDown(Keys.D))
+			if(Input.KeyDown(Keys.D))
 				camera.position.x += camera_move_speed;
-			if(KeyDown(Keys.X))
+			if(Input.KeyDown(Keys.X))
 				camera.position.y += camera_move_speed;
-			if(KeyDown(Keys.C))
+			if(Input.KeyDown(Keys.C))
 				camera.position.y -= camera_move_speed;
 
 			cube_transform.rotation += new Vector3(cube_rotation_speed, cube_rotation_speed / 2, cube_rotation_speed / 3);
@@ -52,6 +52,7 @@ class MeshDemo : IDemo
 
 		//Render
         {
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
 			graphics.ResetTransform();
             graphics.Clear(Color.Black);
 
@@ -201,8 +202,6 @@ class MeshDemo : IDemo
 				graphics.DrawString(camera.position.ToString(), Control.DefaultFont, Brushes.White, 0, 0);
 				graphics.DrawString(camera.rotation.ToString(), Control.DefaultFont, Brushes.White, 0, 32);
             }
-
-			graphics_buffer.Render();
         }
 	}
 

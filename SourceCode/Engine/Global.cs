@@ -13,7 +13,7 @@ namespace Engine
 
         #region Linear Algebra
 
-        
+
         public static Matrix4x4 GetMatrix(Transform t)
         {
             return Matrix4x4.identity
@@ -23,14 +23,15 @@ namespace Engine
         }
 
 
-        public static Matrix4x4 WorldSpaceMatrix(Transform t)
+        public static Matrix4x4 WorldSpaceMatrix(Transform t, Transform[] world)
         {
             Matrix4x4 m = GetMatrix(t);
             while (t.parent != -1)
             {
-                m = Concat(m, GetMatrix(Game.transforms[t.parent]));
-                t = Game.transforms[t.parent];
+                m = Concat(m, GetMatrix(world[t.parent]));
+                t = world[t.parent];
             }
+
             return m;
         }
 
@@ -73,9 +74,9 @@ namespace Engine
 
         public static Matrix4x4 Scale(float x, float y, float z)
         {
-            return new Matrix4x4(new float[] {x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1 });
+            return new Matrix4x4(new float[] { x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1 });
         }
-        
+
 
         public static Matrix4x4 Rotation(float x, float y, float z)
         {
@@ -97,9 +98,9 @@ namespace Engine
         public static Matrix4x4 Perspective(float near, float far, float field_of_view)
         {
             float aspect_ratio = HEIGHT / (float)WIDTH;
-            float zoom = (float)(1/Tan(field_of_view/2));
+            float zoom = (float)(1 / Tan(field_of_view / 2));
             float q = far / (far - near);
-            
+
             return new Matrix4x4(new float[]
             {
                 aspect_ratio * zoom, 0, 0, 0,
@@ -113,19 +114,19 @@ namespace Engine
         public static Vector3 TransformVector(Matrix4x4 m, Vector3 v)
         {
             return new Vector3
-            { 
-                x = m.m11 * v.x + m.m21 * v.y + m.m31 * v.z + m.m41, 
-                y = m.m12 * v.x + m.m22 * v.y + m.m32 * v.z + m.m42, 
+            {
+                x = m.m11 * v.x + m.m21 * v.y + m.m31 * v.z + m.m41,
+                y = m.m12 * v.x + m.m22 * v.y + m.m32 * v.z + m.m42,
                 z = m.m13 * v.x + m.m23 * v.y + m.m33 * v.z + m.m43,
             };
         }
-        
+
         public static Vector4 TransformVector(Matrix4x4 m, Vector4 v)
         {
             return new Vector4
-            { 
-                x = m.m11 * v.x + m.m21 * v.y + m.m31 * v.z + m.m41 * v.w, 
-                y = m.m12 * v.x + m.m22 * v.y + m.m32 * v.z + m.m42 * v.w, 
+            {
+                x = m.m11 * v.x + m.m21 * v.y + m.m31 * v.z + m.m41 * v.w,
+                y = m.m12 * v.x + m.m22 * v.y + m.m32 * v.z + m.m42 * v.w,
                 z = m.m13 * v.x + m.m23 * v.y + m.m33 * v.z + m.m43 * v.w,
                 w = m.m14 * v.x + m.m24 * v.y + m.m34 * v.z + m.m44 * v.w,
             };
@@ -135,9 +136,9 @@ namespace Engine
         #region Animation
 
 
-        public static void AnimateProperty(KeyFrame[] curve, float frame, out float property)
+        public static void AnimateProperty(KeyFrame[] curve, float frame, ref float property)
         {
-            for(int i = 0; i < curve.Length-1; i++)
+            for (int i = 0; i < curve.Length - 1; i++)
             {
                 KeyFrame a = curve[i];
                 KeyFrame b = curve[i + 1];
@@ -147,8 +148,6 @@ namespace Engine
                     return;
                 }
             }
-
-            property = 0;
         }
 
 
@@ -161,7 +160,7 @@ namespace Engine
             PointF c3 = new PointF(b.frame + b.left_handle_x, b.value + b.left_handle_y);
             PointF c4 = new PointF(b.frame, b.value);
 
-            while(true)
+            while (true)
             {
                 PointF d = Lerp(c1, c2, t);
                 PointF e = Lerp(c2, c3, t);
@@ -170,14 +169,14 @@ namespace Engine
                 PointF h = Lerp(e, f, t);
                 PointF i = Lerp(g, h, t);
 
-                if(i.X > frame) 
+                if (i.X > frame)
                     t -= step;
-                else 
+                else
                     t += step;
-                
+
                 step /= 2;
 
-                if(Math.Abs(i.X - frame) < .001f)
+                if (Math.Abs(i.X - frame) < .001f)
                     return i.Y;
             }
         }
@@ -187,18 +186,18 @@ namespace Engine
         {
             float x = a.X + t * (b.X - a.X);
             float y = a.Y + t * (b.Y - a.Y);
-            return new PointF(x,y);
+            return new PointF(x, y);
         }
 
 
-        static float Lerp(float a,float b, float t)
+        static float Lerp(float a, float b, float t)
         {
             return a + t * (b - a);
         }
 
-        
+
         #endregion
-    
+
         #region FileIO
 
         public static Mesh LoadMesh(string file_name)
@@ -207,16 +206,16 @@ namespace Engine
             {
                 List<Vector3> vertexList = new List<Vector3>();
                 List<int> indexList = new List<int>();
-                
+
                 string line;
-                while ( ( line = reader.ReadLine() ) != null)
+                while ((line = reader.ReadLine()) != null)
                 {
                     var subs = line.Split(' ');
 
-                    switch(subs[0])
+                    switch (subs[0])
                     {
                         case "v":
-                            vertexList.Add( new Vector3 { x = float.Parse(subs[1]), y = float.Parse(subs[2]), z = float.Parse( subs[3] ) } );
+                            vertexList.Add(new Vector3 { x = float.Parse(subs[1]), y = float.Parse(subs[2]), z = float.Parse(subs[3]) });
                             break;
                         case "f":
                             indexList.Add(int.Parse(subs[1]) - 1);
@@ -227,14 +226,14 @@ namespace Engine
                 }
 
                 return new Mesh() { vertices = vertexList.ToArray(), indices = indexList.ToArray() };
-            }            
-        }    
+            }
+        }
 
         public static void SaveKeyFrames(string path, KeyFrame[] curve)
         {
             using (BinaryWriter writer = new BinaryWriter(File.Open(path, FileMode.Create)))
             {
-                for(int i = 0; i < curve.Length; i++)
+                for (int i = 0; i < curve.Length; i++)
                 {
                     writer.Write(curve[i].frame);
                     writer.Write(curve[i].value);
@@ -243,7 +242,7 @@ namespace Engine
                     writer.Write(curve[i].right_handle_x);
                     writer.Write(curve[i].right_handle_y);
                 }
-            }        
+            }
         }
 
 
@@ -252,9 +251,9 @@ namespace Engine
             using (BinaryReader reader = new BinaryReader(File.Open(path, FileMode.Open)))
             {
                 List<KeyFrame> curve = new List<KeyFrame>();
-                while(reader.BaseStream.Position != reader.BaseStream.Length)
+                while (reader.BaseStream.Position != reader.BaseStream.Length)
                 {
-                    var keyframe  = new KeyFrame();
+                    var keyframe = new KeyFrame();
                     keyframe.frame = reader.ReadSingle();
                     keyframe.value = reader.ReadSingle();
                     keyframe.left_handle_x = reader.ReadSingle();
@@ -272,7 +271,7 @@ namespace Engine
         {
             using (BinaryWriter writer = new BinaryWriter(File.Open(path, FileMode.Create)))
             {
-                for(int i = 0; i < hierarchy.Length; i++)
+                for (int i = 0; i < hierarchy.Length; i++)
                 {
                     writer.Write(hierarchy[i].parent);
                     writer.Write(hierarchy[i].position.x);
@@ -283,9 +282,9 @@ namespace Engine
                     writer.Write(hierarchy[i].rotation.z);
                     writer.Write(hierarchy[i].scale.x);
                     writer.Write(hierarchy[i].scale.y);
-                    writer.Write(hierarchy[i].scale.z);                    
+                    writer.Write(hierarchy[i].scale.z);
                 }
-            }        
+            }
         }
 
 
@@ -294,9 +293,9 @@ namespace Engine
             using (BinaryReader reader = new BinaryReader(File.Open(path, FileMode.Open)))
             {
                 List<Transform> hierarchy = new List<Transform>();
-                while(reader.BaseStream.Position != reader.BaseStream.Length)
-                {        
-                    Transform transform = new Transform();        
+                while (reader.BaseStream.Position != reader.BaseStream.Length)
+                {
+                    Transform transform = new Transform();
                     transform.parent = reader.ReadInt32();
                     transform.position.x = reader.ReadSingle();
                     transform.position.y = reader.ReadSingle();
@@ -310,9 +309,9 @@ namespace Engine
                     hierarchy.Add(transform);
                 }
                 return hierarchy.ToArray();
-            }        
+            }
         }
-        
+
 
         #endregion
     }
