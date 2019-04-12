@@ -7,6 +7,8 @@ using System.Windows.Forms;
 
 class Game
 {
+    public static FixedBuffer buffer = new FixedBuffer();
+
     //Resolution
     public static int PIXELS_PER_UNIT = 64;
     public static int WIDTH = 1024;
@@ -35,6 +37,7 @@ class Game
     IGameState current_game_state;
     IGameState[] game_states = new IGameState[] 
     {
+        new CapsuleIntersectionTest(),
         new TitleScreen(),
         new CharacterSelect(),
         new GameplayDemo(),
@@ -45,7 +48,7 @@ class Game
         new PlatformerPhysicsTest(),
     };
 
-    public static int game_state_index = 5;
+    public static int game_state_index = 0;
 
     static void Main()
     {

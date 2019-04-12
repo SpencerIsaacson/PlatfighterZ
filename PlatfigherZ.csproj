@@ -10,6 +10,7 @@
     <TargetFrameworkProfile>
     </TargetFrameworkProfile>
     <FileAlignment>512</FileAlignment>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
     <PublishUrl>publish\</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Disk</InstallFrom>
@@ -22,7 +23,6 @@
     <MapFileExtensions>true</MapFileExtensions>
     <ApplicationRevision>0</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
-    <IsWebBootstrapper>false</IsWebBootstrapper>
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
   </PropertyGroup>
@@ -53,7 +53,7 @@
     <RootNamespace>PlatfigherZ</RootNamespace>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject />
+    <StartupObject>Game</StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -118,6 +118,7 @@
   <ItemGroup>
     <Compile Include="SourceCode\GameStates\AnimationCurveTest.cs" />
     <Compile Include="SourceCode\GameStates\AvatarDemo.cs" />
+    <Compile Include="SourceCode\GameStates\CapsuleIntersectionTest.cs" />
     <Compile Include="SourceCode\GameStates\CharacterSelect.cs" />
     <Compile Include="SourceCode\GameStates\GameplayDemo.cs" />
     <Compile Include="SourceCode\GameStates\HitBoxDemo.cs" />
@@ -128,6 +129,7 @@
     <Compile Include="SourceCode\Engine\DataTypes.cs" />
     <Compile Include="SourceCode\Engine\Global.cs" />
     <Compile Include="SourceCode\Game.cs" />
+    <Compile Include="SourceCode\PlatfighterZ.cs" />
     <Compile Include="SourceCode\Platform Layer\Input.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -1,7 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using static System.Math;
 
-namespace Engine
+namespace PesdiEngine
 {
     struct Player
     {
@@ -79,6 +80,13 @@ namespace Engine
         public static Vector2 operator - (Vector2 a, Vector2 b) { return new Vector2 { x = a.x - b.x, y = a.y - b.y }; }
         public static Vector2 operator * (Vector2 v, float s) { return new Vector2 { x = v.x * s, y = v.y * s }; }
         public static Vector2 operator / (Vector2 v, float s) { return new Vector2 { x = v.x / s, y = v.y / s }; }
+
+        public Vector2 Normalized() { return this / Magnitude(); }
+
+        public float Magnitude() { return (float)Sqrt(x * x + y * y); }
+
+
+        public static float Distance(Vector2 a, Vector2 b) { return (a - b).Magnitude(); }
     }
 
 
@@ -109,7 +117,7 @@ namespace Engine
         public float Magnitude() { return (float)Sqrt(x * x + y * y + z * z); }
 
 
-        public float Distance(Vector3 a, Vector3 b) { return (a - b).Magnitude(); }
+        public static float Distance(Vector3 a, Vector3 b) { return (a - b).Magnitude(); }
 
 		public static float DotProduct(Vector3 a, Vector3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 		
@@ -174,7 +182,7 @@ namespace Engine
         
         public static readonly Matrix4x4 identity = new Matrix4x4(new float [] { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 });
 
-        public Matrix4x4 Concat(Matrix4x4 b) { return Engine.Global.Concat(this, b); }
+        //public Matrix4x4 Concat(Matrix4x4 b) { return Engine.Global.Concat(this, b); }
     }
 
 
@@ -188,10 +196,5 @@ namespace Engine
     interface IGameState
     {
         void Update();
-    }
-
-    unsafe struct FixedBuffer
-    {
-        public fixed byte bytes[1024];
     }
 }

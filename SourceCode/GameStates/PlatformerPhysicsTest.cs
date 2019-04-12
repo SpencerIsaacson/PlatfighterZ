@@ -25,5 +25,6 @@ class PlatformerPhysicsTest : IGameState
         graphics.FillRectangle(Brushes.Red, a.position.x * PIXELS_PER_UNIT - PIXELS_PER_UNIT / 2, a.position.y * PIXELS_PER_UNIT - PIXELS_PER_UNIT / 2, PIXELS_PER_UNIT, PIXELS_PER_UNIT);
 
         graphics.FillRectangle(Brushes.Red, 200, 20, PIXELS_PER_UNIT, PIXELS_PER_UNIT);
+        graphics.ResetTransform();
     }
 }
