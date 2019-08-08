@@ -7,8 +7,6 @@ using System.Windows.Forms;
 
 class Game
 {
-    public static FixedBuffer buffer = new FixedBuffer();
-
     //Resolution
     public static int PIXELS_PER_UNIT = 64;
     public static int WIDTH = 1024;
@@ -37,7 +35,6 @@ class Game
     IGameState current_game_state;
     IGameState[] game_states = new IGameState[] 
     {
-        new CapsuleIntersectionTest(),
         new TitleScreen(),
         new CharacterSelect(),
         new GameplayDemo(),
@@ -46,6 +43,7 @@ class Game
         new HitBoxDemo(),
         new MeshDemo(),
         new PlatformerPhysicsTest(),
+        new CapsuleIntersectionTest(),
     };
 
     public static int game_state_index = 0;
@@ -79,9 +77,15 @@ class Game
             graphics = graphics_buffer.Graphics;
         }
 
+		//Bind Input
+		{
+			window.KeyDown += (s,e) => { Input.keys_down[(int)e.KeyCode] = true;};
+			window.KeyUp += (s, e) => { Input.keys_down[(int)e.KeyCode] = false; Input.keys_stale[(int)e.KeyCode] = false; };
+		}
+
         //Start Game Loop
         {
-            current_game_state = game_states[game_state_index];
+            current_game_state = game_states[0];
             Application.Idle += GameLoop;
             stopwatch.Start();
             Application.Run(window);
@@ -91,46 +95,59 @@ class Game
 
     void GameLoop(object sender, EventArgs e)
     {
-        while (WindowIsIdle())
+        do
         {
             if (!fixed_framerate || time_since_last_frame > STANDARD_TIMESTEP)
             {
-                //Set TimeStep
+                //Tick
                 {
-                    if (fixed_framerate)
-                        time_step = STANDARD_TIMESTEP;
-                    else
-                        time_step = delta_time;
-                }
-
-                //Update Input Devices
-                {
-                    Input.PollKeyboard();
-                }
-
-                //Cycle Through Demos
-                {
-                    if (Input.KeyDownFresh(Keys.Tab))
+                    //Set TimeStep
                     {
-                        fixed_framerate = false;
-                        game_state_index = (game_state_index + 1) % game_states.Length;
-                    }
-                    else if (Input.KeyDownFresh(Keys.Z))
-                    {
-                        game_state_index--;
-                        if (game_state_index < 0)
-                            game_state_index += game_states.Length;
-                        fixed_framerate = false;
+                        if (fixed_framerate)
+                            time_step = STANDARD_TIMESTEP;
+                        else
+                            time_step = delta_time;
                     }
 
-                    current_game_state = game_states[game_state_index];
-                }
+                    //Update Input Devices
+                    {
+                        //Input.PollKeyboard();
+                    }
 
-                frames_since_last_second++;
-                current_game_state.Update();
-                graphics_buffer.Render();
-                time_since_last_frame = 0;
+                    //Cycle Through GameStates
+                    {
+                        if (Input.KeyDownFresh(Keys.Tab))
+                        {
+                            fixed_framerate = false;
+                            game_state_index = (game_state_index + 1) % game_states.Length;
+                        }
+                        else if (Input.KeyDownFresh(Keys.Z))
+                        {
+                            fixed_framerate = false;
+                            game_state_index--;
+                            if (game_state_index < 0)
+                                game_state_index += game_states.Length;
+                        }
+
+                        current_game_state = game_states[game_state_index];
+                    }
+
+                    frames_since_last_second++;
+
+                    current_game_state.Update();
+                    graphics_buffer.Render();
+                    
+                    time_since_last_frame = 0;
+                }
             }
+
+            //Set Stale Keys
+            {
+                for (int i = 0; i < Input.keys_stale.Length; i++)
+				{
+                    Input.keys_stale[i] = Input.keys_down[i];
+				}
+			}
 
             //Update Timing
             {
@@ -145,16 +162,15 @@ class Game
                 }
                 previous_time = (float)stopwatch.Elapsed.TotalSeconds;
             }
-        }
+        } while (WindowIsIdle());
     }
-
 
     bool WindowIsIdle()
     {
 #if Windows
         return PeekMessage(out NativeMessage result, IntPtr.Zero, 0, 0, 0) == 0;
 #else
-        throw new NotImplementedException();//TODO
+        return false;
 #endif
     }
 

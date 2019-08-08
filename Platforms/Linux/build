@@ -1,8 +1,0 @@
-#!/bin/bash
-csc -out:../../Build/Game.exe -recurse:../../SourceCode/*.cs -langversion:7 -define:Linux -nologo -unsafe -debug
-
-if [ $? -eq 0 ]
-then
-	mono Game.exe
-fi
-
