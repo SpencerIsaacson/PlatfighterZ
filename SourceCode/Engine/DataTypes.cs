@@ -12,22 +12,24 @@ namespace Engine
         public float y_velocity;
     }
 
-    struct HitBox
-    {
-        public int transform_id;
-        public float radius;
-    }
-
     struct Animator
     {
         public float current_frame;
-        public List<AnimationCurve> current_animation;
+        public Animation current_animation;
     }
 
+    struct Animation
+    {
+        public List<AnimationCurve> curves;
+        public int[] defendbox_keys;
+        public bool[] defendbox_values;
+        public int[] attackbox_keys;
+        public bool[] attackbox_values;
+    }
 
     struct AnimationCurve
     {
-        public int transform_id;
+        public int transform_index;
         public byte property_tag;
         public KeyFrame[] keyframes;
     }
@@ -42,8 +44,14 @@ namespace Engine
 		public float right_handle_x;
 		public float right_handle_y;
     }
-    
-    
+
+    struct Hitbox
+    {
+        public int transform_index;
+        public float radius;
+        public bool active;
+    }
+
     public struct Transform
     {
         public int parent;
@@ -174,7 +182,10 @@ namespace Engine
         
         public static readonly Matrix4x4 identity = new Matrix4x4(new float [] { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 });
 
-        public Matrix4x4 Concat(Matrix4x4 b) { return Engine.Global.Concat(this, b); }
+        public static Matrix4x4 operator *(Matrix4x4 a, Matrix4x4 b)
+        {
+            return Global.Concat(a, b);
+        }
     }
 
 

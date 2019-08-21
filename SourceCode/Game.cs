@@ -35,12 +35,12 @@ class Game
     IGameState current_game_state;
     IGameState[] game_states = new IGameState[] 
     {
+        new GameplayDemo(),
         new TitleScreen(),
         new CharacterSelect(),
-        new GameplayDemo(),
         new AnimationCurveTest(),
-        new AvatarDemo(),
         new HitBoxDemo(),
+        new AvatarDemo(),
         new MeshDemo(),
         new PlatformerPhysicsTest(),
         new CapsuleIntersectionTest(),
@@ -77,12 +77,6 @@ class Game
             graphics = graphics_buffer.Graphics;
         }
 
-		//Bind Input
-		{
-			window.KeyDown += (s,e) => { Input.keys_down[(int)e.KeyCode] = true;};
-			window.KeyUp += (s, e) => { Input.keys_down[(int)e.KeyCode] = false; Input.keys_stale[(int)e.KeyCode] = false; };
-		}
-
         //Start Game Loop
         {
             current_game_state = game_states[0];
@@ -111,7 +105,7 @@ class Game
 
                     //Update Input Devices
                     {
-                        //Input.PollKeyboard();
+                        Input.PollKeyboard();
                     }
 
                     //Cycle Through GameStates

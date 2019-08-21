@@ -17,9 +17,9 @@ namespace Engine
         public static Matrix4x4 GetMatrix(Transform t)
         {
             return Matrix4x4.identity
-                .Concat(Scale(t.scale.x, t.scale.y, t.scale.z))
-                .Concat(Rotation(t.rotation.x, t.rotation.y, t.rotation.z))
-                .Concat(Translation(t.position.x, t.position.y, t.position.z));//TODO pre-concatenate
+                * Scale(t.scale.x, t.scale.y, t.scale.z)
+                * Rotation(t.rotation.x, t.rotation.y, t.rotation.z)
+                * Translation(t.position.x, t.position.y, t.position.z);//TODO pre-concatenate
         }
 
 

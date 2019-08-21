@@ -19,11 +19,11 @@ class AvatarDemo : IGameState
         public List<AnimationCurve> current_animation;
     }
 
-    public static List<AnimationCurve> walk_animation = new List<AnimationCurve>
+    public static List<AnimationCurve> walk_curves = new List<AnimationCurve>
         {
             new AnimationCurve()
             {
-                transform_id = 1, //core 
+                transform_index = 1, //core 
                 property_tag = 1,
                 keyframes = new KeyFrame[]
                 {
@@ -36,7 +36,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 2, //chest 
+                transform_index = 2, //chest 
                 property_tag = 4,
                 keyframes = new KeyFrame[]
                 {
@@ -49,7 +49,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 4, //left shoulder 
+                transform_index = 4, //left shoulder 
                 property_tag = 5,
                 keyframes = new KeyFrame[]
                 {
@@ -59,7 +59,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 4, //left shoulder 
+                transform_index = 4, //left shoulder 
                 property_tag = 4,
                 keyframes = new KeyFrame[]
                 {
@@ -72,7 +72,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 5, //left elbow 
+                transform_index = 5, //left elbow 
                 property_tag = 4,
                 keyframes = new KeyFrame[]
                 {
@@ -82,7 +82,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 6, //right shoulder 
+                transform_index = 6, //right shoulder 
                 property_tag = 5,
                 keyframes = new KeyFrame[]
                 {
@@ -92,7 +92,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 6, //right shoulder 
+                transform_index = 6, //right shoulder 
                 property_tag = 4,
                 keyframes = new KeyFrame[]
                 {
@@ -105,7 +105,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 7, //right elbow 
+                transform_index = 7, //right elbow 
                 property_tag = 4,
                 keyframes = new KeyFrame[]
                 {
@@ -115,7 +115,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 8, //left hip 
+                transform_index = 8, //left hip 
                 property_tag = 3,
                 keyframes = new KeyFrame[]
                 {
@@ -128,7 +128,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 9, //left knee 
+                transform_index = 9, //left knee 
                 property_tag = 3,
                 keyframes = new KeyFrame[]
                 {
@@ -139,7 +139,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 11, //right hip 
+                transform_index = 11, //right hip 
                 property_tag = 3,
                 keyframes = new KeyFrame[]
                 {
@@ -152,7 +152,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 12, //right knee 
+                transform_index = 12, //right knee 
                 property_tag = 3,
                 keyframes = new KeyFrame[]
                 {
@@ -164,13 +164,149 @@ class AvatarDemo : IGameState
                 },
             },
         };
-
-    public static List<AnimationCurve> punch_animation;
-    public static List<AnimationCurve> idle_animation = new List<AnimationCurve>
+    public static List<AnimationCurve> punch_curves = new List<AnimationCurve>
+    {
+        new AnimationCurve()
+        {
+            transform_index = 1, //core 
+            property_tag = 1,
+            keyframes = new KeyFrame[]
+            {
+                new KeyFrame {frame = 01, value = 0 },
+                new KeyFrame {frame = 30, value = 0 },
+            },
+        },
+        new AnimationCurve()
+        {
+            transform_index = 1, //core
+            property_tag = 4,
+            keyframes = new KeyFrame[]
+            {
+                new KeyFrame {frame = 01, value = .3f },
+                new KeyFrame {frame = 30, value = .3f },
+            },
+        },
+        new AnimationCurve()
+        {
+            transform_index = 2, //chest
+            property_tag = 4,
+            keyframes = new KeyFrame[]
+            {
+                new KeyFrame {frame = 01, value = .0f },
+                new KeyFrame {frame = 15, value = -.9f },
+                new KeyFrame {frame = 30, value = .0f },
+            },
+        },
+        new AnimationCurve()
+        {
+            transform_index = 4,
+            property_tag = 5,
+            keyframes = new KeyFrame[]
+            {
+                new KeyFrame {frame = 01, value = Tau/4f },
+                new KeyFrame {frame = 30, value = Tau/4f },
+            },
+        },
+        new AnimationCurve()
+        {
+            transform_index = 4,
+            property_tag = 4,
+            keyframes = new KeyFrame[]
+            {
+                new KeyFrame {frame = 01, value = Tau/6f },
+                new KeyFrame {frame = 15, value = -Tau/9f },
+                new KeyFrame {frame = 30, value = Tau/6f },
+            },
+        },
+        new AnimationCurve()
+        {
+            transform_index = 5,
+            property_tag = 4,
+            keyframes = new KeyFrame[]
+            {
+                new KeyFrame {frame = 01, value = Tau/4f },
+                new KeyFrame {frame = 30, value = Tau/4f },
+            },
+        },
+        new AnimationCurve()
+        {
+            transform_index = 6,
+            property_tag = 5,
+            keyframes = new KeyFrame[]
+            {
+                new KeyFrame {frame = 01, value = -Tau/4f },
+                new KeyFrame {frame = 15, value = 0 },
+                new KeyFrame {frame = 30, value = -Tau/4f },
+            },
+        },
+        new AnimationCurve()
+        {
+            transform_index = 6,
+            property_tag = 4,
+            keyframes = new KeyFrame[]
+            {
+                new KeyFrame {frame = 01, value = -Tau/6f },
+                new KeyFrame {frame = 15, value = -Tau/4 },
+                new KeyFrame {frame = 30, value = -Tau/6f },
+            },
+        },
+        new AnimationCurve()
+        {
+            transform_index = 7,
+            property_tag = 4,
+            keyframes = new KeyFrame[]
+            {
+                new KeyFrame {frame = 01, value = -Tau/4f },
+                new KeyFrame {frame = 15, value = 0 },
+                new KeyFrame {frame = 30, value = -Tau/4f },
+            },
+        },
+        new AnimationCurve()
+        {
+            transform_index = 8,
+            property_tag = 3,
+            keyframes = new KeyFrame[]
+            {
+                new KeyFrame {frame = 01, value = 0f },
+                new KeyFrame {frame = 30, value = 0f },
+            },
+        },
+        new AnimationCurve()
+        {
+            transform_index = 9,
+            property_tag = 3,
+            keyframes = new KeyFrame[]
+            {
+                new KeyFrame {frame = 01, value = 0f },
+                new KeyFrame {frame = 30, value = 0f },
+            },
+        },
+        new AnimationCurve()
+        {
+            transform_index = 11,
+            property_tag = 3,
+            keyframes = new KeyFrame[]
+            {
+                new KeyFrame {frame = 01, value = 0.3f },
+                new KeyFrame {frame = 30, value = 0.3f },
+            },
+        },
+        new AnimationCurve()
+        {
+            transform_index = 12,
+            property_tag = 3,
+            keyframes = new KeyFrame[]
+            {
+                new KeyFrame {frame = 01, value = 0f },
+                new KeyFrame {frame = 30, value = 0f },
+            },
+        },
+    };
+    public static List<AnimationCurve> idle_curves = new List<AnimationCurve>
         {
             new AnimationCurve()
             {
-                transform_id = 1, //core 
+                transform_index = 1, //core 
                 property_tag = 1,
                 keyframes = new KeyFrame[]
                 {
@@ -181,7 +317,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 1, //core
+                transform_index = 1, //core
                 property_tag = 4,
                 keyframes = new KeyFrame[]
                 {
@@ -191,7 +327,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 2, //chest
+                transform_index = 2, //chest
                 property_tag = 4,
                 keyframes = new KeyFrame[]
                 {
@@ -202,7 +338,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 4,
+                transform_index = 4,
                 property_tag = 5,
                 keyframes = new KeyFrame[]
                 {
@@ -213,7 +349,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 4,
+                transform_index = 4,
                 property_tag = 4,
                 keyframes = new KeyFrame[]
                 {
@@ -224,7 +360,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 5,
+                transform_index = 5,
                 property_tag = 4,
                 keyframes = new KeyFrame[]
                 {
@@ -235,7 +371,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 6,
+                transform_index = 6,
                 property_tag = 5,
                 keyframes = new KeyFrame[]
                 {
@@ -246,7 +382,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 6,
+                transform_index = 6,
                 property_tag = 4,
                 keyframes = new KeyFrame[]
                 {
@@ -257,7 +393,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 7,
+                transform_index = 7,
                 property_tag = 4,
                 keyframes = new KeyFrame[]
                 {
@@ -268,7 +404,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 8,
+                transform_index = 8,
                 property_tag = 3,
                 keyframes = new KeyFrame[]
                 {
@@ -279,7 +415,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 9,
+                transform_index = 9,
                 property_tag = 3,
                 keyframes = new KeyFrame[]
                 {
@@ -290,7 +426,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 11,
+                transform_index = 11,
                 property_tag = 3,
                 keyframes = new KeyFrame[]
                 {
@@ -301,7 +437,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 12,
+                transform_index = 12,
                 property_tag = 3,
                 keyframes = new KeyFrame[]
                 {
@@ -311,8 +447,22 @@ class AvatarDemo : IGameState
                 },
             },
         };
-    public static List<AnimationCurve> jump_animation;
+    public static List<AnimationCurve> jump_curves;
 
+    public static Animation idle_animation = new Animation()
+    {
+        curves = idle_curves,
+    };
+
+    public static Animation walk_animation = new Animation() { curves = walk_curves };
+    public static Animation punch_animation = new Animation()
+    {
+        curves = punch_curves,
+        attackbox_keys = new int[] { 1, 5, 20 },
+        attackbox_values = new bool[] { false, true, false },
+    };
+
+    public static Animation jump_animation = new Animation() { curves = jump_curves };
     List<Avatar> avatars;
 
     Transform[] transforms;
@@ -341,152 +491,15 @@ class AvatarDemo : IGameState
 
 
 
-        punch_animation = new List<AnimationCurve>
+
+
+
+
+        jump_curves = new List<AnimationCurve>
         {
             new AnimationCurve()
             {
-                transform_id = 1, //core 
-                property_tag = 1,
-                keyframes = new KeyFrame[]
-                {
-                    new KeyFrame {frame = 01, value = 0 },
-                    new KeyFrame {frame = 30, value = 0 },
-                },
-            },
-            new AnimationCurve()
-            {
-                transform_id = 1, //core
-                property_tag = 4,
-                keyframes = new KeyFrame[]
-                {
-                    new KeyFrame {frame = 01, value = .3f },
-                    new KeyFrame {frame = 30, value = .3f },
-                },
-            },
-            new AnimationCurve()
-            {
-                transform_id = 2, //chest
-                property_tag = 4,
-                keyframes = new KeyFrame[]
-                {
-                    new KeyFrame {frame = 01, value = .0f },
-                    new KeyFrame {frame = 15, value = -.9f },
-                    new KeyFrame {frame = 30, value = .0f },
-                },
-            },
-            new AnimationCurve()
-            {
-                transform_id = 4,
-                property_tag = 5,
-                keyframes = new KeyFrame[]
-                {
-                    new KeyFrame {frame = 01, value = Tau/4f },
-                    new KeyFrame {frame = 30, value = Tau/4f },
-                },
-            },
-            new AnimationCurve()
-            {
-                transform_id = 4,
-                property_tag = 4,
-                keyframes = new KeyFrame[]
-                {
-                    new KeyFrame {frame = 01, value = Tau/6f },
-                    new KeyFrame {frame = 15, value = -Tau/9f },
-                    new KeyFrame {frame = 30, value = Tau/6f },
-                },
-            },
-            new AnimationCurve()
-            {
-                transform_id = 5,
-                property_tag = 4,
-                keyframes = new KeyFrame[]
-                {
-                    new KeyFrame {frame = 01, value = Tau/4f },
-                    new KeyFrame {frame = 30, value = Tau/4f },
-                },
-            },
-            new AnimationCurve()
-            {
-                transform_id = 6,
-                property_tag = 5,
-                keyframes = new KeyFrame[]
-                {
-                    new KeyFrame {frame = 01, value = -Tau/4f },
-                    new KeyFrame {frame = 15, value = 0 },
-                    new KeyFrame {frame = 30, value = -Tau/4f },
-                },
-            },
-            new AnimationCurve()
-            {
-                transform_id = 6,
-                property_tag = 4,
-                keyframes = new KeyFrame[]
-                {
-                    new KeyFrame {frame = 01, value = -Tau/6f },
-                    new KeyFrame {frame = 15, value = -Tau/4 },
-                    new KeyFrame {frame = 30, value = -Tau/6f },
-                },
-            },
-            new AnimationCurve()
-            {
-                transform_id = 7,
-                property_tag = 4,
-                keyframes = new KeyFrame[]
-                {
-                    new KeyFrame {frame = 01, value = -Tau/4f },
-                    new KeyFrame {frame = 15, value = 0 },
-                    new KeyFrame {frame = 30, value = -Tau/4f },
-                },
-            },
-            new AnimationCurve()
-            {
-                transform_id = 8,
-                property_tag = 3,
-                keyframes = new KeyFrame[]
-                {
-                    new KeyFrame {frame = 01, value = 0f },
-                    new KeyFrame {frame = 30, value = 0f },
-                },
-            },
-            new AnimationCurve()
-            {
-                transform_id = 9,
-                property_tag = 3,
-                keyframes = new KeyFrame[]
-                {
-                    new KeyFrame {frame = 01, value = 0f },
-                    new KeyFrame {frame = 30, value = 0f },
-                },
-            },
-            new AnimationCurve()
-            {
-                transform_id = 11,
-                property_tag = 3,
-                keyframes = new KeyFrame[]
-                {
-                    new KeyFrame {frame = 01, value = 0.3f },
-                    new KeyFrame {frame = 30, value = 0.3f },
-                },
-            },
-            new AnimationCurve()
-            {
-                transform_id = 12,
-                property_tag = 3,
-                keyframes = new KeyFrame[]
-                {
-                    new KeyFrame {frame = 01, value = 0f },
-                    new KeyFrame {frame = 30, value = 0f },
-                },
-            },
-        };
-
-
-
-        jump_animation = new List<AnimationCurve>
-        {
-            new AnimationCurve()
-            {
-                transform_id = 1, //core 
+                transform_index = 1, //core 
                 property_tag = 1,
                 keyframes = new KeyFrame[]
                 {
@@ -499,7 +512,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 8,
+                transform_index = 8,
                 property_tag = 3,
                 keyframes = new KeyFrame[]
                 {
@@ -511,7 +524,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 9,
+                transform_index = 9,
                 property_tag = 3,
                 keyframes = new KeyFrame[]
                 {
@@ -523,7 +536,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 11,
+                transform_index = 11,
                 property_tag = 3,
                 keyframes = new KeyFrame[]
                 {
@@ -535,7 +548,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 12,
+                transform_index = 12,
                 property_tag = 3,
                 keyframes = new KeyFrame[]
                 {
@@ -547,7 +560,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 4,
+                transform_index = 4,
                 property_tag = 5,
                 keyframes = new KeyFrame[]
                 {
@@ -559,7 +572,7 @@ class AvatarDemo : IGameState
             },
             new AnimationCurve()
             {
-                transform_id = 6,
+                transform_index = 6,
                 property_tag = 5,
                 keyframes = new KeyFrame[]
                 {
@@ -576,7 +589,7 @@ class AvatarDemo : IGameState
         for (int i = 0; i < avatar_count; i++)
         {
             Avatar new_avatar = new Avatar();
-            new_avatar.current_animation = idle_animation;
+            new_avatar.current_animation = idle_curves;
             new_avatar.frame = 1;
             avatars.Add(new_avatar);
             transforms[i * skeleton.Length].rotation.y = 1 / 4f * Tau;
@@ -602,15 +615,15 @@ class AvatarDemo : IGameState
             var first_avatar = avatars[0];
             float move_speed = 6 * time_step;
 
-            if (first_avatar.current_animation == idle_animation)
+            if (first_avatar.current_animation == idle_curves)
             {
                 if (Input.KeyDown(Keys.A) || Input.KeyDown(Keys.D))
                 {
-                    first_avatar.current_animation = walk_animation;
+                    first_avatar.current_animation = walk_curves;
                     first_avatar.frame = 1;
                 }
             }
-            else if (first_avatar.current_animation == walk_animation)
+            else if (first_avatar.current_animation == walk_curves)
             {
                 if (Input.KeyDown(Keys.A))
                 {
@@ -624,22 +637,22 @@ class AvatarDemo : IGameState
                 }
                 else
                 {
-                    first_avatar.current_animation = idle_animation;
+                    first_avatar.current_animation = idle_curves;
                     first_avatar.frame = 1;
                 }
             }
-            else if (first_avatar.current_animation == punch_animation)
+            else if (first_avatar.current_animation == punch_curves)
             {
                 if (first_avatar.frame >= ending_frame)
                 {
-                    first_avatar.current_animation = idle_animation;
+                    first_avatar.current_animation = idle_curves;
                     first_avatar.frame = 1;
                 }
             }
 
-            if (Input.KeyDown(Keys.Space) && avatars[0].current_animation != punch_animation)
+            if (Input.KeyDown(Keys.Space) && avatars[0].current_animation != punch_curves)
             {
-                first_avatar.current_animation = punch_animation;
+                first_avatar.current_animation = punch_curves;
                 first_avatar.frame = 1;
             }
             avatars[0] = first_avatar;
@@ -660,7 +673,7 @@ class AvatarDemo : IGameState
             foreach (AnimationCurve curve in current_avatar.current_animation)
             {
                 KeyFrame[] keyframes = curve.keyframes;
-                int transform_index = curve.transform_id + current_avatar_index * skeleton.Length;
+                int transform_index = curve.transform_index + current_avatar_index * skeleton.Length;
 
                 fixed (void* p = &transforms[transform_index])
                 {
@@ -691,7 +704,7 @@ class AvatarDemo : IGameState
                 for (int i = 1; i < transforms.Length; i++)
                 {
                     Matrix4x4 local_to_world = WorldSpaceMatrix(transforms[i], transforms);
-                    Matrix4x4 local_to_camera = local_to_world.Concat(world_to_camera);
+                    Matrix4x4 local_to_camera = local_to_world * world_to_camera;
 
                     var position = TransformVector(local_to_camera, Vector3.Zero);
 

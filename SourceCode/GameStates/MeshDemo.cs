@@ -84,7 +84,7 @@ class MeshDemo : IGameState
 					inverted_camera.rotation = -camera.rotation;
 					Matrix4x4 world_to_camera = GetMatrix(inverted_camera);
 					
-					Matrix4x4 object_to_camera = object_to_world.Concat(world_to_camera);
+					Matrix4x4 object_to_camera = object_to_world * world_to_camera;
 					
 					for (int i = 0; i < triangles.Count; i++)
 					{
