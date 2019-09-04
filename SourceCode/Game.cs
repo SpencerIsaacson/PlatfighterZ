@@ -29,21 +29,14 @@ class Game
     public static float time_since_last_frame;
     public static float frames_per_second;
     public static float time_since_timing_recalculated;
-    public static bool fixed_framerate = false;
+    public static bool fixed_framerate = true;
     public static int frames_since_last_second;
 
     IGameState current_game_state;
     IGameState[] game_states = new IGameState[] 
     {
-        new GameplayDemo(),
-        new TitleScreen(),
-        new CharacterSelect(),
-        new AnimationCurveTest(),
-        new HitBoxDemo(),
-        new AvatarDemo(),
-        new MeshDemo(),
+        new GameplayState(),
         new PlatformerPhysicsTest(),
-        new CapsuleIntersectionTest(),
     };
 
     public static int game_state_index = 0;
@@ -112,12 +105,10 @@ class Game
                     {
                         if (Input.KeyDownFresh(Keys.Tab))
                         {
-                            fixed_framerate = false;
                             game_state_index = (game_state_index + 1) % game_states.Length;
                         }
                         else if (Input.KeyDownFresh(Keys.Z))
                         {
-                            fixed_framerate = false;
                             game_state_index--;
                             if (game_state_index < 0)
                                 game_state_index += game_states.Length;

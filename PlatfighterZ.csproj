@@ -53,13 +53,10 @@
     <Compile Include="SourceCode\Engine\DataTypes.cs" />
     <Compile Include="SourceCode\Engine\Global.cs" />
     <Compile Include="SourceCode\Game.cs" />
-    <Compile Include="SourceCode\GameStates\AnimationCurveTest.cs" />
-    <Compile Include="SourceCode\GameStates\AvatarDemo.cs" />
+    <Compile Include="SourceCode\DefinedAnimations.cs" />
     <Compile Include="SourceCode\GameStates\CapsuleIntersectionTest.cs" />
     <Compile Include="SourceCode\GameStates\CharacterSelect.cs" />
-    <Compile Include="SourceCode\GameStates\GameplayDemo.cs" />
-    <Compile Include="SourceCode\GameStates\HitBoxDemo.cs" />
-    <Compile Include="SourceCode\GameStates\InputTest.cs" />
+    <Compile Include="SourceCode\GameStates\GameplayState.cs" />
     <Compile Include="SourceCode\GameStates\MeshDemo.cs" />
     <Compile Include="SourceCode\GameStates\PlatformerPhysicsTest.cs" />
     <Compile Include="SourceCode\GameStates\TitleScreen.cs" />

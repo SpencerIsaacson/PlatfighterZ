@@ -10,6 +10,8 @@ namespace Engine
         public int stock;
         public float health;
         public float y_velocity;
+        public Hitbox[] attackboxes;
+        public Hitbox[] defendboxes;
     }
 
     struct Animator
@@ -21,10 +23,10 @@ namespace Engine
     struct Animation
     {
         public List<AnimationCurve> curves;
-        public int[] defendbox_keys;
-        public bool[] defendbox_values;
-        public int[] attackbox_keys;
-        public bool[] attackbox_values;
+        public int[][] defendbox_keys;
+        public bool[][] defendbox_values;
+        public int[][] attackbox_keys;
+        public bool[][] attackbox_values;
     }
 
     struct AnimationCurve
@@ -76,6 +78,12 @@ namespace Engine
     {
         public float x, y;
 
+        public Vector2(float x, float y)
+        {
+            this.x = x;
+            this.y = y;
+        }
+
         public static readonly Vector2 Right = new Vector2 { x = 1, y = 0 };
         public static readonly Vector2 Left = new Vector2 { x = -1, y = 0 };
         public static readonly Vector2 Up = new Vector2 { x = 0, y = 1 };
@@ -87,6 +95,9 @@ namespace Engine
         public static Vector2 operator - (Vector2 a, Vector2 b) { return new Vector2 { x = a.x - b.x, y = a.y - b.y }; }
         public static Vector2 operator * (Vector2 v, float s) { return new Vector2 { x = v.x * s, y = v.y * s }; }
         public static Vector2 operator / (Vector2 v, float s) { return new Vector2 { x = v.x / s, y = v.y / s }; }
+
+        public static float Distance(Vector2 a, Vector2 b) { return (a - b).Magnitude(); }
+        public float Magnitude() { return (float)Sqrt(x * x + y * y); }
     }
 
 
@@ -117,7 +128,7 @@ namespace Engine
         public float Magnitude() { return (float)Sqrt(x * x + y * y + z * z); }
 
 
-        public float Distance(Vector3 a, Vector3 b) { return (a - b).Magnitude(); }
+        public static float Distance(Vector3 a, Vector3 b) { return (a - b).Magnitude(); }
 
 		public static float DotProduct(Vector3 a, Vector3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 		
@@ -134,7 +145,7 @@ namespace Engine
 
         public override string ToString()
         {
-            return $"[{x}, {y}, {z}]";
+            return $"[{x:F2}, {y:F2}, {z:F2}]";
         }
     }
 
@@ -185,6 +196,11 @@ namespace Engine
         public static Matrix4x4 operator *(Matrix4x4 a, Matrix4x4 b)
         {
             return Global.Concat(a, b);
+        }
+
+        public override string ToString()
+        {
+            return $"{m11:F2}, {m12:F2}, {m13:F2}, {m14:F2}\n{m21:F2}, {m22:F2}, {m23:F2}, {m24:F2}\n{m31:F2}, {m32:F2}, {m33:F2}, {m34:F2}\n{m41:F2}, {m42:F2}, {m43:F2}, {m44:F2}\n";
         }
     }
 

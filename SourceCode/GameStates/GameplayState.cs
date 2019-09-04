@@ -6,7 +6,7 @@ using System.Windows.Forms;
 using static Engine.Global;
 using static Game;
 
-class GameplayDemo : IGameState
+class GameplayState : IGameState
 {
     bool view_debug = false;
 
@@ -29,13 +29,10 @@ class GameplayDemo : IGameState
     //physics
     readonly float gravity = 10;
 
-    Hitbox[] attackboxes =
-    {
-        new Hitbox(){transform_index = 14, radius = .2f},
-        new Hitbox(){transform_index = 15, radius = .2f},
-    };
 
-    public GameplayDemo()
+
+    bool[][] hit_matrix;
+    public GameplayState()
     {
         ResetGame();
     }
@@ -44,6 +41,19 @@ class GameplayDemo : IGameState
     {
         //Update
         {
+            graphics.Clear(Color.Black);
+            //Get Debug Input
+            {
+                if (Input.KeyDownFresh(Keys.G))
+                    view_debug = !view_debug;
+
+                if (Input.KeyDownFresh(Keys.R))
+                    ResetGame();
+
+                if (Input.KeyDownFresh(Keys.F))
+                    fixed_framerate = !fixed_framerate;
+            }
+
             if (!game_over)
             {
                 for (int player_index = 0; player_index < PLAYER_COUNT; player_index++)
@@ -61,7 +71,7 @@ class GameplayDemo : IGameState
                         {
                             bool moving = false;
 
-                            if (animators[player_index].current_animation.curves != AvatarDemo.punch_curves) //TODO use animation, not just curves
+                            if (animators[player_index].current_animation.curves != DefinedAnimations.punch_curves) //TODO use animation, not just curves
                             {
                                 if (Input.ButtonDown(player_index, Buttons.LEFT))
                                 {
@@ -77,26 +87,26 @@ class GameplayDemo : IGameState
 
                                 if (moving)
                                 {
-                                    animators[player_index].current_animation = AvatarDemo.walk_animation;
+                                    animators[player_index].current_animation = DefinedAnimations.walk_animation;
                                     var rotation = (*playerEntity).rotation;
                                     var playerSpeed = 5f;
                                     velocity.x = TransformVector(Rotation(rotation.x, rotation.y, rotation.z), Vector3.Forward).x * playerSpeed;
                                 }
                                 else
-                                    animators[player_index].current_animation = AvatarDemo.idle_animation;
+                                    animators[player_index].current_animation = DefinedAnimations.idle_animation;
 
                                 if ((*playerEntity).position.y == 0 && Input.ButtonDown(player_index, Buttons.JUMP))
                                     players[player_index].y_velocity = 10;
 
                                 if (Input.ButtonDown(player_index, Buttons.PUNCH))
                                 {
-                                    animators[player_index].current_animation = AvatarDemo.punch_animation;
+                                    animators[player_index].current_animation = DefinedAnimations.punch_animation;
                                     animators[player_index].current_frame = 1;
                                 }
                             }
-                            else if(animators[player_index].current_frame >= ending_frame )
+                            else if (animators[player_index].current_frame >= ending_frame)
                             {
-                                animators[player_index].current_animation = AvatarDemo.idle_animation;
+                                animators[player_index].current_animation = DefinedAnimations.idle_animation;
                                 animators[player_index].current_frame = 1;
                             }
                         }
@@ -123,19 +133,31 @@ class GameplayDemo : IGameState
                                 }
                             }
 
-                            for (int attackbox_index = 0; attackbox_index < attackboxes.Length; attackbox_index++)
+                            for (int attackbox_index = 0; attackbox_index < players[player_index].attackboxes.Length; attackbox_index++)
                             {
-                                if(animator.current_animation.attackbox_keys != null)
-                                for (int i = 0; i < animator.current_animation.attackbox_keys.Length; i++)
-                                {
-                                    if (animator.current_frame == animator.current_animation.attackbox_keys[i])
+                                if (animator.current_animation.attackbox_keys != null)
+                                    for (int i = 0; i < animator.current_animation.attackbox_keys[attackbox_index].Length; i++)
                                     {
-                                        attackboxes[attackbox_index].active = animator.current_animation.attackbox_values[i];
+                                        if (frame > animator.current_animation.attackbox_keys[attackbox_index][i])
+                                        {
+                                            players[player_index].attackboxes[attackbox_index].active = animator.current_animation.attackbox_values[attackbox_index][i];
+                                        }
                                     }
-                                }
                             }
 
-                            animator.current_frame ++;
+                            for (int defendbox_index = 0; defendbox_index < players[player_index].defendboxes.Length; defendbox_index++)
+                            {
+                                if (animator.current_animation.defendbox_keys != null)
+                                    for (int i = 0; i < animator.current_animation.defendbox_keys[defendbox_index].Length; i++)
+                                    {
+                                        if (frame > animator.current_animation.defendbox_keys[defendbox_index][i])
+                                        {
+                                            players[player_index].defendboxes[defendbox_index].active = animator.current_animation.defendbox_values[defendbox_index][i];
+                                        }
+                                    }
+                            }
+
+                            animator.current_frame += TARGET_FRAMERATE * time_step;
 
                             animators[player_index] = animator;
                         }
@@ -156,19 +178,43 @@ class GameplayDemo : IGameState
                         }
 
                     }
-                    ////Hurt Player
-                    //{
-                    //    players[player_id].health -= time_step * ((player_id + 1));
 
-                    //    if (players[player_id].health <= 0)
-                    //    {
-                    //        players[player_id].stock--;
-                    //        if (players[player_id].stock > 0)
-                    //            players[player_id].health = max_health;
-                    //        else
-                    //            players[player_id].defeated = true;
-                    //    }
-                    //}
+                    //Hurt Player --TODO fix. also make sure only applies the first time on the first frame of an intersection with first defendbox. Is currently be multiple damaging.
+                    {
+                        for (int my_attack = 0; my_attack < players[player_index].attackboxes.Length; my_attack++)
+                        {
+                            if (players[player_index].attackboxes[my_attack].active)
+                                for (int other_player = 0; other_player < PLAYER_COUNT; other_player++)
+                                {
+                                    if (other_player == player_index)
+                                        continue;
+                                    for (int your_defend = 0; your_defend < players[other_player].defendboxes.Length; your_defend++)
+                                    {
+                                        var a = WorldSpaceMatrix(transforms[players[player_index].attackboxes[my_attack].transform_index], transforms);
+                                        var b = WorldSpaceMatrix(transforms[players[other_player].defendboxes[your_defend].transform_index], transforms);
+
+                                        Vector3 v = TransformVector(a, Vector3.Zero);
+                                        Vector3 w = TransformVector(b, Vector3.Zero);
+
+                                        var dist = Vector3.Distance(v, w);
+                                        bool intersects = (dist <= (players[other_player].defendboxes[your_defend].radius + players[player_index].attackboxes[my_attack].radius));
+
+                                        if (intersects)
+                                        {
+                                            players[other_player].health -= 10 * time_step;
+                                            if (players[other_player].health <= 0)
+                                            {
+                                                players[other_player].stock--;
+                                                if (players[other_player].stock > 0)
+                                                    players[other_player].health = max_health;
+                                                else
+                                                    players[other_player].defeated = true;
+                                            }
+                                        }
+                                    }
+                                }
+                        }
+                    }
                 }
 
                 //Update Camera
@@ -213,41 +259,25 @@ class GameplayDemo : IGameState
                     }
                 }
             }
-
-            //Get Debug Input
-            {
-                if (Input.KeyDownFresh(Keys.G))
-                    view_debug = !view_debug;
-
-                if (Input.KeyDownFresh(Keys.R))
-                    ResetGame();
-
-                if (Input.KeyDownFresh(Keys.F))
-                    fixed_framerate = !fixed_framerate;
-            }
         }
 
         //Render
         {
-            //Prep
-            {
-                graphics.SmoothingMode = SmoothingMode.HighQuality;
-                graphics.Clear(Color.Black);
-            }
-            
-
             //Draw Scene
             {
+                graphics.SmoothingMode = SmoothingMode.HighQuality;
+                
+
                 //get camera matrix
                 Transform inverted_camera = Transform.Default();
                 inverted_camera.position = -camera.position;
                 inverted_camera.rotation = -camera.rotation;
                 Matrix4x4 world_to_camera = GetMatrix(inverted_camera);
-                Vector3[] positions = new Vector3[transforms.Length];
+                Vector3[] transformed_positions = new Vector3[transforms.Length];
 
                 //Draw Transforms
                 {
-                    for (int i = 1; i < transforms.Length; i++)
+                    for (int i = 0; i < transforms.Length; i++)
                     {
                         Matrix4x4 local_to_world = WorldSpaceMatrix(transforms[i], transforms);
                         Matrix4x4 local_to_camera = local_to_world * world_to_camera;
@@ -272,16 +302,16 @@ class GameplayDemo : IGameState
                         position.x *= WIDTH / 2;
                         position.y *= HEIGHT / 2;
 
-                        positions[i] = position;
+                        transformed_positions[i] = position;
                     }
 
-                    for (int i = 1; i < positions.Length; i++)
+                    for (int i = 0; i < transformed_positions.Length; i++)
                     {
-                        var position = positions[i];
+                        var position = transformed_positions[i];
                         var parent_position = position;
 
-                        if (transforms[i].parent != 0 && transforms[i].parent != -1)
-                            parent_position = positions[transforms[i].parent];
+                        if (transforms[i].parent != -1)
+                            parent_position = transformed_positions[transforms[i].parent];
 
                         float d = camera.position.z - position.z;
                         float width = 300 / (d);
@@ -292,23 +322,43 @@ class GameplayDemo : IGameState
                         graphics.DrawEllipse(player_pen, position.x - half_width, position.y - half_width, width, width);
                     }
 
-                    //Draw Hitboxes - TODO
+
+                }
+
+                if (view_debug)
+                {
+                    //Draw Hitboxes
                     {
-                        for (int i = 0; i < attackboxes.Length; i++)
+                        for (int player_index = 0; player_index < PLAYER_COUNT; player_index++)
                         {
-                            if (attackboxes[i].active)
+                            for (int attackbox_index = 0; attackbox_index < players[player_index].attackboxes.Length; attackbox_index++)
                             {
-                                Transform t = transforms[attackboxes[i].transform_index];
-                                Matrix4x4 m = WorldSpaceMatrix(t, transforms);
+                                if (players[player_index].attackboxes[attackbox_index].active)
+                                {
+                                    Vector3 center = transformed_positions[players[player_index].attackboxes[attackbox_index].transform_index];
 
-                                Vector3 center = positions[attackboxes[i].transform_index];
+                                    float width = players[player_index].attackboxes[attackbox_index].radius * 2 * PIXELS_PER_UNIT;
+                                    float half = width / 2f;
+                                    Color color = Color.Red;
+                                    graphics.FillEllipse(new SolidBrush(color), center.x - 4, center.y - 4, 8, 8);
+                                    graphics.FillEllipse(new SolidBrush(Color.FromArgb(30, color)), center.x - half, center.y - half, width, width);
+                                    graphics.DrawEllipse(new Pen(Color.FromArgb(color.R / 2, color.G / 2, color.B / 2), 2f), center.x - half, center.y - half, width, width);
+                                }
+                            }
 
-                                float width = attackboxes[i].radius * 2 * PIXELS_PER_UNIT;
-                                float half = width / 2f;
-                                Color color = Color.Red;
-                                graphics.FillEllipse(new SolidBrush(color), center.x - 4, center.y - 4, 8, 8);
-                                graphics.FillEllipse(new SolidBrush(Color.FromArgb(30, color)), center.x - half, center.y - half, width, width);
-                                graphics.DrawEllipse(new Pen(Color.FromArgb(color.R / 2, color.G / 2, color.B / 2), 2f), center.x - half, center.y - half, width, width);
+                            for (int i = 0; i < players[player_index].defendboxes.Length; i++)
+                            {
+                                if (players[player_index].defendboxes[i].active)
+                                {
+                                    Vector3 center = transformed_positions[players[player_index].defendboxes[i].transform_index];
+
+                                    float width = players[player_index].defendboxes[i].radius * 2 * PIXELS_PER_UNIT;
+                                    float half = width / 2f;
+                                    Color color = Color.Blue;
+                                    graphics.FillEllipse(new SolidBrush(color), center.x - 4, center.y - 4, 8, 8);
+                                    graphics.FillEllipse(new SolidBrush(Color.FromArgb(30, color)), center.x - half, center.y - half, width, width);
+                                    graphics.DrawEllipse(new Pen(Color.FromArgb(color.R / 2, color.G / 2, color.B / 2), 2f), center.x - half, center.y - half, width, width);
+                                }
                             }
                         }
                     }
@@ -398,8 +448,6 @@ class GameplayDemo : IGameState
                         graphics.DrawString($"position: {transforms[players[i].entity_ID].position:F9}", Control.DefaultFont, Brushes.Yellow, i * WIDTH / 4, 128);
                     }
                 }
-                
-
             }
         }
     }
@@ -417,7 +465,7 @@ class GameplayDemo : IGameState
         game_over = false;
         time_remaining = initial_time;
         List<Transform> list_entities = new List<Transform>();
-        Transform[] skeleton = GetSkeleton();
+        skeleton = GetSkeleton();
 
         float distance_apart = 3.5f;
         float leftmost_position = -(PLAYER_COUNT - 1) * distance_apart / 2;
@@ -437,7 +485,6 @@ class GameplayDemo : IGameState
             Transform entity = list_entities[player_root_index];
 
             entity.position.x = leftmost_position + i * distance_apart;
-            entity.scale = Vector3.One;
             entity.rotation.y = 1 / 4f * Tau;
 
             players[i].health = max_health;
@@ -445,14 +492,40 @@ class GameplayDemo : IGameState
             players[i].entity_ID = i * skeleton.Length;
             players[i].stock = 5;
             players[i].y_velocity = 0;
+            players[i].defendboxes = new Hitbox[]
+            {
+                new Hitbox() { transform_index = 6, radius = .2f, active = true },
+                new Hitbox() { transform_index = 4, radius = .2f, active = true },
+                new Hitbox() { transform_index = 1, radius = .3f, active = true },
+                new Hitbox() { transform_index = 2, radius = .4f, active = true },
+                new Hitbox() { transform_index = 3, radius = .2f, active = true },
+            };
+
+            players[i].attackboxes = new Hitbox[]
+            {
+                new Hitbox() { transform_index = 14, radius = .2f },
+                new Hitbox() { transform_index = 15, radius = .2f },
+            };
+
+            for (int o = 0; o < players[i].attackboxes.Length; o++)
+            {
+                players[i].attackboxes[o].transform_index += skeleton.Length * i;
+            }
+
+            for (int o = 0; o < players[i].defendboxes.Length; o++)
+            {
+                players[i].defendboxes[o].transform_index += skeleton.Length * i;
+            }
+
             list_entities[player_root_index] = entity;
         }
-        this.transforms = list_entities.ToArray();
+
+        transforms = list_entities.ToArray();
 
         for (int i = 0; i < PLAYER_COUNT; i++)
         {
             Animator new_animator = new Animator();
-            new_animator.current_animation = AvatarDemo.idle_animation;
+            new_animator.current_animation = DefinedAnimations.idle_animation;
             new_animator.current_frame = 1;
             animators[i] = new_animator;
         }
