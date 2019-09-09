@@ -18,16 +18,16 @@ class MeshDemo : IGameState
 
 	public MeshDemo()
     {
-		mesh = LoadMesh("teapot.obj");
+		mesh = LoadMesh("skin_cylinder.obj");
     }
 
 	public void Update()
 	{
 		//Update
 		{
-			float camera_move_speed = 40 * time_step;
-			float camera_rotation_speed = Tau/4 * time_step;
-			float cube_rotation_speed = Tau / 16 * time_step;
+			float camera_move_speed = 40 * delta_time;
+			float camera_rotation_speed = Tau/4 * delta_time;
+			float cube_rotation_speed = Tau / 16 * delta_time;
 			
 			if(Input.KeyDown(Keys.E))
 				camera.rotation.y += camera_rotation_speed;
@@ -46,8 +46,9 @@ class MeshDemo : IGameState
 			if(Input.KeyDown(Keys.C))
 				camera.position.y -= camera_move_speed;
 
-			cube_transform.rotation += new Vector3(cube_rotation_speed, cube_rotation_speed / 2, cube_rotation_speed / 3);
-			light_rotation += time_step;
+            //cube_transform.rotation += new Vector3(cube_rotation_speed, cube_rotation_speed / 2, cube_rotation_speed / 3);
+            cube_transform.rotation.x = -1/8f * Tau;
+            //light_rotation += delta_time;
 		}
 
 		//Render
@@ -117,13 +118,16 @@ class MeshDemo : IGameState
 							}
 							else
 							{
-								var dot = Vector3.DotProduct(normal, TransformVector(Rotation(0,light_rotation,0), Vector3.Forward));
+								var dot = Vector3.DotProduct(normal, TransformVector(Rotation(0,light_rotation,0), -Vector3.Forward));
 
 								if(dot < 0)
 									dot = 0;
 
-								t.brightness = dot * 255;
-								triangles[i] = t;	
+                                if(!float.IsNaN(dot))//TODO - remove, just a temporary fix
+                                {
+								    t.brightness = dot * 255;
+								    triangles[i] = t;	
+                                }
 
 								i++;
 							}
@@ -192,7 +196,7 @@ class MeshDemo : IGameState
 						var b = (int)triangles[i].brightness;
 						Color color = Color.FromArgb(b, b, b);
 						graphics.FillPolygon(new SolidBrush(color), points);
-						//graphics.DrawPolygon(Pens.DarkSlateGray, points);
+						graphics.DrawPolygon(Pens.DarkSlateGray, points);
 
 						//Vector3 centroid = GetCentroid(t);
 						//graphics.FillRectangle(Brushes.Red, centroid.x - 2, centroid.y - 2, 4, 4);

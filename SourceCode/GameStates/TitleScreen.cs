@@ -23,7 +23,7 @@ class TitleScreen : IGameState
         if (Input.KeyDownFresh(Keys.Space))
             game_state_index++;
 
-        t += time_step * 5;
+        t += delta_time * 5;
         opacity = (float)((Math.Sin(t - Tau / 4) + 1) / 2);
 
         graphics.Clear(Color.Black);

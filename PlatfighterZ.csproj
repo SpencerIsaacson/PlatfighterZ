@@ -59,6 +59,7 @@
     <Compile Include="SourceCode\GameStates\GameplayState.cs" />
     <Compile Include="SourceCode\GameStates\MeshDemo.cs" />
     <Compile Include="SourceCode\GameStates\PlatformerPhysicsTest.cs" />
+    <Compile Include="SourceCode\GameStates\SkinnedMeshDemo.cs" />
     <Compile Include="SourceCode\GameStates\TitleScreen.cs" />
     <Compile Include="SourceCode\Platform Layer\Input.cs" />
   </ItemGroup>
@@ -68,6 +69,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="Assets\cube.obj">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\skin_cylinder.obj">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="Assets\teapot.obj">

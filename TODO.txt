@@ -1,0 +1,14 @@
+Do actual frustum check for players in camera view
+
+Make sure ground y_vel is consistent CHECK
+
+Use Verlet integration for platforming instead of Euler.
+
+Fix input issues on limited 60fps
+
+implement "crouching" to check lower hitboxes CHECK
+
+implement collision detection in main gameplay state
+
+
+This week: finish mesh skinning, import an animated character, add the collision detection to the game, make it so you can animate different characters, get character selection working

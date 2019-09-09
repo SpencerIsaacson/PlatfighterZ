@@ -62,7 +62,7 @@ class GameplayState : IGameState
                     {
                         Vector3 velocity = Vector3.Zero;
                         if ((*playerEntity).position.y > 0)
-                            players[player_index].y_velocity -= gravity * time_step;
+                            players[player_index].y_velocity -= gravity * delta_time;
 
                         KeyFrame[] first_curve_frames = animators[player_index].current_animation.curves[0].keyframes;
                         float ending_frame = first_curve_frames[first_curve_frames.Length - 1].frame;
@@ -157,7 +157,7 @@ class GameplayState : IGameState
                                     }
                             }
 
-                            animator.current_frame += TARGET_FRAMERATE * time_step;
+                            animator.current_frame += TARGET_FRAMERATE * delta_time;
 
                             animators[player_index] = animator;
                         }
@@ -165,12 +165,15 @@ class GameplayState : IGameState
                         //Move Player
                         {
                             velocity.y = players[player_index].y_velocity;
-                            velocity *= time_step;
+                            velocity *= delta_time;
                             (*playerEntity).position += velocity;
 
-                            if ((*playerEntity).position.y < 0)
+                            if ((*playerEntity).position.y <= 0)
                             {
-                                (*playerEntity).position.y = 0;
+                                if (Input.ButtonDown(player_index, Buttons.DOWN))
+                                    (*playerEntity).position.y = -2;
+                                else
+                                    (*playerEntity).position.y = 0;
                                 players[player_index].y_velocity = 0;
                             }
 
@@ -201,7 +204,7 @@ class GameplayState : IGameState
 
                                         if (intersects)
                                         {
-                                            players[other_player].health -= 10 * time_step;
+                                            players[other_player].health -= 10 * delta_time;
                                             if (players[other_player].health <= 0)
                                             {
                                                 players[other_player].stock--;
@@ -219,14 +222,31 @@ class GameplayState : IGameState
 
                 //Update Camera
                 {
-                    float average_x = 0;
+                    float min_x = float.MaxValue;
+                    float min_y = float.MaxValue;
+
+                    float max_x = -float.MaxValue;
+                    float max_y = -float.MaxValue;
+
                     foreach (var player in players)
                     {
-                        average_x += transforms[player.entity_ID].position.x;
-                    }
-                    average_x /= PLAYER_COUNT;
+                        var x = transforms[player.entity_ID].position.x;
+                        var y = transforms[player.entity_ID].position.y;
 
-                    camera.position.x = camera.position.x + time_step * (average_x - camera.position.x);
+                        if (x < min_x)
+                            min_x = x;
+                        if (x > max_x)
+                            max_x = x;
+
+                        if (y < min_y)
+                            min_y = y;
+                        if (y > max_y)
+                            max_y = y;
+                    }
+
+                    camera.position.x = (max_x + min_x) / 2;
+                    camera.position.z = -20-(max_x - min_x);
+
                 }
 
                 //Check if the game is ongoing
@@ -251,7 +271,7 @@ class GameplayState : IGameState
                     //Check Match Complete
                     {
                         game_over = winner != 0 || remaining_players == 0;
-                        time_remaining -= time_step;
+                        time_remaining -= delta_time;
                         if (time_remaining <= 0)
                         {
                             game_over = true;

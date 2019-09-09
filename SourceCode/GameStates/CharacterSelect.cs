@@ -28,7 +28,7 @@ class CharacterSelect : IGameState
 
     public void Update()
     {
-        t += time_step;
+        t += delta_time;
         int number_of_rows = characters/number_of_columns;
         if(Input.KeyDownFresh(Keys.S))
         {
@@ -52,25 +52,25 @@ class CharacterSelect : IGameState
 
         if (Input.KeyDown(System.Windows.Forms.Keys.D))
         {
-            right_key_time += time_step;
+            right_key_time += delta_time;
         }
         else
             right_key_time = 0;
 
         if (Input.KeyDown(System.Windows.Forms.Keys.A))
         {
-            left_key_time += time_step;
+            left_key_time += delta_time;
         }
         else
             left_key_time = 0;
 
         if (right_key_time > initial_delay)
         {
-            right_key_delay += time_step;
+            right_key_delay += delta_time;
         }
         if (left_key_time > initial_delay)
         {
-            left_key_delay += time_step;
+            left_key_delay += delta_time;
         }
 
         selected = selected_column + number_of_columns * selected_row;

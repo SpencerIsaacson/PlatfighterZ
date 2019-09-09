@@ -25,8 +25,6 @@ class Game
     public static Stopwatch stopwatch = new Stopwatch();
     public static float previous_time;
     public static float delta_time;
-    public static float time_step;
-    public static float time_since_last_frame;
     public static float frames_per_second;
     public static float time_since_timing_recalculated;
     public static bool fixed_framerate = true;
@@ -35,8 +33,10 @@ class Game
     IGameState current_game_state;
     IGameState[] game_states = new IGameState[] 
     {
+        new SkinnedMeshDemo(),
+        new MeshDemo(),
         new GameplayState(),
-        new PlatformerPhysicsTest(),
+        new PlatformerPhysicsTest()
     };
 
     public static int game_state_index = 0;
@@ -82,20 +82,12 @@ class Game
 
     void GameLoop(object sender, EventArgs e)
     {
-        do
+        while (WindowIsIdle())
         {
-            if (!fixed_framerate || time_since_last_frame > STANDARD_TIMESTEP)
+            if (!fixed_framerate || delta_time > STANDARD_TIMESTEP)
             {
                 //Tick
                 {
-                    //Set TimeStep
-                    {
-                        if (fixed_framerate)
-                            time_step = STANDARD_TIMESTEP;
-                        else
-                            time_step = delta_time;
-                    }
-
                     //Update Input Devices
                     {
                         Input.PollKeyboard();
@@ -107,6 +99,7 @@ class Game
                         {
                             game_state_index = (game_state_index + 1) % game_states.Length;
                         }
+
                         else if (Input.KeyDownFresh(Keys.Z))
                         {
                             game_state_index--;
@@ -122,7 +115,7 @@ class Game
                     current_game_state.Update();
                     graphics_buffer.Render();
                     
-                    time_since_last_frame = 0;
+                    delta_time = 0;
                 }
             }
 
@@ -136,9 +129,9 @@ class Game
 
             //Update Timing
             {
-                delta_time = (float)(stopwatch.Elapsed.TotalSeconds - previous_time);
-                time_since_last_frame += delta_time;
-                time_since_timing_recalculated += delta_time;
+                float elapsed = (float)(stopwatch.Elapsed.TotalSeconds - previous_time);
+                delta_time += elapsed;
+                time_since_timing_recalculated += elapsed;
 
                 if (time_since_timing_recalculated >= TIME_RECALCULATION_INTERVAL)
                 {
@@ -147,7 +140,7 @@ class Game
                 }
                 previous_time = (float)stopwatch.Elapsed.TotalSeconds;
             }
-        } while (WindowIsIdle());
+        }
     }
 
     bool WindowIsIdle()

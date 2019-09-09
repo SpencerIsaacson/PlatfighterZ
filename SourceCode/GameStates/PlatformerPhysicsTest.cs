@@ -51,12 +51,13 @@ class PlatformerPhysicsTest : IGameState
         graphics.ScaleTransform(1, -1);            
 
 
-        float acceleration = 1f * time_step;
-        float jump_speed = 6 * time_step;
-        float max_speed = 5 * time_step;
+        float acceleration = 1f * delta_time;
+        float jump_speed = 6 * delta_time;
+        float max_speed = 5 * delta_time;
         float slide_coefficient = 0;
         bool no_horizontal_input = false;
-        float gravity = time_step / 6f;
+        float gravity = delta_time / 6f;
+        float ground_fall_velocity = -.1f * delta_time;
 
         if (Input.KeyDown(Keys.D))
             vel_x += acceleration;
@@ -72,8 +73,7 @@ class PlatformerPhysicsTest : IGameState
 
         if (grounded)
         {
-            if (vel_y < -.1f)
-                vel_y = -.1f;
+            vel_y = ground_fall_velocity;
 
             if (no_horizontal_input)
                 vel_x *= slide_coefficient;
@@ -84,11 +84,6 @@ class PlatformerPhysicsTest : IGameState
         else
         {
             vel_y -= gravity;
-
-            if (Input.KeyDown(Keys.S)) //TODO only allow in a window near the apex of the jump
-            {
-                vel_y = -jump_speed; // fast fall
-            }
         }
 
         float ax_half = player.scale.x / 2;
@@ -123,7 +118,10 @@ class PlatformerPhysicsTest : IGameState
             {
                 graphics.DrawRectangle(Pens.Green, (player.position.x - ax_half) * PIXELS_PER_UNIT, (player.position.y - ay_half) * PIXELS_PER_UNIT, player.scale.x * PIXELS_PER_UNIT, player.scale.y * PIXELS_PER_UNIT);
                 if (old_y < b.position.y)
+                {
                     player.position.y -= (player.position.y + (player.scale.y / 2)) - (b.position.y - (b.scale.y / 2));
+                    vel_y = 0;
+                }
                 else if (old_y > b.position.y)
                 {
                     player.position.y += (b.position.y + (b.scale.y / 2)) - (player.position.y - (player.scale.y / 2));
@@ -154,6 +152,8 @@ class PlatformerPhysicsTest : IGameState
         graphics.DrawString(player.position.ToString(), Control.DefaultFont, Brushes.White, 0, 0);
         graphics.DrawString($"[{vel_x:F3}, {vel_y:F3}]", Control.DefaultFont, Brushes.White, 0, 16);
         graphics.DrawString(grounded.ToString(), Control.DefaultFont, Brushes.White, 0, 32);
+        graphics.DrawString(string.Format("FPS: {0:F2}", frames_per_second), Control.DefaultFont, Brushes.Yellow, PIXELS_PER_UNIT / 2, 120);
+        graphics.DrawString(string.Format("delta_time: {0:F9}", delta_time), Control.DefaultFont, Brushes.Yellow, PIXELS_PER_UNIT / 2, 65);
     }
 
     bool Intersect(Transform a, Transform b)
