@@ -71,6 +71,8 @@ namespace Engine
                 scale = Vector3.One
             };
         }
+
+
     }
 
     
@@ -193,14 +195,19 @@ namespace Engine
         
         public static readonly Matrix4x4 identity = new Matrix4x4(new float [] { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 });
 
+        public static Vector3 operator *(Matrix4x4 m, Vector3 v)
+        {
+            return Global.TransformVector(m, v);
+        }
+
         public static Matrix4x4 operator *(Matrix4x4 a, Matrix4x4 b)
         {
-            return Global.Concat(a, b);
+            return Global.Concatenate(a, b);
         }
 
         public override string ToString()
         {
-            return $"{m11:F2}, {m12:F2}, {m13:F2}, {m14:F2}\n{m21:F2}, {m22:F2}, {m23:F2}, {m24:F2}\n{m31:F2}, {m32:F2}, {m33:F2}, {m34:F2}\n{m41:F2}, {m42:F2}, {m43:F2}, {m44:F2}\n";
+            return $"{m11:F2}, {m12:F2}, {m13:F2}, {m14:F2}, \n{m21:F2}, {m22:F2}, {m23:F2}, {m24:F2}, \n{m31:F2}, {m32:F2}, {m33:F2}, {m34:F2}, \n{m41:F2}, {m42:F2}, {m43:F2}, {m44:F2}\n";
         }
     }
 

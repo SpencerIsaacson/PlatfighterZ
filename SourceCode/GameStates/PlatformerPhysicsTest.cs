@@ -51,18 +51,18 @@ class PlatformerPhysicsTest : IGameState
         graphics.ScaleTransform(1, -1);            
 
 
-        float acceleration = 1f * delta_time;
-        float jump_speed = 6 * delta_time;
-        float max_speed = 5 * delta_time;
+        float acceleration = 100f;
+        float jump_speed = 6;
+        float max_speed = 5;
         float slide_coefficient = 0;
         bool no_horizontal_input = false;
-        float gravity = delta_time / 6f;
-        float ground_fall_velocity = -.1f * delta_time;
+        float gravity = 10;
+        float ground_fall_velocity = -.01f;
 
         if (Input.KeyDown(Keys.D))
-            vel_x += acceleration;
+            vel_x += acceleration * delta_time;
         else if (Input.KeyDown(Keys.A))
-            vel_x -= acceleration;
+            vel_x -= acceleration * delta_time;
         else
             no_horizontal_input = true;
 
@@ -83,7 +83,7 @@ class PlatformerPhysicsTest : IGameState
         }
         else
         {
-            vel_y -= gravity;
+            vel_y -= gravity * delta_time;
         }
 
         float ax_half = player.scale.x / 2;
@@ -91,7 +91,7 @@ class PlatformerPhysicsTest : IGameState
 
 
         var old_x = player.position.x;
-        player.position.x += vel_x;
+        player.position.x += vel_x * delta_time;
 
         for (int i = 0; i < blocks.Length; i++)
         {
@@ -107,7 +107,7 @@ class PlatformerPhysicsTest : IGameState
         }
 
         var old_y = player.position.y;
-        player.position.y += vel_y;
+        player.position.y += vel_y * delta_time;
 
         grounded = false;
 

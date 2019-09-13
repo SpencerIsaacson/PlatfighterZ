@@ -13,13 +13,22 @@ namespace Engine
 
         #region Linear Algebra
 
+        public static Transform InvertTransform(Transform t)
+        {
+            t.position = -t.position;
+            t.rotation = -t.rotation;
+            t.scale.x = 1 / t.scale.x;
+            t.scale.y = 1 / t.scale.y;
+            t.scale.z = 1 / t.scale.z;
+            return t;
+        }
 
         public static Matrix4x4 GetMatrix(Transform t)
         {
             return Matrix4x4.identity
                 * Scale(t.scale.x, t.scale.y, t.scale.z)
                 * Rotation(t.rotation.x, t.rotation.y, t.rotation.z)
-                * Translation(t.position.x, t.position.y, t.position.z);//TODO pre-concatenate
+                * Translation(t.position.x, t.position.y, t.position.z);
         }
 
 
@@ -28,7 +37,7 @@ namespace Engine
             Matrix4x4 m = GetMatrix(t);
             while (t.parent != -1)
             {
-                m = Concat(m, GetMatrix(world[t.parent]));
+                m = Concatenate(m, GetMatrix(world[t.parent]));
                 t = world[t.parent];
             }
 
@@ -36,7 +45,7 @@ namespace Engine
         }
 
 
-        public static Matrix4x4 Concat(Matrix4x4 a, Matrix4x4 b)
+        public static Matrix4x4 Concatenate(Matrix4x4 a, Matrix4x4 b)
         {
             return new Matrix4x4()
             {
@@ -131,6 +140,7 @@ namespace Engine
                 w = m.m14 * v.x + m.m24 * v.y + m.m34 * v.z + m.m44 * v.w,
             };
         }
+
         #endregion
 
         #region Animation

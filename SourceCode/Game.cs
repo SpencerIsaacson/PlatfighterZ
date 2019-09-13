@@ -34,9 +34,9 @@ class Game
     IGameState[] game_states = new IGameState[] 
     {
         new SkinnedMeshDemo(),
+        new PlatformerPhysicsTest(),
         new MeshDemo(),
         new GameplayState(),
-        new PlatformerPhysicsTest()
     };
 
     public static int game_state_index = 0;

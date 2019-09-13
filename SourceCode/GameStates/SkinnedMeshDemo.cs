@@ -9,7 +9,7 @@ class SkinnedMeshDemo : IGameState
     Mesh mesh;
     public float zoom_factor = 100;
     Transform[] world = new Transform[2];
-    Transform[] bind = new Transform[2];
+    Matrix4x4[] bind_matrices = new Matrix4x4[2];
     Vector2[] weights;
     Vector2[] weight_indices;
     public SkinnedMeshDemo()
@@ -23,32 +23,24 @@ class SkinnedMeshDemo : IGameState
             world[i] = Transform.Default();
         }
 
-        //world[1].parent = 0;
+        world[1].parent = 0;
         world[0].position.y = -1;
-        world[1].position.y = 1;
+        world[1].position.y = 2;
 
-        for (int i = 0; i < bind.Length; i++)
+        Transform[] bind_transforms = new Transform[2];
+
+        for (int i = 0; i < bind_matrices.Length; i++)
         {
-            bind[i] = world[i];
-            bind[i].position = -bind[i].position;
-            bind[i].rotation = -bind[i].rotation;
-            bind[i].scale.x = 1 / bind[i].scale.x;
-            bind[i].scale.y = 1 / bind[i].scale.y;
-            bind[i].scale.z = 1 / bind[i].scale.z;
-        }
 
+            bind_transforms[i] = InvertTransform(world[i]);
+            bind_matrices[i] = WorldSpaceMatrix(bind_transforms[i], bind_transforms);
+
+        }
         for (int i = 0; i < weight_indices.Length; i++)
         {
-            if (mesh.vertices[i].y <= 0)
-            {
-                weight_indices[i] = new Vector2(0, 1);
-                weights[i] = new Vector2(1, 0);
-            }
-            else
-            {
-                weight_indices[i] = new Vector2(0, 1);
-                weights[i] = new Vector2(0, 1);
-            }
+            weight_indices[i] = new Vector2(0, 1);
+            float t = mesh.vertices[i].y/2 +.5f;
+            weights[i] = new Vector2(1 - t, t);
         }
     }
 
@@ -57,18 +49,16 @@ class SkinnedMeshDemo : IGameState
     {
         t += delta_time;
         graphics.Clear(Color.Black);
-        //world[0].position.x -= delta_time * 0.100f;
-        //world[1].position.x += delta_time * 0.191f;
-        world[1].position.y -= delta_time / 10f;
-        world[1].rotation.z += delta_time / 3f;
+
+        world[0].position.x = (float)System.Math.Sin(t);
+        world[0].rotation.y = t;
+        world[1].rotation.z = (float)System.Math.Sin(t);
+        world[1].position.y = 2 + (float)System.Math.Cos(t)/2;
 
         for (int i = 0; i < mesh.vertices.Length; i++)
         {
-            Vector3 v_a_prime = TransformVector(WorldSpaceMatrix(bind[(int)weight_indices[i].x], bind), mesh.vertices[i]);
-            Vector3 v_a = TransformVector(WorldSpaceMatrix(world[(int)weight_indices[i].x], world), v_a_prime);
-
-            Vector3 v_b_prime = TransformVector(WorldSpaceMatrix(bind[(int)weight_indices[i].y], bind), mesh.vertices[i]);
-            Vector3 v_b = TransformVector(GetMatrix(world[(int)weight_indices[i].y]), v_b_prime);
+            Vector3 v_a = bind_matrices[(int)weight_indices[i].x] * WorldSpaceMatrix(world[(int)weight_indices[i].x], world) * mesh.vertices[i];
+            Vector3 v_b = bind_matrices[(int)weight_indices[i].y] * WorldSpaceMatrix(world[(int)weight_indices[i].y], world) * mesh.vertices[i];
 
             Vector3 v_average = (v_a * weights[i].x) + (v_b * weights[i].y);
 
@@ -76,7 +66,7 @@ class SkinnedMeshDemo : IGameState
             graphics.FillRectangle(Brushes.Red, v.x, v.y, 1, 1);
         }
 
-        Vector2 screen_a = ToScreen(TransformVector(WorldSpaceMatrix(world[0],world),Vector3.Zero));
+        Vector2 screen_a = ToScreen(TransformVector(WorldSpaceMatrix(world[0], world), Vector3.Zero));
         Vector2 screen_b = ToScreen(TransformVector(WorldSpaceMatrix(world[1], world), Vector3.Zero));
 
         graphics.FillRectangle(Brushes.Red, screen_a.x - 5, screen_a.y - 5, 10, 10);

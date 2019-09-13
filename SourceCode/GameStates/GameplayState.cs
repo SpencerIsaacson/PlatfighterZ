@@ -12,7 +12,7 @@ class GameplayState : IGameState
 
     //Game World
     Transform camera = new Transform();
-    float field_of_view = 3 / 8f * Tau;
+    float field_of_view = 3/8f * Tau;
     Transform[] transforms;
     readonly Player[] players = new Player[PLAYER_COUNT];
     readonly Animator[] animators = new Animator[PLAYER_COUNT];
@@ -222,6 +222,7 @@ class GameplayState : IGameState
 
                 //Update Camera
                 {
+                    //TODO actual frustum check to keep players on screen
                     float min_x = float.MaxValue;
                     float min_y = float.MaxValue;
 
