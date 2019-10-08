@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Drawing;
 using static System.Math;
 
 namespace Engine
@@ -6,12 +7,20 @@ namespace Engine
     struct Player
     {
         public int entity_ID;
+        public int selected_character;
         public bool defeated;
         public int stock;
         public float health;
-        public float y_velocity;
         public Hitbox[] attackboxes;
         public Hitbox[] defendboxes;
+        public Vector2 velocity;
+        public bool grounded;
+    }
+
+    unsafe struct Character
+    {
+        public string name;
+        public Bitmap icon;
     }
 
     struct Animator
@@ -22,6 +31,7 @@ namespace Engine
 
     struct Animation
     {
+        public bool looped;
         public List<AnimationCurve> curves;
         public int[][] defendbox_keys;
         public bool[][] defendbox_values;
@@ -163,6 +173,8 @@ namespace Engine
             this.z = z; 
             this.w = w; 
         }
+
+        public static Vector4 operator /(Vector4 v, float s) { return new Vector4(v.x / s, v.y / s, v.z / s, v.w / s); }
     }
 
 
@@ -170,30 +182,27 @@ namespace Engine
     {
         public float m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34, m41, m42, m43, m44;
 
-        public Matrix4x4(float[] buffer)
+        public Matrix4x4(float m11, float m12, float m13, float m14, float m21, float m22, float m23, float m24, float m31, float m32, float m33, float m34, float m41, float m42, float m43, float m44)
         {
-            if(buffer.Length != 16)
-                this = identity;
-                
-            this.m11 = buffer[0];
-            this.m12 = buffer[1];
-            this.m13 = buffer[2];
-            this.m14 = buffer[3];
-            this.m21 = buffer[4];
-            this.m22 = buffer[5];
-            this.m23 = buffer[6];
-            this.m24 = buffer[7];
-            this.m31 = buffer[8];
-            this.m32 = buffer[9];
-            this.m33 = buffer[10];
-            this.m34 = buffer[11];
-            this.m41 = buffer[12];
-            this.m42 = buffer[13];
-            this.m43 = buffer[14];
-            this.m44 = buffer[15];
+            this.m11 = m11;
+            this.m12 = m12;
+            this.m13 = m13;
+            this.m14 = m14;
+            this.m21 = m21;
+            this.m22 = m22;
+            this.m23 = m23;
+            this.m24 = m24;
+            this.m31 = m31;
+            this.m32 = m32;
+            this.m33 = m33;
+            this.m34 = m34;
+            this.m41 = m41;
+            this.m42 = m42;
+            this.m43 = m43;
+            this.m44 = m44;
         }
-        
-        public static readonly Matrix4x4 identity = new Matrix4x4(new float [] { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 });
+
+        public static readonly Matrix4x4 identity = new Matrix4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 
         public static Vector3 operator *(Matrix4x4 m, Vector3 v)
         {

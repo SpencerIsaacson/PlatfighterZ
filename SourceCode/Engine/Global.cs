@@ -4,12 +4,17 @@ using System.Drawing;
 using System.IO;
 using static System.Math;
 using static Game;
+using System.Reflection;
 
 namespace Engine
 {
+    /// <summary>
+    /// Contains engine-level functionality used throughout the game
+    /// </summary>
     public static class Global
     {
         public const float Tau = 6.28318530717958f;
+        public const float Pi = Tau / 2;
 
         #region Linear Algebra
 
@@ -31,19 +36,18 @@ namespace Engine
                 * Translation(t.position.x, t.position.y, t.position.z);
         }
 
-
-        public static Matrix4x4 WorldSpaceMatrix(Transform t, Transform[] world)
+        public static Matrix4x4 WorldSpaceMatrix(int index, Transform[] hierarchy)
         {
+            Transform t = hierarchy[index];
             Matrix4x4 m = GetMatrix(t);
             while (t.parent != -1)
             {
-                m = Concatenate(m, GetMatrix(world[t.parent]));
-                t = world[t.parent];
+                m = Concatenate(m, GetMatrix(hierarchy[t.parent]));
+                t = hierarchy[t.parent];
             }
 
             return m;
         }
-
 
         public static Matrix4x4 Concatenate(Matrix4x4 a, Matrix4x4 b)
         {
@@ -68,24 +72,20 @@ namespace Engine
             };
         }
 
-
         public static Matrix4x4 Transpose(Matrix4x4 m)
         {
-            return new Matrix4x4(new float[] { m.m11, m.m21, m.m31, m.m41, m.m12, m.m22, m.m32, m.m42, m.m13, m.m23, m.m33, m.m43, m.m14, m.m24, m.m34, m.m44 });
+            return new Matrix4x4(m.m11, m.m21, m.m31, m.m41, m.m12, m.m22, m.m32, m.m42, m.m13, m.m23, m.m33, m.m43, m.m14, m.m24, m.m34, m.m44);
         }
-
 
         public static Matrix4x4 Translation(float x, float y, float z)
         {
-            return new Matrix4x4(new float[] { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1 });
+            return new Matrix4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1);
         }
-
 
         public static Matrix4x4 Scale(float x, float y, float z)
         {
-            return new Matrix4x4(new float[] { x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1 });
+            return new Matrix4x4(x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1);
         }
-
 
         public static Matrix4x4 Rotation(float x, float y, float z)
         {
@@ -110,15 +110,14 @@ namespace Engine
             float zoom = (float)(1 / Tan(field_of_view / 2));
             float q = far / (far - near);
 
-            return new Matrix4x4(new float[]
-            {
-                aspect_ratio * zoom, 0, 0, 0,
-                0,-zoom,0,0,
-                0,0,q,near * q,
-                0,0,1,0
-            });
+            return new Matrix4x4
+            (
+                aspect_ratio * zoom, 0, 0, 0, 
+                0, -zoom, 0, 0, 
+                0, 0, q, near * q, 
+                0, 0, 1, 0
+            );
         }
-
 
         public static Vector3 TransformVector(Matrix4x4 m, Vector3 v)
         {
@@ -212,7 +211,9 @@ namespace Engine
 
         public static Mesh LoadMesh(string file_name)
         {
-            using (StreamReader reader = new StreamReader("Assets/" + file_name))
+            Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("PlatfighterZ.Assets." + file_name);
+
+            using (StreamReader reader = new StreamReader(stream))
             {
                 List<Vector3> vertexList = new List<Vector3>();
                 List<int> indexList = new List<int>();
@@ -255,7 +256,6 @@ namespace Engine
             }
         }
 
-
         public static KeyFrame[] LoadKeyFrames(string path)
         {
             using (BinaryReader reader = new BinaryReader(File.Open(path, FileMode.Open)))
@@ -275,7 +275,6 @@ namespace Engine
                 return curve.ToArray();
             }
         }
-
 
         public static void SaveHierarchy(string path, Transform[] hierarchy)
         {
@@ -297,10 +296,10 @@ namespace Engine
             }
         }
 
-
         public static Transform[] LoadHierarchy(string path)
         {
-            using (BinaryReader reader = new BinaryReader(File.Open(path, FileMode.Open)))
+            Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("PlatfighterZ.Assets." + path);
+            using (BinaryReader reader = new BinaryReader(stream))
             {
                 List<Transform> hierarchy = new List<Transform>();
                 while (reader.BaseStream.Position != reader.BaseStream.Length)
@@ -322,7 +321,25 @@ namespace Engine
             }
         }
 
-
         #endregion
+
+        public static bool Intersect(Transform a, Transform b)
+        {
+            float ax_half = a.scale.x / 2;
+            float ay_half = a.scale.y / 2;
+            float by_half = b.scale.y / 2;
+            float bx_half = b.scale.x / 2;
+
+            float a_right = a.position.x + ax_half;
+            float a_left = a.position.x - ax_half;
+            float a_top = a.position.y + ay_half;
+            float a_bottom = a.position.y - ay_half;
+            float b_right = b.position.x + bx_half;
+            float b_left = b.position.x - bx_half;
+            float b_top = b.position.y + by_half;
+            float b_bottom = b.position.y - by_half;
+
+            return a_right > b_left && a_left < b_right && a_top > b_bottom && a_bottom < b_top;
+        }
     }
 }

@@ -23,13 +23,18 @@ namespace Engine
         {
             {Keys.A,       Keys.D ,       Keys.S,        Keys.W,       Keys.Q},
             {Keys.J,       Keys.L,        Keys.K,        Keys.I,       Keys.U},
-            {Keys.Left,    Keys.Right,    Keys.Down,     Keys.Up,      Keys.Back},
+            {Keys.Left,    Keys.Right,    Keys.Down,     Keys.Up,      Keys.Delete},
             {Keys.NumPad4, Keys.NumPad6,  Keys.NumPad5,  Keys.NumPad8, Keys.NumPad7}
         };
 
         public static bool ButtonDown(int player, Buttons action)
         {
             return KeyDown(control_mappings[player, (int)action]);
+        }
+
+        public static bool ButtonDownFresh(int player, Buttons action)
+        {
+            return KeyDownFresh(control_mappings[player, (int)action]);
         }
 
         public static void PollKeyboard()

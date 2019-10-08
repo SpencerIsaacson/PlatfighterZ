@@ -44,15 +44,11 @@ class PlatformerPhysicsTest : IGameState
     {
         if (Input.KeyDown(Keys.Escape))
             Application.Exit();
-
-        graphics.Clear(Color.Black);
-        graphics.ResetTransform();
-        graphics.TranslateTransform(WIDTH / 2, HEIGHT / 2);
-        graphics.ScaleTransform(1, -1);            
+          
 
 
         float acceleration = 100f;
-        float jump_speed = 6;
+        float jump_speed = 9;
         float max_speed = 5;
         float slide_coefficient = 0;
         bool no_horizontal_input = false;
@@ -136,6 +132,10 @@ class PlatformerPhysicsTest : IGameState
         }
 
 
+        graphics.Clear(Color.Black);
+        graphics.ResetTransform();
+        graphics.TranslateTransform(WIDTH / 2, HEIGHT / 2);
+        graphics.ScaleTransform(1, -1);
         graphics.DrawRectangle(new Pen(Color.FromArgb(255, Color.Blue)), (player.position.x - ax_half) * PIXELS_PER_UNIT, (player.position.y - ay_half) * PIXELS_PER_UNIT, player.scale.x * PIXELS_PER_UNIT, player.scale.y * PIXELS_PER_UNIT);
         graphics.DrawRectangle(Pens.Blue, player.position.x * PIXELS_PER_UNIT, player.position.y * PIXELS_PER_UNIT, 1, 1);
 

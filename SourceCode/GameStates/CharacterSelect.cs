@@ -1,107 +1,86 @@
 ﻿using Engine;
+using System;
 using System.Drawing;
+using System.Reflection;
 using System.Windows.Forms;
 
 using static Game;
 
 class CharacterSelect : IGameState
 {
-    int characters = 12;
-    int number_of_columns = 4;
-    int slot_width = 100;
+    static Character[] characters = new Character[4];
+    const int icon_size = 100;
 
-    int selected;
-    float right_key_time;
-    float left_key_time;
-    float right_key_delay;
-    float left_key_delay;
-    float key_delay = .125f;
-    float initial_delay = .5f;
-
-    int selected_column;
-    int selected_row;
-    float[] key_delays = new float[4];
-
-    float t = 0;
-
-    Image face = GetFaceImage();
-
-    public void Update()
+    public CharacterSelect()
     {
-        t += delta_time;
-        int number_of_rows = characters/number_of_columns;
-        if(Input.KeyDownFresh(Keys.S))
+        Assembly assembly = Assembly.GetExecutingAssembly();
+        characters[0] = new Character
         {
-            selected_row = (selected_row + 1) % number_of_rows;
-        }
+            name = "Bigfist McPunchydude",
+            icon = (Bitmap)Image.FromStream(assembly.GetManifestResourceStream("PlatfighterZ.Assets.bigfist_mcpunchydude_icon.png"))
+        };
 
-        if (Input.KeyDownFresh(Keys.W))
+        characters[1] = new Character
         {
-            selected_row = (selected_row -1 + number_of_rows) % number_of_rows;
-        }
-        if (Input.KeyDownFresh(Keys.D) || right_key_delay > key_delay)
-        {
-            selected_column = (selected_column + 1) % number_of_columns;
-            right_key_delay = 0;
-        }
-        if (Input.KeyDownFresh(Keys.A) || left_key_delay > key_delay)
-        {
-            selected_column = (selected_column - 1 + number_of_columns) % number_of_columns;
-            left_key_delay = 0;
-        }
+            name = "Dr. Meroink",
+            icon = (Bitmap)Image.FromStream(assembly.GetManifestResourceStream("PlatfighterZ.Assets.dr_meroink_icon.png"))
+        };
 
-        if (Input.KeyDown(System.Windows.Forms.Keys.D))
+        characters[2] = new Character
         {
-            right_key_time += delta_time;
-        }
-        else
-            right_key_time = 0;
+            name = "Maestro",
+            icon = (Bitmap)Image.FromStream(assembly.GetManifestResourceStream("PlatfighterZ.Assets.maestro_icon.png"))
+        };
 
-        if (Input.KeyDown(System.Windows.Forms.Keys.A))
+        characters[3] = new Character
         {
-            left_key_time += delta_time;
-        }
-        else
-            left_key_time = 0;
+            name = "Jeffrey",
+            icon = (Bitmap)Image.FromStream(assembly.GetManifestResourceStream("PlatfighterZ.Assets.jeffrey_icon.png"))
+        };
 
-        if (right_key_time > initial_delay)
-        {
-            right_key_delay += delta_time;
-        }
-        if (left_key_time > initial_delay)
-        {
-            left_key_delay += delta_time;
-        }
-
-        selected = selected_column + number_of_columns * selected_row;
-        graphics.Clear(Color.Blue);
-        int total_height = slot_width * characters / number_of_columns;
-        int row_width = number_of_columns * slot_width;
-        int center_X = (WIDTH - row_width) / 2;
-        
-        for (int i = 0; i < characters; i++)
-        {
-            int row = i / number_of_columns;
-            Rectangle rectangle = new Rectangle(center_X + slot_width * (i % number_of_columns), (HEIGHT - total_height) + row * slot_width, slot_width, slot_width);
-
-            graphics.DrawImage(face, rectangle);
-            graphics.DrawRectangle(Pens.Black, rectangle);
-        }
-
-        for (int i = 0; i < characters; i++)
-        {
-            int row = i / number_of_columns;
-            Rectangle rectangle = new Rectangle(center_X + slot_width * (i % number_of_columns), (HEIGHT - total_height) + row * slot_width, slot_width, slot_width);
-
-            if (i == selected)
-                graphics.DrawRectangle(new Pen(Color.Red, 5f), rectangle);
-        }
+        for (int i = 0; i < GameplayState.players.Length; i++)
+            GameplayState.players[i].selected_character = i;
     }
 
-    static Bitmap GetFaceImage()
+    public unsafe void Update()
     {
-        Bitmap image1 = (Bitmap)Image.FromFile("Assets/face-03.jpg", true);
-        return image1;
+        for (int player = 0; player < GameplayState.players.Length; player++)
+        {
+            if (Input.ButtonDownFresh(player, Buttons.RIGHT))
+                GameplayState.players[player].selected_character++;
+            else if (Input.ButtonDownFresh(player, Buttons.LEFT))
+                GameplayState.players[player].selected_character--;
+
+            if (GameplayState.players[player].selected_character == GameplayState.PLAYER_COUNT)
+                GameplayState.players[player].selected_character = 0;
+            if (GameplayState.players[player].selected_character < 0)
+                GameplayState.players[player].selected_character = GameplayState.PLAYER_COUNT - 1;
+        }
+
+        graphics.Clear(Color.Teal);
+
+        for (int i = 0; i < characters.Length; i++)
+        {
+            Rectangle rectangle = new Rectangle(i * icon_size, HEIGHT - icon_size, icon_size, icon_size);
+
+            if (characters[i].icon != null)
+                graphics.DrawImage(characters[i].icon, rectangle);
+        }
+
+        for (int i = 0; i < GameplayState.PLAYER_COUNT; i++)
+        {
+            var pen = new Pen(GameplayState.player_colors[i], 5f);
+            pen.Alignment = System.Drawing.Drawing2D.PenAlignment.Inset;
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+            graphics.DrawRectangle(pen, new Rectangle(GameplayState.players[i].selected_character * 100, HEIGHT - icon_size, icon_size, icon_size));
+            graphics.DrawString(characters[GameplayState.players[i].selected_character].name, Control.DefaultFont, Brushes.White, 0, i*32);
+        }
+
+        for (int i = 0; i < GameplayState.PLAYER_COUNT; i++)
+        {
+            graphics.FillRectangle(new SolidBrush(GameplayState.player_colors[i]), new Rectangle(GameplayState.players[i].selected_character * 100 + (i % 2 * 75), HEIGHT - 100 + (i / 2 * 75), 25, 25));
+            graphics.DrawString((i + 1) + "P", Control.DefaultFont, Brushes.White, GameplayState.players[i].selected_character * 100 + (i % 2 * 75), HEIGHT - 100 + (i / 2 * 75));
+        }
     }
 }
 

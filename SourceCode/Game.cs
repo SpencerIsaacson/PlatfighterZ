@@ -14,7 +14,7 @@ class Game
 
     //GUI
     public static Form window = new Form();
-    public static BufferedGraphics graphics_buffer;
+    public static BufferedGraphics buffered_graphics;
     public static Graphics graphics;
     public static StringFormat centered_format = new StringFormat() { LineAlignment = StringAlignment.Center, Alignment = StringAlignment.Center, };
 
@@ -30,13 +30,17 @@ class Game
     public static bool fixed_framerate = true;
     public static int frames_since_last_second;
 
-    IGameState current_game_state;
-    IGameState[] game_states = new IGameState[] 
+    public static IGameState current_game_state;
+    IGameState[] game_states = new IGameState[] //TODO replace with enum?
     {
         new SkinnedMeshDemo(),
+        new FullScreener(),
+        new SplashScreen(),
+        new TitleScreen(),
+        new CharacterSelect(),
+        new GameplayState(),
         new PlatformerPhysicsTest(),
         new MeshDemo(),
-        new GameplayState(),
     };
 
     public static int game_state_index = 0;
@@ -62,12 +66,13 @@ class Game
             window.FormBorderStyle = FormBorderStyle.FixedSingle;
             window.MaximizeBox = false;
             window.Text = "Platfighter Z";
+            //Cursor.Hide();
         }
 
         //Initialize Graphics
         {
-            graphics_buffer = BufferedGraphicsManager.Current.Allocate(window.CreateGraphics(), window.DisplayRectangle);
-            graphics = graphics_buffer.Graphics;
+            buffered_graphics = BufferedGraphicsManager.Current.Allocate(window.CreateGraphics(), window.DisplayRectangle);
+            graphics = buffered_graphics.Graphics;
         }
 
         //Start Game Loop
@@ -113,19 +118,11 @@ class Game
                     frames_since_last_second++;
 
                     current_game_state.Update();
-                    graphics_buffer.Render();
+                    buffered_graphics.Render();
                     
                     delta_time = 0;
                 }
             }
-
-            //Set Stale Keys
-            {
-                for (int i = 0; i < Input.keys_stale.Length; i++)
-				{
-                    Input.keys_stale[i] = Input.keys_down[i];
-				}
-			}
 
             //Update Timing
             {

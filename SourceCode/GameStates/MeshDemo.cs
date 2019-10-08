@@ -1,5 +1,4 @@
 using Engine;
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -13,12 +12,11 @@ class MeshDemo : IGameState
 	Mesh mesh;
 	Transform camera = new Transform() { position = Vector3.Forward * -10, scale = Vector3.One };
 	Transform cube_transform = new Transform() { position = Vector3.Forward * 10f, scale = Vector3.One };
-	Stopwatch stopwatch = new Stopwatch();
     float field_of_view = Tau / 4;
 
 	public MeshDemo()
     {
-		mesh = LoadMesh("skin_cylinder.obj");
+		mesh = LoadMesh("face.obj");
     }
 
 	public void Update()
@@ -26,7 +24,7 @@ class MeshDemo : IGameState
 		//Update
 		{
 			float camera_move_speed = 40 * delta_time;
-			float camera_rotation_speed = Tau/4 * delta_time;
+            float camera_rotation_speed = Tau / 4 * delta_time;
 			float cube_rotation_speed = Tau / 16 * delta_time;
 			
 			if(Input.KeyDown(Keys.E))
@@ -47,7 +45,7 @@ class MeshDemo : IGameState
 				camera.position.y -= camera_move_speed;
 
             //cube_transform.rotation += new Vector3(cube_rotation_speed, cube_rotation_speed / 2, cube_rotation_speed / 3);
-            cube_transform.rotation.x = -1/8f * Tau;
+            //cube_transform.rotation.x = -1/8f * Tau;
             //light_rotation += delta_time;
 		}
 
@@ -56,7 +54,7 @@ class MeshDemo : IGameState
             graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
 			graphics.ResetTransform();
             graphics.Clear(Color.Black);
-
+            DrawingLibrary.Phil(DrawingLibrary.black);
             if (mesh.indices?.Length > 0)
             {
 				List<Triangle> triangles = new List<Triangle>();
@@ -195,12 +193,16 @@ class MeshDemo : IGameState
 
 						var b = (int)triangles[i].brightness;
 						Color color = Color.FromArgb(b, b, b);
-						graphics.FillPolygon(new SolidBrush(color), points);
-						graphics.DrawPolygon(Pens.DarkSlateGray, points);
+                        uint _b = (uint)b;
+                        _b = DrawingLibrary.black | (_b << 16) | (_b << 8) | _b;
 
+                        //graphics.FillPolygon(new SolidBrush(color), points);
+                        DrawingLibrary.Phil_Triangle(_b, (int)t.a.x, (int)t.a.y, (int)t.b.x, (int)t.b.y, (int)t.c.x, (int)t.c.y);
+                        //graphics.DrawPolygon(Pens.DarkSlateGray, points);
 						//Vector3 centroid = GetCentroid(t);
 						//graphics.FillRectangle(Brushes.Red, centroid.x - 2, centroid.y - 2, 4, 4);
 					}
+                    graphics.DrawImage(FullScreener.rendered_image, 0, 0, WIDTH, HEIGHT);
 				}
 
 				graphics.DrawString(camera.position.ToString(), Control.DefaultFont, Brushes.White, 0, 0);

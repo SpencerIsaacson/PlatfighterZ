@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
+
 using static Engine.Global;
 using static Game;
 
@@ -12,14 +13,15 @@ class GameplayState : IGameState
 
     //Game World
     Transform camera = new Transform();
-    float field_of_view = 3/8f * Tau;
+    float field_of_view = 3 / 8f * Tau;
     Transform[] transforms;
-    readonly Player[] players = new Player[PLAYER_COUNT];
+    public static readonly Player[] players = new Player[PLAYER_COUNT];
     readonly Animator[] animators = new Animator[PLAYER_COUNT];
-    readonly Color[] player_colors = new Color[] { Color.Red, Color.Green, Color.Blue, Color.Purple };
+    public static readonly Color[] player_colors = new Color[] { Color.Red, Color.Green, Color.Blue, Color.Purple };
+    Transform[] blocks = new Transform[30];
 
     //Play variables
-    const int PLAYER_COUNT = 4; //currently capped at 4, as control mappings aren't yet flexible enough to handle arbitrary numbers of players
+    public const int PLAYER_COUNT = 4; //currently capped at 4, as control mappings aren't yet flexible enough to handle arbitrary numbers of players
     int winner = 0;
     bool game_over = false;
     float initial_time = 99;
@@ -29,12 +31,36 @@ class GameplayState : IGameState
     //physics
     readonly float gravity = 10;
 
-
-
-    bool[][] hit_matrix;
     public GameplayState()
     {
         ResetGame();
+        for (int i = 0; i < blocks.Length; i++)
+        {
+            blocks[i] = Transform.Default();
+            blocks[i].position.x = (i % 10) - 5;
+        }
+
+        for (int i = 0; i < 10; i++)
+        {
+            blocks[i].position.y = 4f;
+        }
+
+        for (int i = 10; i < 20; i++)
+        {
+            blocks[i].position.y = -2f;
+        }
+
+        for (int i = 20; i < 30; i++)
+        {
+            blocks[i].position.y = -3f;
+        }
+
+        blocks[17].position.y = -1;
+        blocks[15].position.y = -1;
+        blocks[15].position.x -= .25f;
+        blocks[18].scale.x = 50f;
+        blocks[29].scale.x = 10f;
+        blocks[29].position = new Vector3(-10, 1, 0);
     }
 
     public unsafe void Update()
@@ -58,126 +84,193 @@ class GameplayState : IGameState
             {
                 for (int player_index = 0; player_index < PLAYER_COUNT; player_index++)
                 {
-                    fixed (Transform* playerEntity = &(transforms[players[player_index].entity_ID]))
+                    fixed (Transform* playerTransform = &(transforms[players[player_index].entity_ID]))
                     {
-                        Vector3 velocity = Vector3.Zero;
-                        if ((*playerEntity).position.y > 0)
-                            players[player_index].y_velocity -= gravity * delta_time;
-
-                        KeyFrame[] first_curve_frames = animators[player_index].current_animation.curves[0].keyframes;
-                        float ending_frame = first_curve_frames[first_curve_frames.Length - 1].frame;
-
-                        if (!players[player_index].defeated)
-                        {
-                            bool moving = false;
-
-                            if (animators[player_index].current_animation.curves != DefinedAnimations.punch_curves) //TODO use animation, not just curves
-                            {
-                                if (Input.ButtonDown(player_index, Buttons.LEFT))
-                                {
-                                    (*playerEntity).rotation.y = -1 / 4f * Tau;
-                                    moving = true;
-                                }
-
-                                if (Input.ButtonDown(player_index, Buttons.RIGHT))
-                                {
-                                    (*playerEntity).rotation.y = 1 / 4f * Tau;
-                                    moving = true;
-                                }
-
-                                if (moving)
-                                {
-                                    animators[player_index].current_animation = DefinedAnimations.walk_animation;
-                                    var rotation = (*playerEntity).rotation;
-                                    var playerSpeed = 5f;
-                                    velocity.x = TransformVector(Rotation(rotation.x, rotation.y, rotation.z), Vector3.Forward).x * playerSpeed;
-                                }
-                                else
-                                    animators[player_index].current_animation = DefinedAnimations.idle_animation;
-
-                                if ((*playerEntity).position.y == 0 && Input.ButtonDown(player_index, Buttons.JUMP))
-                                    players[player_index].y_velocity = 10;
-
-                                if (Input.ButtonDown(player_index, Buttons.PUNCH))
-                                {
-                                    animators[player_index].current_animation = DefinedAnimations.punch_animation;
-                                    animators[player_index].current_frame = 1;
-                                }
-                            }
-                            else if (animators[player_index].current_frame >= ending_frame)
-                            {
-                                animators[player_index].current_animation = DefinedAnimations.idle_animation;
-                                animators[player_index].current_frame = 1;
-                            }
-                        }
-
                         //Animate Player
                         {
-                            Animator animator = animators[player_index];
-                            if (animator.current_frame >= ending_frame)
-                                animator.current_frame = 1;
+                            KeyFrame[] first_curve_frames = animators[player_index].current_animation.curves[0].keyframes;
+                            float ending_frame = first_curve_frames[first_curve_frames.Length - 1].frame;
 
-
-                            float frame = animators[player_index].current_frame;
-
-                            foreach (AnimationCurve curve in animator.current_animation.curves)
+                            if (!players[player_index].defeated)
                             {
-                                KeyFrame[] keyframes = curve.keyframes;
-                                int transform_index = curve.transform_index + player_index * skeleton.Length;
-
-                                fixed (Transform* p = &transforms[transform_index])
+                                //Set Animation State
                                 {
-                                    float* f = &(*p).position.x + curve.property_tag;
+                                    bool moving = false;
 
-                                    AnimateProperty(keyframes, frame, ref *f);
+                                    if (animators[player_index].current_animation.curves != DefinedAnimations.punch_curves) //TODO use animation, not just curves
+                                    {
+                                        if (Input.ButtonDown(player_index, Buttons.LEFT))
+                                        {
+                                            (*playerTransform).rotation.y = -1 / 4f * Tau;
+                                            moving = true;
+                                        }
+
+                                        if (Input.ButtonDown(player_index, Buttons.RIGHT))
+                                        {
+                                            (*playerTransform).rotation.y = 1 / 4f * Tau;
+                                            moving = true;
+                                        }
+
+                                        if (moving)
+                                        {
+                                            animators[player_index].current_animation = DefinedAnimations.walk_animation;
+                                            var rotation = (*playerTransform).rotation;
+                                        }
+                                        else
+                                            animators[player_index].current_animation = DefinedAnimations.idle_animation;
+
+                                        if (Input.ButtonDown(player_index, Buttons.PUNCH))
+                                        {
+                                            animators[player_index].current_animation = DefinedAnimations.punch_animation;
+                                            animators[player_index].current_frame = 1;
+                                        }
+                                    }
+                                    else if (animators[player_index].current_frame >= ending_frame)
+                                    {
+                                        animators[player_index].current_animation = DefinedAnimations.idle_animation;
+                                        animators[player_index].current_frame = 1;
+                                    }
                                 }
                             }
 
-                            for (int attackbox_index = 0; attackbox_index < players[player_index].attackboxes.Length; attackbox_index++)
+                            //Play Animation
                             {
-                                if (animator.current_animation.attackbox_keys != null)
-                                    for (int i = 0; i < animator.current_animation.attackbox_keys[attackbox_index].Length; i++)
+                                Animator animator = animators[player_index];
+                                if (animator.current_animation.looped && animator.current_frame >= ending_frame)
+                                    animator.current_frame = 1;
+
+
+                                float frame = animators[player_index].current_frame;
+
+                                foreach (AnimationCurve curve in animator.current_animation.curves)
+                                {
+                                    KeyFrame[] keyframes = curve.keyframes;
+                                    int transform_index = curve.transform_index + player_index * skeleton.Length;
+
+                                    fixed (Transform* p = &transforms[transform_index])
                                     {
-                                        if (frame > animator.current_animation.attackbox_keys[attackbox_index][i])
-                                        {
-                                            players[player_index].attackboxes[attackbox_index].active = animator.current_animation.attackbox_values[attackbox_index][i];
-                                        }
+                                        float* f = &(*p).position.x + curve.property_tag;
+
+                                        AnimateProperty(keyframes, frame, ref *f);
                                     }
-                            }
+                                }
 
-                            for (int defendbox_index = 0; defendbox_index < players[player_index].defendboxes.Length; defendbox_index++)
-                            {
-                                if (animator.current_animation.defendbox_keys != null)
-                                    for (int i = 0; i < animator.current_animation.defendbox_keys[defendbox_index].Length; i++)
-                                    {
-                                        if (frame > animator.current_animation.defendbox_keys[defendbox_index][i])
+                                for (int attackbox_index = 0; attackbox_index < players[player_index].attackboxes.Length; attackbox_index++)
+                                {
+                                    if (animator.current_animation.attackbox_keys != null)
+                                        for (int i = 0; i < animator.current_animation.attackbox_keys[attackbox_index].Length; i++)
                                         {
-                                            players[player_index].defendboxes[defendbox_index].active = animator.current_animation.defendbox_values[defendbox_index][i];
+                                            if (frame > animator.current_animation.attackbox_keys[attackbox_index][i])
+                                            {
+                                                players[player_index].attackboxes[attackbox_index].active = animator.current_animation.attackbox_values[attackbox_index][i];
+                                            }
                                         }
-                                    }
+                                }
+
+                                for (int defendbox_index = 0; defendbox_index < players[player_index].defendboxes.Length; defendbox_index++)
+                                {
+                                    if (animator.current_animation.defendbox_keys != null)
+                                        for (int i = 0; i < animator.current_animation.defendbox_keys[defendbox_index].Length; i++)
+                                        {
+                                            if (frame > animator.current_animation.defendbox_keys[defendbox_index][i])
+                                            {
+                                                players[player_index].defendboxes[defendbox_index].active = animator.current_animation.defendbox_values[defendbox_index][i];
+                                            }
+                                        }
+                                }
+
+                                animator.current_frame += TARGET_FRAMERATE * delta_time;
+
+                                animators[player_index] = animator;
                             }
-
-                            animator.current_frame += TARGET_FRAMERATE * delta_time;
-
-                            animators[player_index] = animator;
                         }
 
                         //Move Player
                         {
-                            velocity.y = players[player_index].y_velocity;
-                            velocity *= delta_time;
-                            (*playerEntity).position += velocity;
+                            float acceleration = 100f;
+                            float jump_speed = 8;
+                            float max_speed = 5;
+                            float slide_coefficient = 0;
+                            bool no_horizontal_input = false;
+                            float ground_fall_velocity = -.01f;
 
-                            if ((*playerEntity).position.y <= 0)
+                            if (!players[player_index].defeated)
                             {
-                                if (Input.ButtonDown(player_index, Buttons.DOWN))
-                                    (*playerEntity).position.y = -2;
+                                if (Input.ButtonDown(player_index, Buttons.RIGHT))
+                                    players[player_index].velocity.x += acceleration * delta_time;
+                                else if (Input.ButtonDown(player_index, Buttons.LEFT))
+                                    players[player_index].velocity.x -= acceleration * delta_time;
                                 else
-                                    (*playerEntity).position.y = 0;
-                                players[player_index].y_velocity = 0;
+                                    no_horizontal_input = true;
                             }
 
-                            transforms[players[player_index].entity_ID] = (*playerEntity);
+                            if (players[player_index].velocity.x > max_speed)
+                                players[player_index].velocity.x = max_speed;
+                            else if (players[player_index].velocity.x < -max_speed)
+                                players[player_index].velocity.x = -max_speed;
+
+                            if (players[player_index].grounded)
+                            {
+                                players[player_index].velocity.y = ground_fall_velocity;
+
+                                if (no_horizontal_input)
+                                    players[player_index].velocity.x *= slide_coefficient;
+
+                                if (!players[player_index].defeated && Input.ButtonDown(player_index, Buttons.JUMP))
+                                    players[player_index].velocity.y = jump_speed;
+                            }
+                            else
+                            {
+                                players[player_index].velocity.y -= gravity * delta_time;
+                            }
+
+                            float ax_half = transforms[players[player_index].entity_ID].scale.x / 2;
+                            float ay_half = transforms[players[player_index].entity_ID].scale.y / 2;
+
+
+                            var old_x = transforms[players[player_index].entity_ID].position.x;
+                            transforms[players[player_index].entity_ID].position.x += players[player_index].velocity.x * delta_time;
+
+                            for (int i = 0; i < blocks.Length; i++)
+                            {
+                                var b = blocks[i];
+                                if (Intersect(transforms[players[player_index].entity_ID], b))
+                                {
+                                    if (old_x < b.position.x)
+                                        transforms[players[player_index].entity_ID].position.x -= (transforms[players[player_index].entity_ID].position.x + (transforms[players[player_index].entity_ID].scale.x / 2)) - (b.position.x - (b.scale.x / 2));
+                                    else if (old_x > b.position.x)
+                                        transforms[players[player_index].entity_ID].position.x += (b.position.x + (b.scale.x / 2)) - (transforms[players[player_index].entity_ID].position.x - (transforms[players[player_index].entity_ID].scale.x / 2));
+                                }
+                            }
+
+                            var old_y = transforms[players[player_index].entity_ID].position.y;
+                            transforms[players[player_index].entity_ID].position.y += players[player_index].velocity.y * delta_time;
+
+                            players[player_index].grounded = false;
+
+                            for (int i = 0; i < blocks.Length; i++)
+                            {
+                                var b = blocks[i];
+                                if (Intersect(transforms[players[player_index].entity_ID], b))
+                                {
+                                    if (old_y < b.position.y)
+                                    {
+                                        transforms[players[player_index].entity_ID].position.y -= (transforms[players[player_index].entity_ID].position.y + (transforms[players[player_index].entity_ID].scale.y / 2)) - (b.position.y - (b.scale.y / 2));
+                                        players[player_index].velocity.y = 0;
+                                    }
+                                    else if (old_y > b.position.y)
+                                    {
+                                        transforms[players[player_index].entity_ID].position.y += (b.position.y + (b.scale.y / 2)) - (transforms[players[player_index].entity_ID].position.y - (transforms[players[player_index].entity_ID].scale.y / 2));
+                                        players[player_index].grounded = true;
+                                    }
+                                }
+                            }
+
+                            if (transforms[players[player_index].entity_ID].position.Magnitude() > 50)
+                            {
+                                transforms[players[player_index].entity_ID].position = Vector3.Zero;
+                                players[player_index].stock--;
+                            }
                         }
 
                     }
@@ -193,8 +286,8 @@ class GameplayState : IGameState
                                         continue;
                                     for (int your_defend = 0; your_defend < players[other_player].defendboxes.Length; your_defend++)
                                     {
-                                        var a = WorldSpaceMatrix(transforms[players[player_index].attackboxes[my_attack].transform_index], transforms);
-                                        var b = WorldSpaceMatrix(transforms[players[other_player].defendboxes[your_defend].transform_index], transforms);
+                                        var a = WorldSpaceMatrix(players[player_index].attackboxes[my_attack].transform_index, transforms);
+                                        var b = WorldSpaceMatrix(players[other_player].defendboxes[your_defend].transform_index, transforms);
 
                                         Vector3 v = TransformVector(a, Vector3.Zero);
                                         Vector3 w = TransformVector(b, Vector3.Zero);
@@ -210,8 +303,12 @@ class GameplayState : IGameState
                                                 players[other_player].stock--;
                                                 if (players[other_player].stock > 0)
                                                     players[other_player].health = max_health;
-                                                else
+                                                else if (!players[other_player].defeated)
+                                                {
                                                     players[other_player].defeated = true;
+                                                    animators[other_player].current_animation = DefinedAnimations.die_animation;
+                                                    animators[other_player].current_frame = 1;
+                                                }
                                             }
                                         }
                                     }
@@ -246,38 +343,29 @@ class GameplayState : IGameState
                     }
 
                     camera.position.x = (max_x + min_x) / 2;
-                    camera.position.z = -20-(max_x - min_x);
+                    camera.position.y = (max_y + min_y) / 2;
+                    camera.position.z = -20 - (max_x - min_x);
 
                 }
 
-                //Check if the game is ongoing
+                //Check Match Complete
                 {
                     int remaining_players = 0;
 
-                    //Check Winner
+                    for (int i = 0; i < PLAYER_COUNT; i++)
                     {
-
-                        for (int i = 0; i < PLAYER_COUNT; i++)
+                        if (!players[i].defeated)
                         {
-                            if (!players[i].defeated)
-                            {
-                                winner = i + 1;
-                                remaining_players++;
-                                if (remaining_players != 1)
-                                    winner = 0;
-                            }
+                            remaining_players++;
+                            winner = i + 1;
                         }
                     }
 
-                    //Check Match Complete
-                    {
-                        game_over = winner != 0 || remaining_players == 0;
-                        time_remaining -= delta_time;
-                        if (time_remaining <= 0)
-                        {
-                            game_over = true;
-                        }
-                    }
+                    if (remaining_players != 1)
+                        winner = 0;
+
+                    time_remaining -= delta_time;
+                    game_over = winner != 0 || remaining_players == 0 || time_remaining <= 0;
                 }
             }
         }
@@ -286,21 +374,62 @@ class GameplayState : IGameState
         {
             //Draw Scene
             {
-                graphics.SmoothingMode = SmoothingMode.HighQuality;
-                
-
                 //get camera matrix
-                Transform inverted_camera = Transform.Default();
-                inverted_camera.position = -camera.position;
-                inverted_camera.rotation = -camera.rotation;
-                Matrix4x4 world_to_camera = GetMatrix(inverted_camera);
+                Matrix4x4 world_to_camera = GetMatrix(InvertTransform(camera));
+
+
+                //Draw Blocks
+                {
+                    graphics.SmoothingMode = SmoothingMode.None;
+
+                    for (int i = 0; i < blocks.Length; i++)
+                    {
+                        Matrix4x4 local_to_world = WorldSpaceMatrix(i, blocks);
+                        Matrix4x4 camera_to_clip = Perspective(0.1f, 100, field_of_view);
+                        Matrix4x4 local_to_clip = local_to_world * world_to_camera * camera_to_clip;
+
+                        Vector4 position = new Vector4(-.5f, .5f, 0, 1);
+                        position = TransformVector(local_to_clip, position);
+
+                        if (position.w != 0)
+                            position /= position.w;
+
+                        //place origin at center of screen
+                        position.x++;
+                        position.y++;
+
+                        //scale space to fill screen
+                        position.x *= WIDTH / 2;
+                        position.y *= HEIGHT / 2;
+
+                        Vector4 position2 = new Vector4(.5f, -.5f, 0, 1);
+                        position2 = TransformVector(local_to_clip, position2);
+
+                        if (position2.w != 0)
+                            position2 /= position2.w;
+
+                        //place origin at center of screen
+                        position2.x++;
+                        position2.y++;
+
+                        //scale space to fill screen
+                        position2.x *= WIDTH / 2;
+                        position2.y *= HEIGHT / 2;
+
+                        graphics.FillRectangle(Brushes.Brown, position.x, position.y, position2.x - position.x, position2.y - position.y);
+                    }
+                }
+
+
                 Vector3[] transformed_positions = new Vector3[transforms.Length];
 
                 //Draw Transforms
                 {
+                    graphics.SmoothingMode = SmoothingMode.HighQuality;
+
                     for (int i = 0; i < transforms.Length; i++)
                     {
-                        Matrix4x4 local_to_world = WorldSpaceMatrix(transforms[i], transforms);
+                        Matrix4x4 local_to_world = WorldSpaceMatrix(i, transforms);
                         Matrix4x4 local_to_camera = local_to_world * world_to_camera;
 
                         Vector3 position = TransformVector(local_to_camera, Vector3.Zero);
@@ -335,7 +464,7 @@ class GameplayState : IGameState
                             parent_position = transformed_positions[transforms[i].parent];
 
                         float d = camera.position.z - position.z;
-                        float width = 300 / (d);
+                        float width = 450 / (d);
                         float half_width = width / 2;
 
                         Pen player_pen = new Pen(player_colors[i / GetSkeleton().Length]);
@@ -357,30 +486,99 @@ class GameplayState : IGameState
                                 if (players[player_index].attackboxes[attackbox_index].active)
                                 {
                                     Vector3 center = transformed_positions[players[player_index].attackboxes[attackbox_index].transform_index];
-
                                     float width = players[player_index].attackboxes[attackbox_index].radius * 2 * PIXELS_PER_UNIT;
-                                    float half = width / 2f;
-                                    Color color = Color.Red;
-                                    graphics.FillEllipse(new SolidBrush(color), center.x - 4, center.y - 4, 8, 8);
-                                    graphics.FillEllipse(new SolidBrush(Color.FromArgb(30, color)), center.x - half, center.y - half, width, width);
-                                    graphics.DrawEllipse(new Pen(Color.FromArgb(color.R / 2, color.G / 2, color.B / 2), 2f), center.x - half, center.y - half, width, width);
+                                    DrawHitbox(center, Color.Red, width);
                                 }
                             }
 
                             for (int i = 0; i < players[player_index].defendboxes.Length; i++)
                             {
+
                                 if (players[player_index].defendboxes[i].active)
                                 {
                                     Vector3 center = transformed_positions[players[player_index].defendboxes[i].transform_index];
-
-                                    float width = players[player_index].defendboxes[i].radius * 2 * PIXELS_PER_UNIT;
-                                    float half = width / 2f;
-                                    Color color = Color.Blue;
-                                    graphics.FillEllipse(new SolidBrush(color), center.x - 4, center.y - 4, 8, 8);
-                                    graphics.FillEllipse(new SolidBrush(Color.FromArgb(30, color)), center.x - half, center.y - half, width, width);
-                                    graphics.DrawEllipse(new Pen(Color.FromArgb(color.R / 2, color.G / 2, color.B / 2), 2f), center.x - half, center.y - half, width, width);
+                                    float d = camera.position.z - center.z;
+                                    float width = 30 * (players[player_index].defendboxes[i].radius * 2 * PIXELS_PER_UNIT) / (d);
+                                    DrawHitbox(center, Color.Blue, width);
                                 }
                             }
+                        }
+                    }
+
+                    //Draw Colliders
+                    {
+                        for (int i = 0; i < blocks.Length; i++)
+                        {
+                            Matrix4x4 local_to_world = WorldSpaceMatrix(i, blocks);
+                            Matrix4x4 camera_to_clip = Perspective(0.1f, 100, field_of_view);
+                            Matrix4x4 local_to_clip = local_to_world * world_to_camera * camera_to_clip;
+
+                            Vector4 position = new Vector4(-.5f, .5f, 0, 1);
+                            position = TransformVector(local_to_clip, position);
+
+                            if (position.w != 0)
+                                position /= position.w;
+
+                            //place origin at center of screen
+                            position.x++;
+                            position.y++;
+
+                            //scale space to fill screen
+                            position.x *= WIDTH / 2;
+                            position.y *= HEIGHT / 2;
+
+                            Vector4 position2 = new Vector4(.5f, -.5f, 0, 1);
+                            position2 = TransformVector(local_to_clip, position2);
+
+                            if (position2.w != 0)
+                                position2 /= position2.w;
+
+                            //place origin at center of screen
+                            position2.x++;
+                            position2.y++;
+
+                            //scale space to fill screen
+                            position2.x *= WIDTH / 2;
+                            position2.y *= HEIGHT / 2;
+
+                            graphics.DrawRectangle(Pens.Blue, position.x, position.y, position2.x - position.x, position2.y - position.y);
+                        }
+
+                        for (int i = 0; i < players.Length; i++)
+                        {
+                            Matrix4x4 local_to_world = WorldSpaceMatrix(players[i].entity_ID, transforms);
+                            Matrix4x4 camera_to_clip = Perspective(0.1f, 100, field_of_view);
+                            Matrix4x4 local_to_clip = local_to_world * world_to_camera * camera_to_clip;
+
+                            Vector4 position = new Vector4(-.5f, .5f, 0, 1);
+                            position = TransformVector(local_to_clip, position);
+
+                            if (position.w != 0)
+                                position /= position.w;
+
+                            //place origin at center of screen
+                            position.x++;
+                            position.y++;
+
+                            //scale space to fill screen
+                            position.x *= WIDTH / 2;
+                            position.y *= HEIGHT / 2;
+
+                            Vector4 position2 = new Vector4(.5f, -.5f, 0, 1);
+                            position2 = TransformVector(local_to_clip, position2);
+
+                            if (position2.w != 0)
+                                position2 /= position2.w;
+
+                            //place origin at center of screen
+                            position2.x++;
+                            position2.y++;
+
+                            //scale space to fill screen
+                            position2.x *= WIDTH / 2;
+                            position2.y *= HEIGHT / 2;
+
+                            graphics.DrawRectangle(Pens.Blue, position.x, position.y, position2.x - position.x, position2.y - position.y);
                         }
                     }
                 }
@@ -467,17 +665,28 @@ class GameplayState : IGameState
                     for (int i = 0; i < PLAYER_COUNT; i++)
                     {
                         graphics.DrawString($"position: {transforms[players[i].entity_ID].position:F9}", Control.DefaultFont, Brushes.Yellow, i * WIDTH / 4, 128);
+                        graphics.DrawString($"velocity: {players[i].velocity.y:F9}", Control.DefaultFont, Brushes.Yellow, i * WIDTH / 4, 128 + 16);
                     }
                 }
             }
         }
     }
 
+
+
+    private static unsafe void DrawHitbox(Vector3 center, Color color, float width)
+    {
+        float half = width / 2f;
+        graphics.FillEllipse(new SolidBrush(color), center.x - 4, center.y - 4, 8, 8);
+        graphics.FillEllipse(new SolidBrush(Color.FromArgb(30, color)), center.x - half, center.y - half, width, width);
+        graphics.DrawEllipse(new Pen(Color.FromArgb(color.R / 2, color.G / 2, color.B / 2), 2f), center.x - half, center.y - half, width, width);
+    }
+
     Transform[] skeleton;
     Transform[] GetSkeleton()
     {
         if (skeleton == null)
-            skeleton = LoadHierarchy("Assets/avatar");
+            skeleton = LoadHierarchy("avatar");
         return skeleton;
     }
 
@@ -487,6 +696,7 @@ class GameplayState : IGameState
         time_remaining = initial_time;
         List<Transform> list_entities = new List<Transform>();
         skeleton = GetSkeleton();
+        skeleton[1].position.y = 2;
 
         float distance_apart = 3.5f;
         float leftmost_position = -(PLAYER_COUNT - 1) * distance_apart / 2;
@@ -512,7 +722,7 @@ class GameplayState : IGameState
             players[i].defeated = false;
             players[i].entity_ID = i * skeleton.Length;
             players[i].stock = 5;
-            players[i].y_velocity = 0;
+            players[i].velocity.y = 0;
             players[i].defendboxes = new Hitbox[]
             {
                 new Hitbox() { transform_index = 6, radius = .2f, active = true },
