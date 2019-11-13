@@ -38,6 +38,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <UseVSHostingProcess>true</UseVSHostingProcess>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -82,6 +83,7 @@
     <Compile Include="SourceCode\GameStates\PlatformerPhysicsTest.cs" />
     <Compile Include="SourceCode\GameStates\SkinnedMeshDemo.cs" />
     <Compile Include="SourceCode\GameStates\TitleScreen.cs" />
+    <Compile Include="SourceCode\GameStates\TriangleBenchmark.cs" />
     <Compile Include="SourceCode\Platform Layer\Input.cs" />
     <Compile Include="SourceCode\GameStates\SplashScreen.cs" />
   </ItemGroup>
@@ -96,6 +98,8 @@
     <EmbeddedResource Include="Assets\skin_translated.obj" />
     <EmbeddedResource Include="Assets\avatar" />
     <EmbeddedResource Include="Assets\face.obj" />
+    <EmbeddedResource Include="Assets\skin_poly_colors" />
+    <EmbeddedResource Include="Assets\smile.obj" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Assets\bigfist_mcpunchydude_icon.png" />
@@ -121,7 +125,7 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Assets\Chiptronical.wav" />
+    <EmbeddedResource Include="Assets\angry_eyes.obj" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="icon.ico" />

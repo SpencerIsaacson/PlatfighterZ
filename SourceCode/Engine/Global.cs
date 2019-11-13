@@ -112,9 +112,9 @@ namespace Engine
 
             return new Matrix4x4
             (
-                aspect_ratio * zoom, 0, 0, 0, 
-                0, -zoom, 0, 0, 
-                0, 0, q, near * q, 
+                aspect_ratio * zoom, 0, 0, 0,
+                0, -zoom, 0, 0,
+                0, 0, q, near * q,
                 0, 0, 1, 0
             );
         }
@@ -142,6 +142,29 @@ namespace Engine
 
         #endregion
 
+        #region Mesh Operations
+
+        public static Vector3 GetCentroid(Triangle t)
+        {
+            return (t.a + t.b + t.c) / 3;
+        }
+
+        public static Mesh AppendMesh(Mesh a, Mesh b)
+        {
+            List<Vector3> vertices = new List<Vector3>(a.vertices);
+            List<int> indices = new List<int>(a.indices);
+            for (int i = 0; i < b.indices.Length; i++)
+            {
+                b.indices[i] += a.vertices.Length;
+            }
+            vertices.AddRange(b.vertices);
+            indices.AddRange(b.indices);
+
+            return new Mesh { vertices = vertices.ToArray(), indices = indices.ToArray() };
+        }
+
+        #endregion
+        
         #region Animation
 
 
@@ -323,6 +346,8 @@ namespace Engine
 
         #endregion
 
+        #region Collision Detection
+
         public static bool Intersect(Transform a, Transform b)
         {
             float ax_half = a.scale.x / 2;
@@ -341,5 +366,7 @@ namespace Engine
 
             return a_right > b_left && a_left < b_right && a_top > b_bottom && a_bottom < b_top;
         }
+        
+        #endregion
     }
 }

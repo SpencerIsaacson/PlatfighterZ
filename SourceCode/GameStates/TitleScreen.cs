@@ -24,7 +24,7 @@ class TitleScreen : IGameState
         if (!started)
         {
             started = true;
-            Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("PlatfighterZ.Assets.Chiptronical.wav");
+            Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("PlatfighterZ.Assets.chiptronical_short.wav");
             player = new SoundPlayer(stream);
             player.Play();
         }

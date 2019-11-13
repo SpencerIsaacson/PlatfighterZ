@@ -70,8 +70,7 @@ static class DrawingLibrary
         for (int i = pixel_row + x1; i <= pixel_row + x2; i++)
         {
             int x = i - pixel_row;
-            if(x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT)
-                pixels[i] = color;
+            PutPixel(color, x, y);
         }
     }
 
@@ -172,6 +171,7 @@ static class DrawingLibrary
     {
         if (y1 == y2 && y2 == y3)
             return;
+
         //Sort Points
         int temp;
         if (y1 > y2)
@@ -213,6 +213,33 @@ static class DrawingLibrary
         {
             Phil_FlatBottom(color, y2, split, x2, y1, x1);
             Phil_FlatTop(color, y2, split, x2, y3, x3);
+        }
+    }
+
+
+    public static void PutPixel(uint color, int x, int y)
+    {
+        if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT)
+            pixels[y * WIDTH + x] = color;
+    }
+
+
+    public static void PutPixel(uint color, int i)
+    {
+        if (i < pixels.Length)
+            pixels[i] = color;
+    }
+
+    public struct Texture
+    {
+        public readonly int width, height;
+        public readonly uint[] pixels;
+
+        public Texture(int width, int height)
+        {
+            this.width = width;
+            this.height = height;
+            pixels = new uint[width * height];
         }
     }
 }

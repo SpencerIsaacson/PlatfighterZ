@@ -133,8 +133,9 @@ namespace Engine
         public static Vector3 operator - (Vector3 a, Vector3 b) { return new Vector3 { x = a.x - b.x, y = a.y - b.y, z = a.z - b.z }; }
         public static Vector3 operator * (Vector3 v, float s) { return new Vector3 { x = v.x * s, y = v.y * s, z = v.z * s }; }
         public static Vector3 operator / (Vector3 v, float s) { return new Vector3 { x = v.x / s, y = v.y / s, z = v.z / s }; }
-		
-        
+		public static bool operator == (Vector3 a, Vector3 b) { return a.x == b.x && a.y == b.y && a.z == b.z; }
+        public static bool operator !=(Vector3 a, Vector3 b) { return a.x != b.x || a.y != b.y || a.z != b.z; }
+
         public Vector3 Normalized() { return this / Magnitude(); }
 
         public float Magnitude() { return (float)Sqrt(x * x + y * y + z * z); }
@@ -204,10 +205,9 @@ namespace Engine
 
         public static readonly Matrix4x4 identity = new Matrix4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 
-        public static Vector3 operator *(Matrix4x4 m, Vector3 v)
-        {
-            return Global.TransformVector(m, v);
-        }
+        public static Vector3 operator *(Matrix4x4 m, Vector3 v) { return Global.TransformVector(m, v); }
+
+        public static Vector3 operator *(Vector3 v, Matrix4x4 m) { return Global.TransformVector(m, v); }
 
         public static Matrix4x4 operator *(Matrix4x4 a, Matrix4x4 b)
         {
@@ -221,7 +221,15 @@ namespace Engine
     }
 
 
-	public struct Mesh
+    public struct Triangle
+    {
+        public Vector3 a, b, c;
+        public uint color;
+        public float brightness;
+    }
+
+
+    public struct Mesh
 	{
 		public Vector3[] vertices;
 		public int[] indices;

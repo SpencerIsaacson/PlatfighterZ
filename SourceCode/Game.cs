@@ -27,7 +27,7 @@ class Game
     public static float delta_time;
     public static float frames_per_second;
     public static float time_since_timing_recalculated;
-    public static bool fixed_framerate = true;
+    public static bool fixed_framerate = false;
     public static int frames_since_last_second;
 
     public static IGameState current_game_state;
@@ -41,6 +41,7 @@ class Game
         new GameplayState(),
         new PlatformerPhysicsTest(),
         new MeshDemo(),
+        new TriangleBenchmark(),
     };
 
     public static int game_state_index = 0;

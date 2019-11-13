@@ -1,18 +1,17 @@
 ﻿using Engine;
-using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+
 using static Game;
-using static DrawingLibrary;
 
 class FullScreener : IGameState
 {
-    bool maximized = false;
+    static bool maximized = false;
     public static uint[] pixels = new uint[WIDTH * HEIGHT];
     public static Bitmap rendered_image;
-    Random rand = new Random();
+
     static GCHandle pixel_handle;
 
     public FullScreener()
@@ -27,6 +26,14 @@ class FullScreener : IGameState
         game_state_index++;
     }
 
+    public static void ToggleFullScreen()
+    {
+        maximized = !maximized;
+        if (maximized)
+            ToFullScreenView();
+        else
+            ToWindowedView();
+    }
 
     public static void ToFullScreenView()
     {

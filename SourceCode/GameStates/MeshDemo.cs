@@ -16,10 +16,11 @@ class MeshDemo : IGameState
 
 	public MeshDemo()
     {
-		mesh = LoadMesh("face.obj");
+		mesh = LoadMesh("teapot.obj");
+        cube_transform.rotation = new Vector3(Tau / 3, 0, 0);
     }
 
-	public void Update()
+    public void Update()
 	{
 		//Update
 		{
@@ -229,16 +230,9 @@ class MeshDemo : IGameState
 		triangles[b] = temp;
 	}
 
-	Vector3 GetCentroid(Triangle t)
-	{
-		return (t.a + t.b + t.c) / 3;
-	}
 
 
 
-	public struct Triangle
-	{
-		public Vector3 a, b, c;
-		public float brightness;
-	}
+
+
 }
