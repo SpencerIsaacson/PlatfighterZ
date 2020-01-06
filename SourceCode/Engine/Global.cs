@@ -2,15 +2,319 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using static System.Math;
-using static Game;
 using System.Reflection;
+using System.Runtime.InteropServices;
+
+using static Game;
+using static System.Math;
 
 namespace Engine
 {
     /// <summary>
     /// Contains engine-level functionality used throughout the game
     /// </summary>
+    public unsafe struct C_Mesh
+    {
+        public Vector3* vertices;
+        public int* indices;
+        public int vertices_length;
+        public int indices_length;
+    }
+
+    enum Keys
+    {
+        Tab = 9, 
+        Space = 32,
+        Left = 37, Up, Right, Down,
+        Delete = 46, 
+        A = 65,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z, 
+        F4 = 115, 
+        NumPad0 = 96, NumPad1, NumPad2, NumPad3, NumPad4, NumPad5, NumPad6, NumPad7, NumPad8, NumPad9,
+    }
+
+    public struct Weight_Index
+    {
+        public int bone1, bone2, bone3, bone4;
+
+        public Weight_Index(int bone1, int bone2, int bone3, int bone4)
+        {
+            this.bone1 = bone1;
+            this.bone2 = bone2;
+            this.bone3 = bone3;
+            this.bone4 = bone4;
+        }
+    }
+
+    public struct Player
+    {
+        public int entity_ID;
+        public int selected_character;
+        public bool defeated;
+        public int stock;
+        public float current_health;
+        public Hitbox[] attackboxes;
+        public Hitbox[] defendboxes;
+        public Vector2 velocity;
+        public bool grounded;
+    }
+
+
+    public struct Fighter
+    {
+        public string name;
+        public Bitmap icon;
+    }
+
+
+    public struct Animator
+    {
+        public float current_frame;
+        public Animation current_animation;
+    }
+
+
+    public struct Animation
+    {
+        public bool looped;
+        public List<AnimationCurve> curves;
+        public int[][] defendbox_keys;
+        public bool[][] defendbox_values;
+        public int[][] attackbox_keys;
+        public bool[][] attackbox_values;
+    }
+
+
+    public struct AnimationCurve
+    {
+        public int transform_index;
+        public byte property_tag;
+        public KeyFrame[] keyframes;
+    }
+
+
+    public struct KeyFrame
+    {
+        public float frame;
+        public float value;
+        public float left_handle_x;
+        public float left_handle_y;
+        public float right_handle_x;
+        public float right_handle_y;
+    }
+
+
+    public struct Hitbox
+    {
+        public int transform_index;
+        public float radius;
+        public bool active;
+    }
+
+
+    public struct Transform
+    {
+        public int parent;
+        public Vector3 position;
+        public Vector3 rotation;
+        public Vector3 scale;
+
+        public static Transform Default()
+        {
+            return new Transform()
+            {
+                parent = -1,
+                position = Vector3.Zero,
+                rotation = Vector3.Zero,
+                scale = Vector3.One
+            };
+        }
+
+
+    }
+
+
+    public struct Vector2
+    {
+        public float x, y;
+
+        public Vector2(float x, float y)
+        {
+            this.x = x;
+            this.y = y;
+        }
+
+        public static readonly Vector2 Right = new Vector2 { x = 1, y = 0 };
+        public static readonly Vector2 Left = new Vector2 { x = -1, y = 0 };
+        public static readonly Vector2 Up = new Vector2 { x = 0, y = 1 };
+        public static readonly Vector2 Down = new Vector2 { x = 0, y = -1 };
+        public static readonly Vector2 Zero = new Vector2 { x = 0, y = 0 };
+        public static readonly Vector2 One = new Vector2 { x = 1, y = 1 };
+
+        public static Vector2 operator +(Vector2 a, Vector2 b) { return new Vector2 { x = a.x + b.x, y = a.y + b.y }; }
+        public static Vector2 operator -(Vector2 a, Vector2 b) { return new Vector2 { x = a.x - b.x, y = a.y - b.y }; }
+        public static Vector2 operator *(Vector2 v, float s) { return new Vector2 { x = v.x * s, y = v.y * s }; }
+        public static Vector2 operator /(Vector2 v, float s) { return new Vector2 { x = v.x / s, y = v.y / s }; }
+
+        public static float Distance(Vector2 a, Vector2 b) { return (a - b).Magnitude(); }
+        public float Magnitude() { return (float)Sqrt(x * x + y * y); }
+    }
+
+
+    public struct Vector3
+    {
+        public float x, y, z;
+
+        public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
+
+        public static readonly Vector3 Right = new Vector3 { x = 1, y = 0, z = 0 };
+        public static readonly Vector3 Left = new Vector3 { x = -1, y = 0, z = 0 };
+        public static readonly Vector3 Up = new Vector3 { x = 0, y = 1, z = 0 };
+        public static readonly Vector3 Down = new Vector3 { x = 0, y = -1, z = 0 };
+        public static readonly Vector3 Forward = new Vector3 { x = 0, y = 0, z = 1 };
+        public static readonly Vector3 Backward = new Vector3 { x = 0, y = 0, z = -1 };
+        public static readonly Vector3 Zero = new Vector3 { x = 0, y = 0, z = 0 };
+        public static readonly Vector3 One = new Vector3 { x = 1, y = 1, z = 1 };
+
+        public static Vector3 operator -(Vector3 v) { return new Vector3 { x = -v.x, y = -v.y, z = -v.z }; }
+        public static Vector3 operator +(Vector3 a, Vector3 b) { return new Vector3 { x = a.x + b.x, y = a.y + b.y, z = a.z + b.z }; }
+        public static Vector3 operator -(Vector3 a, Vector3 b) { return new Vector3 { x = a.x - b.x, y = a.y - b.y, z = a.z - b.z }; }
+        public static Vector3 operator *(Vector3 v, float s) { return new Vector3 { x = v.x * s, y = v.y * s, z = v.z * s }; }
+        public static Vector3 operator /(Vector3 v, float s) { return new Vector3 { x = v.x / s, y = v.y / s, z = v.z / s }; }
+        public static bool operator ==(Vector3 a, Vector3 b) { return a.x == b.x && a.y == b.y && a.z == b.z; }
+        public static bool operator !=(Vector3 a, Vector3 b) { return a.x != b.x || a.y != b.y || a.z != b.z; }
+        public override bool Equals(object a)
+        {
+            return this == (Vector3)a;
+        }
+
+        public override int GetHashCode () { return -1; /*TODO implement?*/ }
+
+        public Vector3 Normalized() { return this / Magnitude(); }
+
+        public float Magnitude() { return (float)Sqrt(x * x + y * y + z * z); }
+
+        public static float Distance(Vector3 a, Vector3 b) { return (a - b).Magnitude(); }
+
+        public static float DotProduct(Vector3 a, Vector3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+
+        public static Vector3 CrossProduct(Vector3 a, Vector3 b)
+        {
+            return new Vector3()
+            {
+                x = a.y * b.z - a.z * b.y,
+                y = a.z * b.x - a.x * b.z,
+                z = a.x * b.y - a.y * b.x,
+            };
+        }
+
+
+        public override string ToString()
+        {
+            return $"[{x:F2}, {y:F2}, {z:F2}]";
+        }
+    }
+
+
+    public struct Vector4
+    {
+        public float x, y, z, w;
+
+        public Vector4(float x, float y, float z, float w)
+        {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.w = w;
+        }
+
+        public static Vector4 operator /(Vector4 v, float s) { return new Vector4(v.x / s, v.y / s, v.z / s, v.w / s); }
+
+        public override string ToString()
+        {
+            return $"[{x:F2}, {y:F2}, {z:F2}, {w:F2}]";
+        }
+    }
+
+
+    public struct Matrix4x4
+    {
+        public float m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34, m41, m42, m43, m44;
+
+        public Matrix4x4(float m11, float m12, float m13, float m14, float m21, float m22, float m23, float m24, float m31, float m32, float m33, float m34, float m41, float m42, float m43, float m44)
+        {
+            this.m11 = m11;
+            this.m12 = m12;
+            this.m13 = m13;
+            this.m14 = m14;
+            this.m21 = m21;
+            this.m22 = m22;
+            this.m23 = m23;
+            this.m24 = m24;
+            this.m31 = m31;
+            this.m32 = m32;
+            this.m33 = m33;
+            this.m34 = m34;
+            this.m41 = m41;
+            this.m42 = m42;
+            this.m43 = m43;
+            this.m44 = m44;
+        }
+
+        public static readonly Matrix4x4 identity = new Matrix4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+
+        public static Vector3 operator *(Matrix4x4 m, Vector3 v) { return Global.Transform_v3(m, v); }
+
+        public static Vector3 operator *(Vector3 v, Matrix4x4 m) { return Global.Transform_v3(m, v); }
+
+        public static Matrix4x4 operator *(Matrix4x4 a, Matrix4x4 b)
+        {
+            return Global.Concatenate(a, b);
+        }
+
+        public override string ToString()
+        {
+            return $"{m11:F2}, {m12:F2}, {m13:F2}, {m14:F2}, \n{m21:F2}, {m22:F2}, {m23:F2}, {m24:F2}, \n{m31:F2}, {m32:F2}, {m33:F2}, {m34:F2}, \n{m41:F2}, {m42:F2}, {m43:F2}, {m44:F2}\n";
+        }
+    }
+
+
+    public struct Mesh
+    {
+        public Vector3[] vertices;
+        public int[] indices;
+    }
+
+    public struct Texture
+    {
+        public readonly int width, height;
+        public readonly uint[] pixels;
+
+        public Texture(int width, int height)
+        {
+            this.width = width;
+            this.height = height;
+            pixels = new uint[width * height];
+        }
+    }
+
+    public struct CharSprite
+    {
+        public byte
+            row1,
+            row2,
+            row3,
+            row4,
+            row5,
+            row6,
+            row7,
+            row8;
+    }
+
+    interface IGameState
+    {
+        void Update();
+    }
+
     public static class Global
     {
         public const float Tau = 6.28318530717958f;
@@ -18,136 +322,42 @@ namespace Engine
 
         #region Linear Algebra
 
-        public static Transform InvertTransform(Transform t)
-        {
-            t.position = -t.position;
-            t.rotation = -t.rotation;
-            t.scale.x = 1 / t.scale.x;
-            t.scale.y = 1 / t.scale.y;
-            t.scale.z = 1 / t.scale.z;
-            return t;
-        }
+        [DllImport("SGL.dll")]
+        public static extern Transform InvertTransform(Transform t);
 
-        public static Matrix4x4 GetMatrix(Transform t)
-        {
-            return Matrix4x4.identity
-                * Scale(t.scale.x, t.scale.y, t.scale.z)
-                * Rotation(t.rotation.x, t.rotation.y, t.rotation.z)
-                * Translation(t.position.x, t.position.y, t.position.z);
-        }
+        [DllImport("SGL.dll")]
+        public static extern Matrix4x4 GetMatrix(Transform t);
 
-        public static Matrix4x4 WorldSpaceMatrix(int index, Transform[] hierarchy)
-        {
-            Transform t = hierarchy[index];
-            Matrix4x4 m = GetMatrix(t);
-            while (t.parent != -1)
-            {
-                m = Concatenate(m, GetMatrix(hierarchy[t.parent]));
-                t = hierarchy[t.parent];
-            }
+        [DllImport("SGL.dll")]
+        public static extern Matrix4x4 WorldSpaceMatrix(int index, Transform[] hierarchy);
 
-            return m;
-        }
+        [DllImport("SGL.dll")]
+        public static extern Matrix4x4 Concatenate(Matrix4x4 a, Matrix4x4 b);
 
-        public static Matrix4x4 Concatenate(Matrix4x4 a, Matrix4x4 b)
-        {
-            return new Matrix4x4()
-            {
-                m11 = a.m11 * b.m11 + a.m12 * b.m21 + a.m13 * b.m31 + a.m14 * b.m41,
-                m12 = a.m11 * b.m12 + a.m12 * b.m22 + a.m13 * b.m32 + a.m14 * b.m42,
-                m13 = a.m11 * b.m13 + a.m12 * b.m23 + a.m13 * b.m33 + a.m14 * b.m43,
-                m14 = a.m11 * b.m14 + a.m12 * b.m24 + a.m13 * b.m34 + a.m14 * b.m44,
-                m21 = a.m21 * b.m11 + a.m22 * b.m21 + a.m23 * b.m31 + a.m24 * b.m41,
-                m22 = a.m21 * b.m12 + a.m22 * b.m22 + a.m23 * b.m32 + a.m24 * b.m42,
-                m23 = a.m21 * b.m13 + a.m22 * b.m23 + a.m23 * b.m33 + a.m24 * b.m43,
-                m24 = a.m21 * b.m14 + a.m22 * b.m24 + a.m23 * b.m34 + a.m24 * b.m44,
-                m31 = a.m31 * b.m11 + a.m32 * b.m21 + a.m33 * b.m31 + a.m34 * b.m41,
-                m32 = a.m31 * b.m12 + a.m32 * b.m22 + a.m33 * b.m32 + a.m34 * b.m42,
-                m33 = a.m31 * b.m13 + a.m32 * b.m23 + a.m33 * b.m33 + a.m34 * b.m43,
-                m34 = a.m31 * b.m14 + a.m32 * b.m24 + a.m33 * b.m34 + a.m34 * b.m44,
-                m41 = a.m41 * b.m11 + a.m42 * b.m21 + a.m43 * b.m31 + a.m44 * b.m41,
-                m42 = a.m41 * b.m12 + a.m42 * b.m22 + a.m43 * b.m32 + a.m44 * b.m42,
-                m43 = a.m41 * b.m13 + a.m42 * b.m23 + a.m43 * b.m33 + a.m44 * b.m43,
-                m44 = a.m41 * b.m14 + a.m42 * b.m24 + a.m43 * b.m34 + a.m44 * b.m44,
-            };
-        }
+        [DllImport("SGL.dll")]
+        public static extern Matrix4x4 Transpose(Matrix4x4 m);
 
-        public static Matrix4x4 Transpose(Matrix4x4 m)
-        {
-            return new Matrix4x4(m.m11, m.m21, m.m31, m.m41, m.m12, m.m22, m.m32, m.m42, m.m13, m.m23, m.m33, m.m43, m.m14, m.m24, m.m34, m.m44);
-        }
+        [DllImport("SGL.dll")]
+        public static extern Matrix4x4 Translation(float x, float y, float z);
 
-        public static Matrix4x4 Translation(float x, float y, float z)
-        {
-            return new Matrix4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1);
-        }
+        [DllImport("SGL.dll")]
+        public static extern Matrix4x4 Scale(float x, float y, float z);
 
-        public static Matrix4x4 Scale(float x, float y, float z)
-        {
-            return new Matrix4x4(x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1);
-        }
+        [DllImport("SGL.dll")]
+        public static extern Matrix4x4 Rotation(float x, float y, float z);
 
-        public static Matrix4x4 Rotation(float x, float y, float z)
-        {
-            return new Matrix4x4()
-            {
-                m11 = (float)(Cos(y) * Cos(z) - Sin(y) * Sin(x) * Sin(z)),
-                m12 = (float)(Cos(y) * Sin(z) + Sin(y) * Sin(x) * Cos(z)),
-                m13 = (float)(-Sin(y) * Cos(x)),
-                m21 = (float)(-Sin(z) * Cos(x)),
-                m22 = (float)(Cos(z) * Cos(x)),
-                m23 = (float)(Sin(x)),
-                m31 = (float)(Sin(y) * Cos(z) + Cos(y) * Sin(x) * Sin(z)),
-                m32 = (float)(Sin(z) * Sin(y) - Cos(y) * Sin(x) * Cos(z)),
-                m33 = (float)(Cos(y) * Cos(x)),
-                m44 = 1
-            };
-        }
+        [DllImport("SGL.dll")]
+        public static extern Matrix4x4 Perspective(float near, float far, float field_of_view, float width, float height);
 
-        public static Matrix4x4 Perspective(float near, float far, float field_of_view)
-        {
-            float aspect_ratio = HEIGHT / (float)WIDTH;
-            float zoom = (float)(1 / Tan(field_of_view / 2));
-            float q = far / (far - near);
+        [DllImport("SGL.dll")]
+        public static extern Vector3 Transform_v3(Matrix4x4 m, Vector3 v);
 
-            return new Matrix4x4
-            (
-                aspect_ratio * zoom, 0, 0, 0,
-                0, -zoom, 0, 0,
-                0, 0, q, near * q,
-                0, 0, 1, 0
-            );
-        }
-
-        public static Vector3 TransformVector(Matrix4x4 m, Vector3 v)
-        {
-            return new Vector3
-            {
-                x = m.m11 * v.x + m.m21 * v.y + m.m31 * v.z + m.m41,
-                y = m.m12 * v.x + m.m22 * v.y + m.m32 * v.z + m.m42,
-                z = m.m13 * v.x + m.m23 * v.y + m.m33 * v.z + m.m43,
-            };
-        }
-
-        public static Vector4 TransformVector(Matrix4x4 m, Vector4 v)
-        {
-            return new Vector4
-            {
-                x = m.m11 * v.x + m.m21 * v.y + m.m31 * v.z + m.m41 * v.w,
-                y = m.m12 * v.x + m.m22 * v.y + m.m32 * v.z + m.m42 * v.w,
-                z = m.m13 * v.x + m.m23 * v.y + m.m33 * v.z + m.m43 * v.w,
-                w = m.m14 * v.x + m.m24 * v.y + m.m34 * v.z + m.m44 * v.w,
-            };
-        }
+        [DllImport("SGL.dll")]
+        public static extern Vector4 Transform_Vector4(Matrix4x4 m, Vector4 v);
 
         #endregion
 
         #region Mesh Operations
-
-        public static Vector3 GetCentroid(Triangle t)
-        {
-            return (t.a + t.b + t.c) / 3;
-        }
 
         public static Mesh AppendMesh(Mesh a, Mesh b)
         {
@@ -166,9 +376,8 @@ namespace Engine
         #endregion
         
         #region Animation
-
-
-        public static void AnimateProperty(KeyFrame[] curve, float frame, ref float property)
+        //[DllImport("SGL.dll")]
+        public static unsafe void AnimateProperty(KeyFrame[] curve, float frame, float* property)
         {
             for (int i = 0; i < curve.Length - 1; i++)
             {
@@ -176,65 +385,46 @@ namespace Engine
                 KeyFrame b = curve[i + 1];
                 if (frame >= a.frame && frame <= b.frame)
                 {
-                    property = Sample(a, b, frame);
+                    *property = Sample(a, b, frame);
                     return;
                 }
             }
         }
 
+        [DllImport("SGL.dll")]
+        public static extern float Sample(KeyFrame a, KeyFrame b, float frame);
 
-        public static float Sample(KeyFrame a, KeyFrame b, float frame)
-        {
-            float t = .5f;
-            float step = .25f;
-            PointF c1 = new PointF(a.frame, a.value);
-            PointF c2 = new PointF(a.frame + a.right_handle_x, a.value + a.right_handle_y);
-            PointF c3 = new PointF(b.frame + b.left_handle_x, b.value + b.left_handle_y);
-            PointF c4 = new PointF(b.frame, b.value);
+        #endregion
 
-            while (true)
-            {
-                PointF d = Lerp(c1, c2, t);
-                PointF e = Lerp(c2, c3, t);
-                PointF f = Lerp(c3, c4, t);
-                PointF g = Lerp(d, e, t);
-                PointF h = Lerp(e, f, t);
-                PointF i = Lerp(g, h, t);
-
-                if (i.X > frame)
-                    t -= step;
-                else
-                    t += step;
-
-                step /= 2;
-
-                if (Math.Abs(i.X - frame) < .001f)
-                    return i.Y;
-            }
-        }
-
-
-        static PointF Lerp(PointF a, PointF b, float t)
-        {
-            float x = a.X + t * (b.X - a.X);
-            float y = a.Y + t * (b.Y - a.Y);
-            return new PointF(x, y);
-        }
-
-
-        static float Lerp(float a, float b, float t)
-        {
-            return a + t * (b - a);
-        }
-
-
+        #region Collision Detection
+        [DllImport("SGL.dll")]
+        public static extern bool Intersect(Transform a, Transform b);
         #endregion
 
         #region FileIO
 
-        public static Mesh LoadMesh(string file_name)
+        public static Stream GetAssetStream(string path)
         {
-            Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("PlatfighterZ.Assets." + file_name);
+            return Assembly.GetExecutingAssembly().GetManifestResourceStream(GetAssetPathPrefix() + path);
+        }
+
+        
+        /* 
+         * For some reason, when I build the application through visual studio, embedded resources have the folder name automatically prepended to the path, but not when I build the app from the command line.
+         * This function acts as a workaround to have the correct path for each build until I can figure out what controls how the resource path is set in the build
+        */
+        public static string GetAssetPathPrefix()
+        {
+            #if vs_build
+                return "PlatfighterZ.Assets.";
+            #else
+                return "";
+            #endif
+        }
+
+        public static Mesh LoadMesh(string path)
+        {
+            Stream stream = GetAssetStream(path);
 
             using (StreamReader reader = new StreamReader(stream))
             {
@@ -263,6 +453,22 @@ namespace Engine
             }
         }
 
+        public static uint[] LoadPolygonColors(string path)
+        {
+            Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(GetAssetPathPrefix() + path);
+            using (BinaryReader reader = new BinaryReader(stream))
+            {
+                List<uint> polygon_colors = new List<uint>();
+                while (reader.BaseStream.Position != reader.BaseStream.Length)
+                {
+                    polygon_colors.Add(reader.ReadUInt32());
+                }
+
+                return polygon_colors.ToArray();
+            }
+
+        }
+        
         public static void SaveKeyFrames(string path, KeyFrame[] curve)
         {
             using (BinaryWriter writer = new BinaryWriter(File.Open(path, FileMode.Create)))
@@ -281,7 +487,8 @@ namespace Engine
 
         public static KeyFrame[] LoadKeyFrames(string path)
         {
-            using (BinaryReader reader = new BinaryReader(File.Open(path, FileMode.Open)))
+            Stream stream = GetAssetStream(path);
+            using (BinaryReader reader = new BinaryReader(stream))
             {
                 List<KeyFrame> curve = new List<KeyFrame>();
                 while (reader.BaseStream.Position != reader.BaseStream.Length)
@@ -321,7 +528,7 @@ namespace Engine
 
         public static Transform[] LoadHierarchy(string path)
         {
-            Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("PlatfighterZ.Assets." + path);
+            Stream stream = GetAssetStream(path);
             using (BinaryReader reader = new BinaryReader(stream))
             {
                 List<Transform> hierarchy = new List<Transform>();
@@ -344,29 +551,6 @@ namespace Engine
             }
         }
 
-        #endregion
-
-        #region Collision Detection
-
-        public static bool Intersect(Transform a, Transform b)
-        {
-            float ax_half = a.scale.x / 2;
-            float ay_half = a.scale.y / 2;
-            float by_half = b.scale.y / 2;
-            float bx_half = b.scale.x / 2;
-
-            float a_right = a.position.x + ax_half;
-            float a_left = a.position.x - ax_half;
-            float a_top = a.position.y + ay_half;
-            float a_bottom = a.position.y - ay_half;
-            float b_right = b.position.x + bx_half;
-            float b_left = b.position.x - bx_half;
-            float b_top = b.position.y + by_half;
-            float b_bottom = b.position.y - by_half;
-
-            return a_right > b_left && a_left < b_right && a_top > b_bottom && a_bottom < b_top;
-        }
-        
         #endregion
     }
 }

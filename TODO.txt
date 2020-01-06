@@ -6,3 +6,8 @@ Fix input issues on limited 60fps
 
 
 This week: finish mesh skinning CHECK, import an animated character CHECK, add the collision detection to the game CHECK, make it so you can animate different characters, get character selection working
+
+
+
+known issues:
+fixed-framerate gradually speeds up simulation

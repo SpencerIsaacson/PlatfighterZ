@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29201.188
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlatfighterZ", "PlatfighterZ.csproj", "{AE08B21B-E95C-485D-B14F-DADE2D6EB323}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlatfighterZ", "PlatfighterZ.csproj", "{41B4BD3F-78C5-44EE-B9F8-D868DCC707F8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,15 +11,15 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{AE08B21B-E95C-485D-B14F-DADE2D6EB323}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{AE08B21B-E95C-485D-B14F-DADE2D6EB323}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{AE08B21B-E95C-485D-B14F-DADE2D6EB323}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AE08B21B-E95C-485D-B14F-DADE2D6EB323}.Release|Any CPU.Build.0 = Release|Any CPU
+		{41B4BD3F-78C5-44EE-B9F8-D868DCC707F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{41B4BD3F-78C5-44EE-B9F8-D868DCC707F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{41B4BD3F-78C5-44EE-B9F8-D868DCC707F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{41B4BD3F-78C5-44EE-B9F8-D868DCC707F8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {D857E82F-A104-47B6-B534-7BDB4DC0A7AC}
+		SolutionGuid = {DCFB37F7-3BDF-4A82-AE80-9724B91A8D22}
 	EndGlobalSection
 EndGlobal

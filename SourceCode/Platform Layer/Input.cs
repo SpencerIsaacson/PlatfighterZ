@@ -1,5 +1,4 @@
 ﻿using System.Runtime.InteropServices;
-using System.Windows.Forms;
 
 namespace Engine
 {
@@ -15,8 +14,8 @@ namespace Engine
     class Input
     {
         //Input
-        public static bool[] keys_down = new bool[256];
-        public static bool[] keys_stale = new bool[256]; //whether a key has been pressed for more than one consecutive frame
+        public static byte[] keys_down = new byte[256];
+        public static byte[] keys_stale = new byte[256]; //whether a key has been pressed for more than one consecutive frame
         public static byte[] keyboard_state = new byte[256];
 
         public static Keys[,] control_mappings = //each row represents a player's control scheme
@@ -27,48 +26,18 @@ namespace Engine
             {Keys.NumPad4, Keys.NumPad6,  Keys.NumPad5,  Keys.NumPad8, Keys.NumPad7}
         };
 
-        public static bool ButtonDown(int player, Buttons action)
-        {
-            return KeyDown(control_mappings[player, (int)action]);
-        }
-
-        public static bool ButtonDownFresh(int player, Buttons action)
-        {
-            return KeyDownFresh(control_mappings[player, (int)action]);
-        }
-
-        public static void PollKeyboard()
-        {
-            for (int i = 0; i < keys_stale.Length; i++)
-            {
-                keys_stale[i] = keys_down[i];
-            }
-
-#if Windows
-            GetKeyboardState(keyboard_state);
-#endif
-
-            for (int i = 0; i < keys_down.Length; i++)
-            {
-                keys_down[i] = keyboard_state[i] > 127;
-
-            }
-
-            for (int i = 0; i < keys_stale.Length; i++)
-            {
-                if (!keys_down[i])
-                    keys_stale[i] = false;
-            }
-        }
-
-
-        public static bool KeyDownFresh(Keys key) { return keys_down[(int)key] && !keys_stale[(int)key]; }
-        public static bool KeyDown(Keys key) { return keys_down[(int)key]; }
-
-#if Windows
-        [DllImport("User32.dll")]
-        public static extern bool GetKeyboardState(byte[] state);
-#endif
+        [DllImport("SGL.dll")]
+        public static extern bool ButtonDown(int player, Buttons action);
+        [DllImport("SGL.dll")]
+        public static extern bool ButtonDownFresh(int player, Buttons action);
+        [DllImport("SGL.dll")]
+        public static extern bool KeyDownFresh(Keys key);
+        [DllImport("SGL.dll")]
+        public static extern bool KeyDown(Keys key);
+        [DllImport("SGL.dll")]
+        public static extern void PollKeyboard();
+        [DllImport("SGL.dll")]        
+        public static extern void InitKeyboard(byte[] keys_down, byte[] keys_stale, byte[] keyboard_state);
     }
 
 }

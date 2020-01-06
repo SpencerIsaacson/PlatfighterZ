@@ -4,6 +4,7 @@ using System.Drawing.Imaging;
 using System.Reflection;
 
 using static Game;
+using static Engine.Global;
 
 class SplashScreen : IGameState
 {
@@ -11,8 +12,7 @@ class SplashScreen : IGameState
     bool splash_screen_ended = false;
     float splash_screen_time;
     float splash_screen_alpha;
-    Bitmap logo = (Bitmap)Image.FromStream(Assembly.GetExecutingAssembly().GetManifestResourceStream("PlatfighterZ.Assets.VikingStudios.png"));
-
+    Bitmap logo = (Bitmap)Image.FromStream(GetAssetStream("VikingStudios.png"));
 
     public void Update()
     {
@@ -32,8 +32,7 @@ class SplashScreen : IGameState
 
         if (!splash_screen_started)
         {
-            System.IO.Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("PlatfighterZ.Assets.preparations.wav");
-            System.Media.SoundPlayer player = new System.Media.SoundPlayer(stream);
+            System.Media.SoundPlayer player = new System.Media.SoundPlayer(GetAssetStream("preparations.wav"));
             player.Play();
             splash_screen_started = true;
         }
