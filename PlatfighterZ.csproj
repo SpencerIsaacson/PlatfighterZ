@@ -12,6 +12,21 @@
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
+    <PublishUrl>publish\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -24,6 +39,7 @@
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Prefer32Bit>false</Prefer32Bit>
+    <LangVersion>7.3</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -33,6 +49,10 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>
+    </StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -49,6 +69,7 @@
     <EmbeddedResource Include="Assets\teapot.obj" />
     <EmbeddedResource Include="Assets\walk" />
     <EmbeddedResource Include="Assets\weight_indices" />
+    <EmbeddedResource Include="Assets\font_set" />
     <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
@@ -62,6 +83,7 @@
     <EmbeddedResource Include="Assets\preparations.wav" />
     <EmbeddedResource Include="Assets\punch.wav" />
     <EmbeddedResource Include="Assets\VikingStudios.png" />
+    <Content Include="Animations.txt" />
     <Content Include="build.exe" />
     <Content Include="Documentation\avatar.txt" />
     <Content Include="Documentation\idle.txt" />
@@ -72,21 +94,24 @@
     <Content Include="TODO.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="SourceCode\DefinedAnimations.cs" />
-    <Compile Include="SourceCode\Engine\DataTypes.cs" />
-    <Compile Include="SourceCode\Engine\DrawingLibrary.cs" />
-    <Compile Include="SourceCode\Engine\Global.cs" />
     <Compile Include="SourceCode\Game.cs" />
-    <Compile Include="SourceCode\GameStates\GameplayState.cs" />
-    <Compile Include="SourceCode\GameStates\MeshDemo.cs" />
-    <Compile Include="SourceCode\GameStates\SkinnedMeshDemo.cs" />
-    <Compile Include="SourceCode\GameStates\SplashScreen.cs" />
-    <Compile Include="SourceCode\Platform Layer\Input.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include=".NETFramework,Version=v4.7.2">
+      <Visible>False</Visible>
+      <ProductName>Microsoft .NET Framework 4.7.2 %28x86 and x64%29</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

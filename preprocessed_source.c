@@ -1557,6 +1557,108 @@ extern __inline__ long long  llroundl (long double x) {
 #pragma pack(pop)
 # 579 "c:/program files/tcc/include/stdlib.h" 2
 # 4 "SGL.c" 2
+# 1 "c:/program files/tcc/include/ctype.h" 1
+# 36 "c:/program files/tcc/include/ctype.h"
+  extern unsigned short **_imp___pctype;
+# 51 "c:/program files/tcc/include/ctype.h"
+  extern unsigned short **_imp___wctype;
+# 63 "c:/program files/tcc/include/ctype.h"
+  extern unsigned short **_imp___pwctype;
+# 72 "c:/program files/tcc/include/ctype.h"
+  extern const unsigned char __newclmap[];
+  extern const unsigned char __newcumap[];
+  extern pthreadlocinfo __ptlocinfo;
+  extern pthreadmbcinfo __ptmbcinfo;
+  extern int __globallocalestatus;
+  extern int __locale_changed;
+  extern struct threadlocaleinfostruct __initiallocinfo;
+  extern _locale_tstruct __initiallocalestructinfo;
+  pthreadlocinfo  __updatetlocinfo(void);
+  pthreadmbcinfo  __updatetmbcinfo(void);
+# 100 "c:/program files/tcc/include/ctype.h"
+  extern int  _isctype(int _C,int _Type);
+  extern int  _isctype_l(int _C,int _Type,_locale_t _Locale);
+  extern int  isalpha(int _C);
+  extern int  _isalpha_l(int _C,_locale_t _Locale);
+  extern int  isupper(int _C);
+  extern int  _isupper_l(int _C,_locale_t _Locale);
+  extern int  islower(int _C);
+  extern int  _islower_l(int _C,_locale_t _Locale);
+  extern int  isdigit(int _C);
+  extern int  _isdigit_l(int _C,_locale_t _Locale);
+  extern int  isxdigit(int _C);
+  extern int  _isxdigit_l(int _C,_locale_t _Locale);
+  extern int  isspace(int _C);
+  extern int  _isspace_l(int _C,_locale_t _Locale);
+  extern int  ispunct(int _C);
+  extern int  _ispunct_l(int _C,_locale_t _Locale);
+  extern int  isalnum(int _C);
+  extern int  _isalnum_l(int _C,_locale_t _Locale);
+  extern int  isprint(int _C);
+  extern int  _isprint_l(int _C,_locale_t _Locale);
+  extern int  isgraph(int _C);
+  extern int  _isgraph_l(int _C,_locale_t _Locale);
+  extern int  iscntrl(int _C);
+  extern int  _iscntrl_l(int _C,_locale_t _Locale);
+  extern int  toupper(int _C);
+  extern int  tolower(int _C);
+  extern int  _tolower(int _C);
+  extern int  _tolower_l(int _C,_locale_t _Locale);
+  extern int  _toupper(int _C);
+  extern int  _toupper_l(int _C,_locale_t _Locale);
+  extern int  __isascii(int _C);
+  extern int  __toascii(int _C);
+  extern int  __iscsymf(int _C);
+  extern int  __iscsym(int _C);
+
+
+int  isblank(int _C);
+
+
+
+
+
+
+  int  iswalpha(wint_t _C);
+  extern int  _iswalpha_l(wint_t _C,_locale_t _Locale);
+  int  iswupper(wint_t _C);
+  extern int  _iswupper_l(wint_t _C,_locale_t _Locale);
+  int  iswlower(wint_t _C);
+  extern int  _iswlower_l(wint_t _C,_locale_t _Locale);
+  int  iswdigit(wint_t _C);
+  extern int  _iswdigit_l(wint_t _C,_locale_t _Locale);
+  int  iswxdigit(wint_t _C);
+  extern int  _iswxdigit_l(wint_t _C,_locale_t _Locale);
+  int  iswspace(wint_t _C);
+  extern int  _iswspace_l(wint_t _C,_locale_t _Locale);
+  int  iswpunct(wint_t _C);
+  extern int  _iswpunct_l(wint_t _C,_locale_t _Locale);
+  int  iswalnum(wint_t _C);
+  extern int  _iswalnum_l(wint_t _C,_locale_t _Locale);
+  int  iswprint(wint_t _C);
+  extern int  _iswprint_l(wint_t _C,_locale_t _Locale);
+  int  iswgraph(wint_t _C);
+  extern int  _iswgraph_l(wint_t _C,_locale_t _Locale);
+  int  iswcntrl(wint_t _C);
+  extern int  _iswcntrl_l(wint_t _C,_locale_t _Locale);
+  int  iswascii(wint_t _C);
+  int  isleadbyte(int _C);
+  extern int  _isleadbyte_l(int _C,_locale_t _Locale);
+  wint_t  towupper(wint_t _C);
+  extern wint_t  _towupper_l(wint_t _C,_locale_t _Locale);
+  wint_t  towlower(wint_t _C);
+  extern wint_t  _towlower_l(wint_t _C,_locale_t _Locale);
+  int  iswctype(wint_t _C,wctype_t _Type);
+  extern int  _iswctype_l(wint_t _C,wctype_t _Type,_locale_t _Locale);
+  extern int  __iswcsymf(wint_t _C);
+  extern int  _iswcsymf_l(wint_t _C,_locale_t _Locale);
+  extern int  __iswcsym(wint_t _C);
+  extern int  _iswcsym_l(wint_t _C,_locale_t _Locale);
+  int  is_wctype(wint_t _C,wctype_t _Type);
+
+
+int  iswblank(wint_t _C);
+# 5 "SGL.c" 2
 # 1 "c:/program files/tcc/include/winapi/windows.h" 1
 # 62 "c:/program files/tcc/include/winapi/windows.h"
 # 1 "c:/program files/tcc/include/excpt.h" 1
@@ -1661,109 +1763,6 @@ typedef const void *LPCVOID;
 
 
 # 1 "c:/program files/tcc/include/winapi/winnt.h" 1
-# 13 "c:/program files/tcc/include/winapi/winnt.h"
-# 1 "c:/program files/tcc/include/ctype.h" 1
-# 36 "c:/program files/tcc/include/ctype.h"
-  extern unsigned short **_imp___pctype;
-# 51 "c:/program files/tcc/include/ctype.h"
-  extern unsigned short **_imp___wctype;
-# 63 "c:/program files/tcc/include/ctype.h"
-  extern unsigned short **_imp___pwctype;
-# 72 "c:/program files/tcc/include/ctype.h"
-  extern const unsigned char __newclmap[];
-  extern const unsigned char __newcumap[];
-  extern pthreadlocinfo __ptlocinfo;
-  extern pthreadmbcinfo __ptmbcinfo;
-  extern int __globallocalestatus;
-  extern int __locale_changed;
-  extern struct threadlocaleinfostruct __initiallocinfo;
-  extern _locale_tstruct __initiallocalestructinfo;
-  pthreadlocinfo  __updatetlocinfo(void);
-  pthreadmbcinfo  __updatetmbcinfo(void);
-# 100 "c:/program files/tcc/include/ctype.h"
-  extern int  _isctype(int _C,int _Type);
-  extern int  _isctype_l(int _C,int _Type,_locale_t _Locale);
-  extern int  isalpha(int _C);
-  extern int  _isalpha_l(int _C,_locale_t _Locale);
-  extern int  isupper(int _C);
-  extern int  _isupper_l(int _C,_locale_t _Locale);
-  extern int  islower(int _C);
-  extern int  _islower_l(int _C,_locale_t _Locale);
-  extern int  isdigit(int _C);
-  extern int  _isdigit_l(int _C,_locale_t _Locale);
-  extern int  isxdigit(int _C);
-  extern int  _isxdigit_l(int _C,_locale_t _Locale);
-  extern int  isspace(int _C);
-  extern int  _isspace_l(int _C,_locale_t _Locale);
-  extern int  ispunct(int _C);
-  extern int  _ispunct_l(int _C,_locale_t _Locale);
-  extern int  isalnum(int _C);
-  extern int  _isalnum_l(int _C,_locale_t _Locale);
-  extern int  isprint(int _C);
-  extern int  _isprint_l(int _C,_locale_t _Locale);
-  extern int  isgraph(int _C);
-  extern int  _isgraph_l(int _C,_locale_t _Locale);
-  extern int  iscntrl(int _C);
-  extern int  _iscntrl_l(int _C,_locale_t _Locale);
-  extern int  toupper(int _C);
-  extern int  tolower(int _C);
-  extern int  _tolower(int _C);
-  extern int  _tolower_l(int _C,_locale_t _Locale);
-  extern int  _toupper(int _C);
-  extern int  _toupper_l(int _C,_locale_t _Locale);
-  extern int  __isascii(int _C);
-  extern int  __toascii(int _C);
-  extern int  __iscsymf(int _C);
-  extern int  __iscsym(int _C);
-
-
-int  isblank(int _C);
-
-
-
-
-
-
-  int  iswalpha(wint_t _C);
-  extern int  _iswalpha_l(wint_t _C,_locale_t _Locale);
-  int  iswupper(wint_t _C);
-  extern int  _iswupper_l(wint_t _C,_locale_t _Locale);
-  int  iswlower(wint_t _C);
-  extern int  _iswlower_l(wint_t _C,_locale_t _Locale);
-  int  iswdigit(wint_t _C);
-  extern int  _iswdigit_l(wint_t _C,_locale_t _Locale);
-  int  iswxdigit(wint_t _C);
-  extern int  _iswxdigit_l(wint_t _C,_locale_t _Locale);
-  int  iswspace(wint_t _C);
-  extern int  _iswspace_l(wint_t _C,_locale_t _Locale);
-  int  iswpunct(wint_t _C);
-  extern int  _iswpunct_l(wint_t _C,_locale_t _Locale);
-  int  iswalnum(wint_t _C);
-  extern int  _iswalnum_l(wint_t _C,_locale_t _Locale);
-  int  iswprint(wint_t _C);
-  extern int  _iswprint_l(wint_t _C,_locale_t _Locale);
-  int  iswgraph(wint_t _C);
-  extern int  _iswgraph_l(wint_t _C,_locale_t _Locale);
-  int  iswcntrl(wint_t _C);
-  extern int  _iswcntrl_l(wint_t _C,_locale_t _Locale);
-  int  iswascii(wint_t _C);
-  int  isleadbyte(int _C);
-  extern int  _isleadbyte_l(int _C,_locale_t _Locale);
-  wint_t  towupper(wint_t _C);
-  extern wint_t  _towupper_l(wint_t _C,_locale_t _Locale);
-  wint_t  towlower(wint_t _C);
-  extern wint_t  _towlower_l(wint_t _C,_locale_t _Locale);
-  int  iswctype(wint_t _C,wctype_t _Type);
-  extern int  _iswctype_l(wint_t _C,wctype_t _Type,_locale_t _Locale);
-  extern int  __iswcsymf(wint_t _C);
-  extern int  _iswcsymf_l(wint_t _C,_locale_t _Locale);
-  extern int  __iswcsym(wint_t _C);
-  extern int  _iswcsym_l(wint_t _C,_locale_t _Locale);
-  int  is_wctype(wint_t _C,wctype_t _Type);
-
-
-int  iswblank(wint_t _C);
-# 14 "c:/program files/tcc/include/winapi/winnt.h" 2
 # 80 "c:/program files/tcc/include/winapi/winnt.h"
 # 1 "c:/program files/tcc/include/winapi/basetsd.h" 1
 # 10 "c:/program files/tcc/include/winapi/basetsd.h"
@@ -11492,8 +11491,14 @@ typedef FMTID *LPFMTID;
   __attribute__((dllimport)) LONG  RegSaveKeyExW(HKEY hKey,LPCWSTR lpFile,LPSECURITY_ATTRIBUTES lpSecurityAttributes,DWORD Flags);
   __attribute__((dllimport)) LONG  Wow64Win32ApiEntry (DWORD dwFuncNumber,DWORD dwFlag,DWORD dwRes);
 # 74 "c:/program files/tcc/include/winapi/windows.h" 2
-# 5 "SGL.c" 2
-# 26 "SGL.c"
+# 6 "SGL.c" 2
+# 30 "SGL.c"
+typedef struct
+{
+	int length;
+	char* characters;
+} string;
+
 typedef struct
 {
 	float x, y;
@@ -11559,15 +11564,15 @@ typedef struct
 
 typedef struct
 {
-    int entity_ID;
-    int selected_character;
-    char defeated;
-    int stock;
-    float current_health;
-    v2 velocity;
-    char grounded;
-    Hitbox* attackboxes;
-    Hitbox* defendboxes;
+	int entity_ID;
+	int selected_character;
+	char defeated;
+	int stock;
+	float current_health;
+	v2 velocity;
+	char grounded;
+	Hitbox* attackboxes;
+	Hitbox* defendboxes;
 } Player;
 
 
@@ -11585,6 +11590,7 @@ void DrawHorizontalSegment(unsigned int color, int y, int x1, int x2);
 void PutPixel(unsigned int color, int x, int y);
 void PutPixel_ByIndex(unsigned int color, int i);
 void DrawHorizontal(unsigned int color, int y);
+void DrawString(string s, int x, int y);
 
 Transform InvertTransform(Transform t);
 v3 NegateVector(v3 v);
@@ -11632,10 +11638,11 @@ v3 CameraToClipToScreen(v3 v);
 
 
 void InitMeshDemo(float field_of_view, int width, int height, unsigned int _pixels[]);
-Transform RunMeshDemo(Mesh mesh, Transform cube_transform, Transform camera, float delta_time);
+Transform RunMeshDemo(Mesh mesh, Transform cube_transform, Transform camera, float delta_time, float frames_per_second);
 void Render(Mesh mesh, unsigned int body_poly_colors[], Transform camera, char fill_toggle);
+void PrintMesh(Mesh mesh);
 
-__attribute__((dllexport)) unsigned int Darker(unsigned int color)
+unsigned int Darker(unsigned int color)
 {
 	unsigned int r = (color & 0xFFFF0000 ^ 0xFF000000) >> 17 << 16;
 	unsigned int g = (color & (0xFF00FF00 ^ 0xFF000000)) >> 9 << 8;
@@ -11643,7 +11650,7 @@ __attribute__((dllexport)) unsigned int Darker(unsigned int color)
 	return 0xFF000000 | r | g | b;
 }
 
-__attribute__((dllexport)) Transform InvertTransform(Transform t)
+Transform InvertTransform(Transform t)
 {
 	t.position = NegateVector(t.position);
 	t.rotation = NegateVector(t.rotation);
@@ -11653,7 +11660,7 @@ __attribute__((dllexport)) Transform InvertTransform(Transform t)
 	return t;
 }
 
-__attribute__((dllexport)) v3 NegateVector(v3 v)
+v3 NegateVector(v3 v)
 {
 	v.x = -v.x;
 	v.y = -v.y;
@@ -11661,7 +11668,7 @@ __attribute__((dllexport)) v3 NegateVector(v3 v)
 	return v;
 }
 
-__attribute__((dllexport)) m4x4 Concatenate(m4x4 a, m4x4 b)
+m4x4 Concatenate(m4x4 a, m4x4 b)
 {
 	m4x4 result;
 	result.m11 = a.m11 * b.m11 + a.m12 * b.m21 + a.m13 * b.m31 + a.m14 * b.m41;
@@ -11683,7 +11690,7 @@ __attribute__((dllexport)) m4x4 Concatenate(m4x4 a, m4x4 b)
 	return result;
 }
 
-__attribute__((dllexport)) m4x4 GetMatrix(Transform t)
+m4x4 GetMatrix(Transform t)
 {
 	m4x4 result = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
 	result = Concatenate(result, Scale(t.scale.x, t.scale.y, t.scale.z));
@@ -11692,7 +11699,7 @@ __attribute__((dllexport)) m4x4 GetMatrix(Transform t)
 	return result;
 }
 
-__attribute__((dllexport)) m4x4 WorldSpaceMatrix(int index, Transform hierarchy[])
+m4x4 WorldSpaceMatrix(int index, Transform hierarchy[])
 {
 	Transform t = hierarchy[index];
 	m4x4 m = GetMatrix(t);
@@ -11705,7 +11712,7 @@ __attribute__((dllexport)) m4x4 WorldSpaceMatrix(int index, Transform hierarchy[
 	return m;
 }
 
-__attribute__((dllexport)) v3 Transform_v3(m4x4 m, v3 v)
+v3 Transform_v3(m4x4 m, v3 v)
 {
 	v3 result =
 	{
@@ -11717,7 +11724,7 @@ __attribute__((dllexport)) v3 Transform_v3(m4x4 m, v3 v)
 	return result;
 }
 
-__attribute__((dllexport)) v4 Transform_Vector4(m4x4 m, v4 v)
+v4 Transform_Vector4(m4x4 m, v4 v)
 {
 	v4 result =
 	{
@@ -11730,25 +11737,25 @@ __attribute__((dllexport)) v4 Transform_Vector4(m4x4 m, v4 v)
 	return result;
 }
 
-__attribute__((dllexport)) m4x4 Transpose(m4x4 m)
+m4x4 Transpose(m4x4 m)
 {
 	m4x4 transposed = { m.m11, m.m21, m.m31, m.m41, m.m12, m.m22, m.m32, m.m42, m.m13, m.m23, m.m33, m.m43, m.m14, m.m24, m.m34, m.m44 };
 	return transposed;
 }
 
-__attribute__((dllexport)) m4x4 Translation(float x, float y, float z)
+m4x4 Translation(float x, float y, float z)
 {
 	m4x4 translation = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1 };
 	return translation;
 }
 
-__attribute__((dllexport)) m4x4 Scale(float x, float y, float z)
+m4x4 Scale(float x, float y, float z)
 {
 	m4x4 scale = { x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1 };
 	return scale;
 }
 
-__attribute__((dllexport)) m4x4 Rotation(float x, float y, float z)
+m4x4 Rotation(float x, float y, float z)
 {
 	m4x4 rotation;
 
@@ -11772,24 +11779,24 @@ __attribute__((dllexport)) m4x4 Rotation(float x, float y, float z)
 	return rotation;
 }
 
-__attribute__((dllexport)) m4x4 Perspective(float near_plane, float far_plane, float field_of_view, float width, float height)
+m4x4 Perspective(float , float , float field_of_view, float width, float height)
 {
 	float aspect_ratio = height / width;
 	float zoom = (float)(1 / tan(field_of_view / 2));
-	float q = far_plane / (far_plane - near_plane);
+	float q =  / ( - );
 
 	m4x4 result =
 	{
 		aspect_ratio * zoom, 0, 0, 0,
 		0, -zoom, 0, 0,
-		0, 0, q, near_plane * q,
+		0, 0, q,  * q,
 		0, 0, 1, 0
 	};
 
 	return result;
 }
 
-__attribute__((dllexport)) v3 v3_Add(v3 a, v3 b)
+v3 v3_Add(v3 a, v3 b)
 {
 	v3 v;
 	v.x = a.x + b.x;
@@ -11798,7 +11805,7 @@ __attribute__((dllexport)) v3 v3_Add(v3 a, v3 b)
 	return v;
 }
 
-__attribute__((dllexport)) v3 v3_Subtract(v3 a, v3 b)
+v3 v3_Subtract(v3 a, v3 b)
 {
 	v3 v;
 	v.x = a.x - b.x;
@@ -11807,7 +11814,7 @@ __attribute__((dllexport)) v3 v3_Subtract(v3 a, v3 b)
 	return v;
 }
 
-__attribute__((dllexport)) v3 CrossProduct(v3 a, v3 b)
+v3 CrossProduct(v3 a, v3 b)
 {
 	v3 result =
 	{
@@ -11819,26 +11826,26 @@ __attribute__((dllexport)) v3 CrossProduct(v3 a, v3 b)
 	return result;
 }
 
-__attribute__((dllimport)) v3 v3_Normalized(v3 v)
+v3 v3_Normalized(v3 v)
 {
 	return v3_Scale(v, v3_Magnitude(v));
 }
 
-__attribute__((dllimport)) float v3_Magnitude(v3 v)
+float v3_Magnitude(v3 v)
 {
 	return (float)sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
-__attribute__((dllimport)) v3 v3_Scale(v3 v, float s)
+v3 v3_Scale(v3 v, float s)
 {
-	v3 result = {v.x / s, v.y / s, v.z / s };
+	v3 result = { v.x / s, v.y / s, v.z / s };
 	return result;
 }
 
-__attribute__((dllimport)) float v3_DotProduct(v3 a, v3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+float v3_DotProduct(v3 a, v3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 
 
-__attribute__((dllexport)) v2 Lerp_v2(v2 a, v2 b, float t)
+v2 Lerp_v2(v2 a, v2 b, float t)
 {
 	v2 v;
 	v.x = a.x + (t * (b.x - a.x));
@@ -11846,13 +11853,13 @@ __attribute__((dllexport)) v2 Lerp_v2(v2 a, v2 b, float t)
 	return v;
 }
 
-__attribute__((dllexport)) float Lerp_Float(float a, float b, float t)
+float Lerp_Float(float a, float b, float t)
 {
 	return a + t * (b - a);
 }
 
 
-__attribute__((dllexport)) void AnimateProperty(KeyFrame curve[], float frame, float* property)
+void AnimateProperty(KeyFrame curve[], float frame, float* property)
 {
 	size_t n = sizeof(curve) / sizeof(curve[0]);
 	for (int i = 0; i < n - 1; i++)
@@ -11867,7 +11874,7 @@ __attribute__((dllexport)) void AnimateProperty(KeyFrame curve[], float frame, f
 	}
 }
 
-__attribute__((dllexport)) float Sample(KeyFrame a, KeyFrame b, float frame)
+float Sample(KeyFrame a, KeyFrame b, float frame)
 {
 	float t = (frame - a.frame) / (b.frame - a.frame);
 
@@ -11886,7 +11893,7 @@ __attribute__((dllexport)) float Sample(KeyFrame a, KeyFrame b, float frame)
 }
 
 
-__attribute__((dllexport)) char Intersect(Transform a, Transform b)
+char Intersect(Transform a, Transform b)
 {
 	float ax_half = a.scale.x / 2;
 	float ay_half = a.scale.y / 2;
@@ -11906,7 +11913,7 @@ __attribute__((dllexport)) char Intersect(Transform a, Transform b)
 }
 
 
-__attribute__((dllexport)) v3 GetCentroid(Triangle t)
+v3 GetCentroid(Triangle t)
 {
 	v3 v = v3_Add(v3_Add(t.a, t.b), t.c);
 	v.x /= 3;
@@ -11979,20 +11986,20 @@ m4x4 camera_to_clip;
 int WIDTH, HEIGHT;
 unsigned int* pixels;
 
-__attribute__((dllexport)) void InitMeshDemo(float field_of_view, int width, int height, unsigned int _pixels[])
+void InitMeshDemo(float field_of_view, int width, int height, unsigned int _pixels[])
 {
 	WIDTH = width;
 	HEIGHT = height;
 	camera_to_clip = Perspective(0.1f, 100, field_of_view, WIDTH, HEIGHT);
-	pixels =  &_pixels[0];
+	pixels = &_pixels[0];
 }
 
-__attribute__((dllexport)) Transform RunMeshDemo(Mesh mesh, Transform cube_transform, Transform camera, float delta_time)
+Transform RunMeshDemo(Mesh mesh, Transform cube_transform, Transform camera, float delta_time, float frames_per_second)
 {
 
-    {
-        cube_transform.rotation.y += 6.28318530717958f / 16 * delta_time;
-    }
+	{
+		cube_transform.rotation.y += 6.28318530717958f / 16 * delta_time;
+	}
 
 	Fill(0xFF000000);
 
@@ -12088,7 +12095,7 @@ __attribute__((dllexport)) Transform RunMeshDemo(Mesh mesh, Transform cube_trans
 
 
 	{
-		SortByDepth(triangles,triangle_count);
+		SortByDepth(triangles, triangle_count);
 	}
 
 
@@ -12103,10 +12110,19 @@ __attribute__((dllexport)) Transform RunMeshDemo(Mesh mesh, Transform cube_trans
 	}
 
 	free(triangles);
+
+	char result[50];
+	sprintf(result, "%.3f", frames_per_second);
+	char foo[50];
+	strcpy(foo, "FPS: ");
+
+	strcat(foo, result);
+	string moopa = { strlen(foo), foo };
+	DrawString(moopa, 16, 16);
 	return cube_transform;
 }
 
-__attribute__((dllexport)) void FillTriangle(unsigned int color, int x1, int y1, int x2, int y2, int x3, int y3)
+void FillTriangle(unsigned int color, int x1, int y1, int x2, int y2, int x3, int y3)
 {
 	if (y1 == y2 && y2 == y3)
 		return;
@@ -12205,124 +12221,124 @@ void DrawHorizontalSegment(unsigned int color, int y, int x1, int x2)
 	}
 }
 
-__attribute__((dllexport)) void PutPixel(unsigned int color, int x, int y)
+void PutPixel(unsigned int color, int x, int y)
 {
 	if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT)
 		pixels[y * WIDTH + x] = color;
 }
 
-__attribute__((dllexport)) void PutPixel_ByIndex(unsigned int color, int i)
+void PutPixel_ByIndex(unsigned int color, int i)
 {
-    if (i >= 0 && i < WIDTH * HEIGHT)
-        pixels[i] = color;
+	if (i >= 0 && i < WIDTH * HEIGHT)
+		pixels[i] = color;
 }
 
 v3 CameraToClipToScreen(v3 v)
 {
-    v4 v_4 = {v.x, v.y, v.z, 1};
-    v_4 = Transform_Vector4(camera_to_clip, v_4);
+	v4 v_4 = { v.x, v.y, v.z, 1 };
+	v_4 = Transform_Vector4(camera_to_clip, v_4);
 
-    v.x = v_4.x;
-    v.y = v_4.y;
-    v.z = v_4.z;
-    if (v_4.w != 0)
-    {
-        v.x /= v_4.w;
-        v.y /= v_4.w;
-        v.z /= v_4.w;
-    }
-
-
-    v.x++;
-    v.y++;
+	v.x = v_4.x;
+	v.y = v_4.y;
+	v.z = v_4.z;
+	if (v_4.w != 0)
+	{
+		v.x /= v_4.w;
+		v.y /= v_4.w;
+		v.z /= v_4.w;
+	}
 
 
-    v.x *= WIDTH / 2;
-    v.y *= HEIGHT / 2;
+	v.x++;
+	v.y++;
 
-    return v;
+
+	v.x *= WIDTH / 2;
+	v.y *= HEIGHT / 2;
+
+	return v;
 }
 
 unsigned int LerpColor(unsigned int a, unsigned int b, float t);
 
-__attribute__((dllexport)) void FillVerticalGradient(unsigned int color1, unsigned int color2)
+void FillVerticalGradient(unsigned int color1, unsigned int color2)
 {
-    for(int y = 0; y < HEIGHT; y++)
-    {
-        unsigned int color = LerpColor(color1, color2, y/(float)HEIGHT);
-        for(int x = 0; x < WIDTH; x++)
-        {
-            pixels[y * WIDTH + x] = color;
-        }
-    }
+	for (int y = 0; y < HEIGHT; y++)
+	{
+		unsigned int color = LerpColor(color1, color2, y / (float)HEIGHT);
+		for (int x = 0; x < WIDTH; x++)
+		{
+			pixels[y * WIDTH + x] = color;
+		}
+	}
 }
 
-__attribute__((dllexport)) unsigned int LerpColor(unsigned int a, unsigned int b, float t)
+unsigned int LerpColor(unsigned int a, unsigned int b, float t)
 {
 
-    unsigned int a_a = (0xFF000000 & a) >> 24;
-    unsigned int a_r = (0x00FF0000 & a) >> 16;
-    unsigned int a_g = (0x0000FF00 & a) >> 8;
-    unsigned int a_b = (0x000000FF & a);
-    unsigned int b_a = (0xFF000000 & b) >> 24;
-    unsigned int b_r = (0x00FF0000 & b) >> 16;
-    unsigned int b_g = (0x0000FF00 & b) >> 8;
-    unsigned int b_b = (0x000000FF & b);
+	unsigned int a_a = (0xFF000000 & a) >> 24;
+	unsigned int a_r = (0x00FF0000 & a) >> 16;
+	unsigned int a_g = (0x0000FF00 & a) >> 8;
+	unsigned int a_b = (0x000000FF & a);
+	unsigned int b_a = (0xFF000000 & b) >> 24;
+	unsigned int b_r = (0x00FF0000 & b) >> 16;
+	unsigned int b_g = (0x0000FF00 & b) >> 8;
+	unsigned int b_b = (0x000000FF & b);
 
 
-    unsigned int l_a = (unsigned int)(((float)a_a) + (t * ((float)b_a - (float)a_a)));
-    unsigned int l_r = (unsigned int)(((float)a_r) + (t * ((float)b_r - (float)a_r)));
-    unsigned int l_g = (unsigned int)(((float)a_g) + (t * ((float)b_g - (float)a_g)));
-    unsigned int l_b = (unsigned int)(((float)a_b) + (t * ((float)b_b - (float)a_b)));
-
-
-
-    l_a <<= 24;
-    l_r <<= 16;
-    l_g <<= 8;
+	unsigned int l_a = (unsigned int)(((float)a_a) + (t * ((float)b_a - (float)a_a)));
+	unsigned int l_r = (unsigned int)(((float)a_r) + (t * ((float)b_r - (float)a_r)));
+	unsigned int l_g = (unsigned int)(((float)a_g) + (t * ((float)b_g - (float)a_g)));
+	unsigned int l_b = (unsigned int)(((float)a_b) + (t * ((float)b_b - (float)a_b)));
 
 
 
-    unsigned int l = l_a | l_r | l_g | l_b;
-    return l;
+	l_a <<= 24;
+	l_r <<= 16;
+	l_g <<= 8;
+
+
+
+	unsigned int l = l_a | l_r | l_g | l_b;
+	return l;
 }
 
-__attribute__((dllexport)) unsigned int BlendColor(unsigned int s, unsigned int d)
+unsigned int BlendColor(unsigned int s, unsigned int d)
 {
-    unsigned int sA = (s & 0xFF000000) >> 24;
-    unsigned int sR = (s & 0x00FF0000) >> 16;
-    unsigned int sG = (s & 0x0000FF00) >> 8;
-    unsigned int sB = (s & 0x000000FF);
+	unsigned int sA = (s & 0xFF000000) >> 24;
+	unsigned int sR = (s & 0x00FF0000) >> 16;
+	unsigned int sG = (s & 0x0000FF00) >> 8;
+	unsigned int sB = (s & 0x000000FF);
 
-    unsigned int dA = (d & 0xFF000000) >> 24;
-    unsigned int dR = (d & 0x00FF0000) >> 16;
-    unsigned int dG = (d & 0x0000FF00) >> 8;
-    unsigned int dB = (d & 0x000000FF);
+	unsigned int dA = (d & 0xFF000000) >> 24;
+	unsigned int dR = (d & 0x00FF0000) >> 16;
+	unsigned int dG = (d & 0x0000FF00) >> 8;
+	unsigned int dB = (d & 0x000000FF);
 
-    float _sA = (sA / 255.0f);
-    float _sR = (sR / 255.0f);
-    float _sG = (sG / 255.0f);
-    float _sB = (sB / 255.0f);
-    float _dA = (dA / 255.0f);
-    float _dR = (dR / 255.0f);
-    float _dG = (dG / 255.0f);
-    float _dB = (dB / 255.0f);
+	float _sA = (sA / 255.0f);
+	float _sR = (sR / 255.0f);
+	float _sG = (sG / 255.0f);
+	float _sB = (sB / 255.0f);
+	float _dA = (dA / 255.0f);
+	float _dR = (dR / 255.0f);
+	float _dG = (dG / 255.0f);
+	float _dB = (dB / 255.0f);
 
-    unsigned int rA = (unsigned int)(((_sA * _sA) + (_dA * (1.0f - _sA))) * 255.0f);
-    unsigned int rR = (unsigned int)(((_sR * _sA) + (_dR * (1.0f - _sA))) * 255.0f);
-    unsigned int rG = (unsigned int)(((_sG * _sA) + (_dG * (1.0f - _sA))) * 255.0f);
-    unsigned int rB = (unsigned int)(((_sB * _sA) + (_dB * (1.0f - _sA))) * 255.0f);
+	unsigned int rA = (unsigned int)(((_sA * _sA) + (_dA * (1.0f - _sA))) * 255.0f);
+	unsigned int rR = (unsigned int)(((_sR * _sA) + (_dR * (1.0f - _sA))) * 255.0f);
+	unsigned int rG = (unsigned int)(((_sG * _sA) + (_dG * (1.0f - _sA))) * 255.0f);
+	unsigned int rB = (unsigned int)(((_sB * _sA) + (_dB * (1.0f - _sA))) * 255.0f);
 
-    rA <<= 24;
-    rR <<= 16;
-    rG <<= 8;
+	rA <<= 24;
+	rR <<= 16;
+	rG <<= 8;
 
-    unsigned int result = rA | rR | rG | rB;
+	unsigned int result = rA | rR | rG | rB;
 
-    return result;
+	return result;
 }
 
-__attribute__((dllexport)) void Fill(unsigned int color)
+void Fill(unsigned int color)
 {
 	for (int i = 0; i < WIDTH * HEIGHT; i++)
 	{
@@ -12330,218 +12346,300 @@ __attribute__((dllexport)) void Fill(unsigned int color)
 	}
 }
 
-int main()
+Mesh LoadMeshFile(char* path)
 {
-	return 0;
+	FILE* fp = fopen(path, "r");
+	int line_number = 0;
+
+	int vertex_count = 0;
+	int index_count = 0;
+
+	while (1)
+	{
+		char str[500];
+		char* line = fgets(str, 500, fp);
+		if (feof(fp))
+			break;
+		char* token = strtok(line, " ");
+		char* ptr;
+		switch (*token)
+		{
+		case 'v':
+			vertex_count++;
+			break;
+		case 'f':
+			index_count += 3;
+			break;
+		default:
+			break;
+		}
+	}
+
+	rewind(fp);
+
+	Mesh return_mesh;
+	v3* vertices = malloc(sizeof(v3) * vertex_count);
+	int* indices = malloc(sizeof(int) * index_count);
+
+	return_mesh.vertices = vertices;
+	return_mesh.vertices_length = vertex_count;
+	return_mesh.indices = indices;
+	return_mesh.indices_length = index_count;
+
+	int vertex = 0;
+	int index = 0;
+
+	while (1)
+	{
+		char str[500];
+		char* line = fgets(str, 500, fp);
+		if (feof(fp))
+			break;
+		line_number++;
+		char* token = strtok(line, " ");
+		char* ptr;
+		switch (*token)
+		{
+		case 'v':
+			token = strtok(((void*)0), " ");
+			float x = (float)strtod(token, &ptr);
+			token = strtok(((void*)0), " ");
+			float y = (float)strtod(token, &ptr);
+			token = strtok(((void*)0), " ");
+			float z = (float)strtod(token, &ptr);
+			v3 v = { x, y, z };
+			return_mesh.vertices[vertex++] = v;
+			break;
+		case 'f':
+			token = strtok(((void*)0), " ");
+			int a = (int)strtol(token, &ptr, 10);
+			token = strtok(((void*)0), " ");
+			int b = (int)strtol(token, &ptr, 10);
+			token = strtok(((void*)0), " ");
+			int c = (int)strtol(token, &ptr, 10);
+			return_mesh.indices[index++] = a;
+			return_mesh.indices[index++] = b;
+			return_mesh.indices[index++] = c;
+			break;
+		case '\n':
+
+			break;
+		default:
+
+			break;
+		}
+	}
+	fclose(fp);
+	return return_mesh;
 }
 
-__attribute__((dllexport)) void DrawHorizontal(unsigned int color, int y)
+void DrawHorizontal(unsigned int color, int y)
 {
-    for (int i = y * WIDTH; i < y * WIDTH + WIDTH; i++)
-        PutPixel_ByIndex(color, i);
+	for (int i = y * WIDTH; i < y * WIDTH + WIDTH; i++)
+		PutPixel_ByIndex(color, i);
 }
 
-__attribute__((dllexport)) void DrawLine(unsigned int color, float x1, float y1, float x2, float y2)
+void DrawLine(unsigned int color, float x1, float y1, float x2, float y2)
 {
-    float dx = x2 - x1;
-    float dy = y2 - y1;
+	float dx = x2 - x1;
+	float dy = y2 - y1;
 
-    if(fabs(dx) >= fabs(dy))
-    {
-        if(x1 > x2)
-        {
-            float temp = y1;
-            y1 = y2;
-            y2 = temp;
-            temp = x1;
-            x1 = x2;
-            x2 = temp;
-        }
-        for (float x = x1; x <= x2; x++)
-        {
-            float y = (y1 + dy * (x - x1) / dx);
-            PutPixel(color, (int)x, (int)y);
-        }
-    }
-    else
-    {
-        if(y1 > y2)
-        {
-            float temp = y1;
-            y1 = y2;
-            y2 = temp;
-            temp = x1;
-            x1 = x2;
-            x2 = temp;
-        }
-        for (float y = y1; y <= y2; y++)
-        {
-            float x = (x1 + dx * (y - y1) / dy);
-            PutPixel(color, (int)x, (int)y);
-        }
-    }
-}
-
-
-__attribute__((dllexport)) void DrawRectangle(unsigned int color, float x, float y, float width, float height)
-{
-    DrawLine(color, x, y, x + width, y);
-    DrawLine(color, x, y, x, y + height);
-    DrawLine(color, x + width, y, x + width, y + height);
-    DrawLine(color, x, y + height, x + width, y + height);
-}
-
-__attribute__((dllexport)) void Flatten()
-{
-    for(int i = 0; i < WIDTH * HEIGHT; i++)
-    {
-        pixels[i] |= 0xFF000000;
-    }
-}
-
-__attribute__((dllexport)) FillRectangle_Blend(unsigned int color, int x, int y, int width, int height)
-{
-    for (int _x = 0; _x < width; _x++)
-    {
-        for (int _y = 0; _y < height; _y++)
-        {
-            PutPixel(BlendColor(color, pixels[(y + _y) * WIDTH + (x + _x)]), _x + x, _y + y);
-        }
-    }
-}
-
-__attribute__((dllexport)) void  DrawHorizontal_Blend(unsigned int color, int y)
-{
-    for (int i = y * WIDTH; i < y * WIDTH + WIDTH; i++)
-        PutPixel_ByIndex(BlendColor(color, pixels[i]), i);
-}
-
-__attribute__((dllexport)) void DrawVertical_Blend(unsigned int color, int x)
-{
-    for (int i = x; i < (WIDTH * HEIGHT) - WIDTH - x; i += WIDTH)
-    {
-        PutPixel_ByIndex(BlendColor(color, pixels[i]), i);
-    }
-}
-
-__attribute__((dllexport)) void DrawVertical(unsigned int color, int x)
-{
-    for (int i = x; i < (WIDTH * HEIGHT) - WIDTH - x; i += WIDTH)
-    {
-        pixels[i] = color;
-    }
-}
-
-__attribute__((dllexport)) void DrawGrid_ScreenSpace(int unit_size)
-{
-    for (int x = 0; x < WIDTH; x += unit_size)
-    {
-        DrawVertical(0xFF00FF00, x);
-    }
-
-    for (int y = 0; y < HEIGHT; y += unit_size)
-    {
-        DrawHorizontal(0xFF00FF00, y);
-    }
-}
-
-__attribute__((dllexport)) void DrawVerticalSegment(unsigned int color, int x, int y1, int y2)
-{
-    for (int i = x + (y1 * WIDTH); i <= x + (y2 * WIDTH); i += WIDTH)
-        PutPixel_ByIndex(color, i);
-}
-
-__attribute__((dllexport)) FillRectangle(unsigned int color, float x, float y, float width, float height)
-{
-    for (float _x = 0; _x <= width; _x++)
-    {
-        for (float _y = 0; _y <= height; _y++)
-        {
-            PutPixel(color, (int)(_x + x), (int)(_y + y));
-        }
-    }
-}
-
-__attribute__((dllexport)) void Draw_Circle(unsigned int color, float x, float y, float radius, float stroke)
-{
-    int x_min = (int)(x - radius - stroke/2);
-    int x_max = (int)roundf(x + radius + stroke/2);
-    int y_min = (int)(y - radius - stroke/2);
-    int y_max = (int)roundf(y + radius + stroke/2);
-
-    for (int _x = x_min; _x <= x_max; _x++)
-    {
-        for (int _y = y_min; _y <= y_max; _y++)
-        {
-            float dx = _x - x;
-            float dy = _y - y;
-
-            float distance_squared = (float)(dx * dx + dy * dy);
-            float distance = (float)sqrt(distance_squared);
-            char distance_equals_radius_within_delta =  distance <= radius + stroke/2 && distance >= radius - stroke/2;
-
-            if (distance_equals_radius_within_delta)
-                PutPixel(color, _x, _y);
-        }
-    }
-}
-
-__attribute__((dllexport)) void FillCircle(unsigned int color, float x, float y, float radius)
-{
-    int x_min = (int)roundf(x - radius);
-    int x_max = (int)roundf(x + radius);
-    int y_min = (int)roundf(y - radius);
-    int y_max = (int)roundf(y + radius);
-
-    for (int _x = x_min; _x <= x_max; _x++)
-    {
-        for (int _y = y_min; _y <= y_max; _y++)
-        {
-            float dx = _x - x;
-            float dy = _y - y;
-
-            char distance_less_than_radius = dx * dx + dy * dy <= radius * radius;
-
-            if (distance_less_than_radius)
-                PutPixel(color, _x, _y);
-        }
-    }
-}
-
-__attribute__((dllexport)) void Blend_Circle(unsigned int color, float x, float y, float radius)
-{
-    int x_min = (int)roundf(x - radius);
-    int x_max = (int)roundf(x + radius);
-    int y_min = (int)roundf(y - radius);
-    int y_max = (int)roundf(y + radius);
-
-    for (int _x = x_min; _x <= x_max; _x++)
-    {
-        for (int _y = y_min; _y <= y_max; _y++)
-        {
-            float dx = _x - x;
-            float dy = _y - y;
-
-            char distance_less_than_radius = dx * dx + dy * dy <= radius * radius;
-
-            if (distance_less_than_radius)
-            {
-                int index = _y * WIDTH + _x;
-
-                if(index >= 0 && index < (WIDTH*HEIGHT))
-                    PutPixel(BlendColor(color, pixels[_y * WIDTH + _x]), _x, _y);
-            }
-        }
-    }
+	if (fabs(dx) >= fabs(dy))
+	{
+		if (x1 > x2)
+		{
+			float temp = y1;
+			y1 = y2;
+			y2 = temp;
+			temp = x1;
+			x1 = x2;
+			x2 = temp;
+		}
+		for (float x = x1; x <= x2; x++)
+		{
+			float y = (y1 + dy * (x - x1) / dx);
+			PutPixel(color, (int)x, (int)y);
+		}
+	}
+	else
+	{
+		if (y1 > y2)
+		{
+			float temp = y1;
+			y1 = y2;
+			y2 = temp;
+			temp = x1;
+			x1 = x2;
+			x2 = temp;
+		}
+		for (float y = y1; y <= y2; y++)
+		{
+			float x = (x1 + dx * (y - y1) / dy);
+			PutPixel(color, (int)x, (int)y);
+		}
+	}
 }
 
 
-__attribute__((dllexport)) void Render(Mesh mesh, unsigned int body_poly_colors[], Transform camera, char fill_toggle)
+void DrawRectangle(unsigned int color, float x, float y, float width, float height)
 {
-    Fill(0xFF000000);
+	DrawLine(color, x, y, x + width, y);
+	DrawLine(color, x, y, x, y + height);
+	DrawLine(color, x + width, y, x + width, y + height);
+	DrawLine(color, x, y + height, x + width, y + height);
+}
+
+void Flatten()
+{
+	for (int i = 0; i < WIDTH * HEIGHT; i++)
+	{
+		pixels[i] |= 0xFF000000;
+	}
+}
+
+FillRectangle_Blend(unsigned int color, int x, int y, int width, int height)
+{
+	for (int _x = 0; _x < width; _x++)
+	{
+		for (int _y = 0; _y < height; _y++)
+		{
+			PutPixel(BlendColor(color, pixels[(y + _y) * WIDTH + (x + _x)]), _x + x, _y + y);
+		}
+	}
+}
+
+void  DrawHorizontal_Blend(unsigned int color, int y)
+{
+	for (int i = y * WIDTH; i < y * WIDTH + WIDTH; i++)
+		PutPixel_ByIndex(BlendColor(color, pixels[i]), i);
+}
+
+void DrawVertical_Blend(unsigned int color, int x)
+{
+	for (int i = x; i < (WIDTH * HEIGHT) - WIDTH - x; i += WIDTH)
+	{
+		PutPixel_ByIndex(BlendColor(color, pixels[i]), i);
+	}
+}
+
+void DrawVertical(unsigned int color, int x)
+{
+	for (int i = x; i < (WIDTH * HEIGHT) - WIDTH - x; i += WIDTH)
+	{
+		pixels[i] = color;
+	}
+}
+
+void DrawGrid_ScreenSpace(int unit_size)
+{
+	for (int x = 0; x < WIDTH; x += unit_size)
+	{
+		DrawVertical(0xFF00FF00, x);
+	}
+
+	for (int y = 0; y < HEIGHT; y += unit_size)
+	{
+		DrawHorizontal(0xFF00FF00, y);
+	}
+}
+
+void DrawVerticalSegment(unsigned int color, int x, int y1, int y2)
+{
+	for (int i = x + (y1 * WIDTH); i <= x + (y2 * WIDTH); i += WIDTH)
+		PutPixel_ByIndex(color, i);
+}
+
+FillRectangle(unsigned int color, float x, float y, float width, float height)
+{
+	for (float _x = 0; _x <= width; _x++)
+	{
+		for (float _y = 0; _y <= height; _y++)
+		{
+			PutPixel(color, (int)(_x + x), (int)(_y + y));
+		}
+	}
+}
+
+void Draw_Circle(unsigned int color, float x, float y, float radius, float stroke)
+{
+	int x_min = (int)(x - radius - stroke / 2);
+	int x_max = (int)roundf(x + radius + stroke / 2);
+	int y_min = (int)(y - radius - stroke / 2);
+	int y_max = (int)roundf(y + radius + stroke / 2);
+
+	for (int _x = x_min; _x <= x_max; _x++)
+	{
+		for (int _y = y_min; _y <= y_max; _y++)
+		{
+			float dx = _x - x;
+			float dy = _y - y;
+
+			float distance_squared = (float)(dx * dx + dy * dy);
+			float distance = (float)sqrt(distance_squared);
+			char distance_equals_radius_within_delta = distance <= radius + stroke / 2 && distance >= radius - stroke / 2;
+
+			if (distance_equals_radius_within_delta)
+				PutPixel(color, _x, _y);
+		}
+	}
+}
+
+void FillCircle(unsigned int color, float x, float y, float radius)
+{
+	int x_min = (int)roundf(x - radius);
+	int x_max = (int)roundf(x + radius);
+	int y_min = (int)roundf(y - radius);
+	int y_max = (int)roundf(y + radius);
+
+	for (int _x = x_min; _x <= x_max; _x++)
+	{
+		for (int _y = y_min; _y <= y_max; _y++)
+		{
+			float dx = _x - x;
+			float dy = _y - y;
+
+			char distance_less_than_radius = dx * dx + dy * dy <= radius * radius;
+
+			if (distance_less_than_radius)
+				PutPixel(color, _x, _y);
+		}
+	}
+}
+
+void Blend_Circle(unsigned int color, float x, float y, float radius)
+{
+	int x_min = (int)roundf(x - radius);
+	int x_max = (int)roundf(x + radius);
+	int y_min = (int)roundf(y - radius);
+	int y_max = (int)roundf(y + radius);
+
+	for (int _x = x_min; _x <= x_max; _x++)
+	{
+		for (int _y = y_min; _y <= y_max; _y++)
+		{
+			float dx = _x - x;
+			float dy = _y - y;
+
+			char distance_less_than_radius = dx * dx + dy * dy <= radius * radius;
+
+			if (distance_less_than_radius)
+			{
+				int index = _y * WIDTH + _x;
+
+				if (index >= 0 && index < (WIDTH * HEIGHT))
+					PutPixel(BlendColor(color, pixels[_y * WIDTH + _x]), _x, _y);
+			}
+		}
+	}
+}
 
 
-    {
+void Render(Mesh mesh, unsigned int* body_poly_colors, Transform camera, char fill_toggle)
+{
+	Fill(0xFF000000);
+
+
+	{
 		size_t triangle_count = mesh.indices_length / 3;
 		Triangle* triangles = malloc(triangle_count * sizeof(Triangle));
 
@@ -12558,28 +12656,28 @@ __attribute__((dllexport)) void Render(Mesh mesh, unsigned int body_poly_colors[
 		}
 
 
-        {
+		{
 
-            m4x4 object_to_world = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
-
-
-            m4x4 world_to_camera = GetMatrix(InvertTransform(camera));
-
-            m4x4 object_to_camera = Concatenate(object_to_world, world_to_camera);
-
-            for (int i = 0; i < triangle_count; i++)
-            {
-                Triangle t = triangles[i];
+			m4x4 object_to_world = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
 
 
-                {
-                    t.a = Transform_v3(object_to_camera, t.a);
-                    t.b = Transform_v3(object_to_camera, t.b);
-                    t.c = Transform_v3(object_to_camera, t.c);
-                }
+			m4x4 world_to_camera = GetMatrix(InvertTransform(camera));
 
-                triangles[i] = t;
-            }
+			m4x4 object_to_camera = Concatenate(object_to_world, world_to_camera);
+
+			for (int i = 0; i < triangle_count; i++)
+			{
+				Triangle t = triangles[i];
+
+
+				{
+					t.a = Transform_v3(object_to_camera, t.a);
+					t.b = Transform_v3(object_to_camera, t.b);
+					t.c = Transform_v3(object_to_camera, t.c);
+				}
+
+				triangles[i] = t;
+			}
 
 
 			{
@@ -12616,18 +12714,18 @@ __attribute__((dllexport)) void Render(Mesh mesh, unsigned int body_poly_colors[
 							triangles[i] = t;
 						}
 
-	                    float light = t.brightness / 255.0f;
+						float light = t.brightness / 255.0f;
 
-	                    unsigned int r = ((t.color & 0xFFFF0000) ^ 0xFF000000) >> 16;
-	                    unsigned int g = ((t.color & 0xFF00FF00) ^ 0xFF000000) >> 8;
-	                    unsigned int b = (t.color & 0xFF0000FF) ^ 0xFF000000;
+						unsigned int r = ((t.color & 0xFFFF0000) ^ 0xFF000000) >> 16;
+						unsigned int g = ((t.color & 0xFF00FF00) ^ 0xFF000000) >> 8;
+						unsigned int b = (t.color & 0xFF0000FF) ^ 0xFF000000;
 
-	                    r = (unsigned int)(r * light);
-	                    g = (unsigned int)(g * light);
-	                    b = (unsigned int)(b * light);
+						r = (unsigned int)(r * light);
+						g = (unsigned int)(g * light);
+						b = (unsigned int)(b * light);
 
-	                    t.color = r << 16 | g << 8 | b | 0xFF000000;
-	                    triangles[i] = t;
+						t.color = r << 16 | g << 8 | b | 0xFF000000;
+						triangles[i] = t;
 					}
 				}
 
@@ -12643,31 +12741,31 @@ __attribute__((dllexport)) void Render(Mesh mesh, unsigned int body_poly_colors[
 				t.c = CameraToClipToScreen(t.c);
 				triangles[i] = t;
 			}
-        }
-
-
-		{
-			SortByDepth(triangles,triangle_count);
 		}
 
 
-        {
-            for (int i = 0; i < triangle_count; i++)
-            {
-                Triangle t = triangles[i];
-                v2 a = { t.a.x, t.a.y };
-                v2 b = { t.b.x, t.b.y };
-                v2 c = { t.c.x, t.c.y };
+		{
+			SortByDepth(triangles, triangle_count);
+		}
 
-                if(fill_toggle)
-                    FillTriangle_VertexColors(a, b, c, 0xFFFF0000, 0xFF00FF00, 0xFF0000FF);
-                else
-                    FillTriangle(t.color, (int)t.a.x, (int)t.a.y, (int)t.b.x, (int)t.b.y, (int)t.c.x, (int)t.c.y);
-            }
-        }
 
-        free(triangles);
-    }
+		{
+			for (int i = 0; i < triangle_count; i++)
+			{
+				Triangle t = triangles[i];
+				v2 a = { t.a.x, t.a.y };
+				v2 b = { t.b.x, t.b.y };
+				v2 c = { t.c.x, t.c.y };
+
+				if (fill_toggle)
+					FillTriangle_VertexColors(a, b, c, 0xFFFF0000, 0xFF00FF00, 0xFF0000FF);
+				else
+					FillTriangle(t.color, (int)t.a.x, (int)t.a.y, (int)t.b.x, (int)t.b.y, (int)t.c.x, (int)t.c.y);
+			}
+		}
+
+		free(triangles);
+	}
 }
 
 float GetMin(float a, float b, float c)
@@ -12684,105 +12782,354 @@ float GetMax(float a, float b, float c)
 
 v3 ToBarycentricSpace(float v_x, float v_y, v2 a, v2 b, v2 c)
 {
-    float b1,b2,b3;
-    float denom = (a.y-c.y)*(b.x-c.x) + (b.y-c.y)*(c.x-a.x);
+	float b1, b2, b3;
+	float denom = (a.y - c.y) * (b.x - c.x) + (b.y - c.y) * (c.x - a.x);
 
-    b1 = ((v_y-c.y)*(b.x-c.x) + (b.y-c.y)*(c.x-v_x)) / denom;
-    b2 = ((v_y-a.y)*(c.x-a.x) + (c.y-a.y)*(a.x-v_x)) / denom;
-    b3 = ((v_y-b.y)*(a.x-b.x) + (a.y-b.y)*(b.x-v_x)) / denom;
+	b1 = ((v_y - c.y) * (b.x - c.x) + (b.y - c.y) * (c.x - v_x)) / denom;
+	b2 = ((v_y - a.y) * (c.x - a.x) + (c.y - a.y) * (a.x - v_x)) / denom;
+	b3 = ((v_y - b.y) * (a.x - b.x) + (a.y - b.y) * (b.x - v_x)) / denom;
 
-    v3 result = { b1, b2, b3 };
-    return result;
+	v3 result = { b1, b2, b3 };
+	return result;
 }
 
 void FillTriangle_VertexColors(v2 a, v2 b, v2 c, unsigned int a_color, unsigned int b_color, unsigned int c_color)
 {
-    int x_min = (int)GetMin(a.x, b.x, c.x);
-    int y_min = (int)GetMin(a.y, b.y, c.y);
-    int x_max = (int)roundf(GetMax(a.x, b.x, c.x));
-    int y_max = (int)roundf(GetMax(a.y, b.y, c.y));
+	int x_min = (int)GetMin(a.x, b.x, c.x);
+	int y_min = (int)GetMin(a.y, b.y, c.y);
+	int x_max = (int)roundf(GetMax(a.x, b.x, c.x));
+	int y_max = (int)roundf(GetMax(a.y, b.y, c.y));
 
 
-    for (int _x = x_min; _x <= x_max; _x++)
-    {
-        for (int _y = y_min; _y <= y_max; _y++)
-        {
-            v3 v = ToBarycentricSpace(_x, _y, a, b, c);
-            char in_triangle = !(v.x < 0 || v.y < 0 || v.z < 0);
-            if(in_triangle)
-            {
-                unsigned int d_color = LerpColor(c_color, a_color, v.x);
-                unsigned int e_color = LerpColor(a_color, b_color, v.y);
-                unsigned int f_color = LerpColor(e_color, d_color, v.z);
-                PutPixel(f_color, _x, _y);
-            }
-        }
-    }
-}
-
-    enum Keys
-    {
-        Tab = 9,
-        Space = 32,
-        Left = 37, Up, Right, Down,
-        Delete = 46,
-        A = 65,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,
-        F4 = 115,
-        NumPad0 = 96, NumPad1, NumPad2, NumPad3, NumPad4, NumPad5, NumPad6, NumPad7, NumPad8, NumPad9,
-    };
-
-
-    enum Buttons
-    {
-        LEFT,
-        RIGHT,
-        DOWN,
-        JUMP,
-        PUNCH
-    };
-
-
-    char* keys_down_c;
-    char* keys_stale_c;
-    char* keyboard_state_c;
-
-    enum Keys control_mappings[4][5] =
-    {
-        {A,       D ,       S,		  W,	   Q},
-        {J,       L,        K,        I,       U},
-        {Left,    Right,    Down,     Up,      Delete},
-        {NumPad4, NumPad6,  NumPad5,  NumPad8, NumPad7}
-    };
-
-    __attribute__((dllexport)) InitKeyboard(char keys_down[256], char keys_stale[256], char keyboard_state[256])
-    {
-    	keys_down_c = &keys_down[0];
-    	keys_stale_c = &keys_stale[0];
-    	keyboard_state_c = &keyboard_state[0];
-    }
-
-    __attribute__((dllexport)) char KeyDownFresh(enum Keys key) { return keys_down_c[(int)key] && !keys_stale_c[(int)key]; }
-
-    __attribute__((dllexport)) char KeyDown(enum Keys key) { return keys_down_c[(int)key]; }
-
-    __attribute__((dllexport)) char ButtonDown(int player, enum Buttons action) { return KeyDown(control_mappings[player][(int)action]); }
-
-    __attribute__((dllexport)) char ButtonDownFresh(int player, enum Buttons action) { return KeyDownFresh(control_mappings[player][(int)action]); }
-
-
-	__attribute__((dllexport)) void PollKeyboard()
+	for (int _x = x_min; _x <= x_max; _x++)
 	{
-		for (int i = 0; i < 256; i++)
-			keys_stale_c[i] = keys_down_c[i];
-
-		GetKeyboardState(keyboard_state_c);
-
-		for (int i = 0; i < 256; i++)
-			keys_down_c[i] = keyboard_state_c[i] & 128;
-
-		for (int i = 0; i < 256; i++)
+		for (int _y = y_min; _y <= y_max; _y++)
 		{
-			if (!keys_down_c[i])
-				keys_stale_c[i] = 0;
+			v3 v = ToBarycentricSpace(_x, _y, a, b, c);
+			char in_triangle = !(v.x < 0 || v.y < 0 || v.z < 0);
+			if (in_triangle)
+			{
+				unsigned int d_color = LerpColor(c_color, a_color, v.x);
+				unsigned int e_color = LerpColor(a_color, b_color, v.y);
+				unsigned int f_color = LerpColor(e_color, d_color, v.z);
+				PutPixel(f_color, _x, _y);
+			}
 		}
 	}
+}
+
+enum Keys
+{
+	Keys_Tab = 9,
+	Keys_Space = 32,
+	Keys_Left = 37, Keys_Up, Keys_Right, Keys_Down,
+	Keys_Delete = 46,
+	Keys_A = 65, Keys_B, Keys_C, Keys_D, Keys_E, Keys_F, Keys_G, Keys_H, Keys_I, Keys_J, Keys_K, Keys_L, Keys_M, Keys_N, Keys_O, Keys_P, Keys_Q, Keys_R, Keys_S, Keys_T, Keys_U, Keys_V, Keys_W, Keys_X, Keys_Y, Keys_Z,
+	Keys_F4 = 115,
+	Keys_NumPad0 = 96, Keys_NumPad1, Keys_NumPad2, Keys_NumPad3, Keys_NumPad4, Keys_NumPad5, Keys_NumPad6, Keys_NumPad7, Keys_NumPad8, Keys_NumPad9,
+};
+
+
+enum Buttons
+{
+	LEFT,
+	RIGHT,
+	DOWN,
+	JUMP,
+	PUNCH
+};
+
+
+char keys_down[256];
+char keys_stale[256];
+char keyboard_state[256];
+
+enum Keys control_mappings[4][5] =
+{
+	{Keys_A,       Keys_D ,       Keys_S,		 Keys_W,	   Keys_Q },
+	{Keys_J,       Keys_L,        Keys_K,        Keys_I,       Keys_U },
+	{Keys_Left,    Keys_Right,    Keys_Down,     Keys_Up,      Keys_Delete },
+	{Keys_NumPad4, Keys_NumPad6,  Keys_NumPad5,  Keys_NumPad8, Keys_NumPad7 }
+};
+
+int the_totally_awesome_index = 0;
+char KeyDownFresh(enum Keys key)
+{
+	return keys_down[key] && !keys_stale[key];
+}
+
+char KeyDown(enum Keys key)
+{
+	return keys_down[key];
+}
+
+char ButtonDown(int player, enum Buttons action)
+{
+	return KeyDown(control_mappings[player][action]);
+}
+
+char ButtonDownFresh(int player, enum Buttons action)
+{
+	return KeyDownFresh(control_mappings[player][action]);
+}
+
+void PollKeyboard()
+{
+	for (int i = 0; i < 256; i++)
+		keys_stale[i] = keys_down[i];
+
+
+
+	for (int i = 0; i < 256; i++)
+		keys_down[i] = keyboard_state[i] & 128;
+
+	for (int i = 0; i < 256; i++)
+	{
+		if (!keys_down[i])
+			keys_stale[i] = 0;
+	}
+}
+
+typedef struct
+{
+	int bone1, bone2, bone3, bone4;
+} Weight_Index;
+
+typedef struct
+{
+	Mesh mesh;
+	int body_poly_colors_length;
+	unsigned int* body_poly_colors;
+	int skeleton_length;
+	Transform* skeleton;
+	int bind_matrices_length;
+	m4x4* bind_matrices;
+	int weights_length;
+	v4* weights;
+
+	int weight_indices_length;
+	Weight_Index* weight_indices;
+
+	int morph_weights_length;
+	float* morph_weights;
+	v3 transformed_vertices_length;
+	v3* transformed_vertices;
+	Transform camera;
+
+	char has_a_face;
+	char animate_face;
+	int facial_index_offset;
+	char fill_toggle;
+
+	float frame;
+	float animation_length;
+	float rotation_y;
+	char animation_play;
+	char rotation_play;
+	char view_debug;
+	char view_fps;
+	float facial_time;
+} SkinnedMeshDemo;
+
+void SkinnedMeshDemo_Input(SkinnedMeshDemo skinned_demo, float delta_time)
+{
+	float delta = 5 * delta_time;
+	if (KeyDownFresh(Keys_Y))
+		skinned_demo.view_fps = !skinned_demo.view_fps;
+
+	if (KeyDownFresh(Keys_G))
+		skinned_demo.view_debug = !skinned_demo.view_debug;
+	if (KeyDown(Keys_W))
+		skinned_demo.camera.position.y -= delta;
+	if (KeyDown(Keys_S))
+		skinned_demo.camera.position.y += delta;
+	if (KeyDown(Keys_A))
+		skinned_demo.camera.position.x += delta;
+	if (KeyDown(Keys_D))
+		skinned_demo.camera.position.x -= delta;
+
+	if (KeyDown(Keys_Up))
+		skinned_demo.camera.position.z += delta * 10;
+	else if (KeyDown(Keys_Down))
+		skinned_demo.camera.position.z -= delta * 10;
+
+	if (KeyDownFresh(Keys_T))
+	{
+		skinned_demo.animation_play = !skinned_demo.animation_play;
+	}
+
+	if (KeyDownFresh(Keys_Q))
+	{
+		skinned_demo.animate_face = !skinned_demo.animate_face;
+	}
+
+	if (KeyDownFresh(Keys_F))
+	{
+		skinned_demo.has_a_face = !skinned_demo.has_a_face;
+
+	}
+
+	if (KeyDownFresh(Keys_R))
+	{
+		skinned_demo.rotation_play = !skinned_demo.rotation_play;
+	}
+
+
+
+	if (KeyDownFresh(Keys_Space))
+		skinned_demo.fill_toggle = !skinned_demo.fill_toggle;
+}
+
+typedef struct
+{
+	int transform_index;
+	char property_tag;
+	int keyframes_length;
+	KeyFrame* keyframes;
+} AnimationCurve;
+
+typedef struct
+{
+	char looped;
+	int curves_length;
+	AnimationCurve* curves;
+	int** defendbox_keys;
+	char** defendbox_values;
+	int** attackbox_keys;
+	char** attackbox_values;
+} Animation;
+
+typedef struct
+{
+	float current_frame;
+	Animation current_animation;
+} Animator;
+
+
+
+typedef struct
+{
+	char view_debug;
+
+
+	Transform camera;
+	float field_of_view;
+	Transform* transforms;
+	Player players[4];
+	Animator animators[4];
+	unsigned int player_colors[4];
+	Transform blocks[30];
+
+
+	int winner;
+	char game_over;
+	float initial_time;
+	float time_remaining;
+	float max_health;
+
+
+	float gravity;
+
+
+} GameplayState;
+
+
+void UpdateGameplay(GameplayState state)
+{
+# 2152 "SGL.c"
+}
+
+
+void GameplayState_Init(GameplayState state)
+{
+# 2185 "SGL.c"
+}
+
+void ResetGame(GameplayState state)
+{
+# 2261 "SGL.c"
+}
+# 2579 "SGL.c"
+void PrintMesh(Mesh mesh)
+{
+	printf("indices:\n");
+	for (int i = 0; i < mesh.indices_length; i += 3)
+	{
+		printf("{ %d, %d, %d }\n", mesh.indices[i], mesh.indices[i+1], mesh.indices[i+2]);
+	}
+
+	printf("vertices:\n");
+	for (int i = 0; i < mesh.vertices_length; i++)
+	{
+		printf("{ %+f, %+f, %+f }\n", mesh.vertices[i].x, mesh.vertices[i].y, mesh.vertices[i].z);
+	}
+}
+
+
+
+typedef struct
+{
+	char
+		row1,
+		row2,
+		row3,
+		row4,
+		row5,
+		row6,
+		row7,
+		row8;
+} CharSprite;
+
+
+
+char char_dict[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', ' ', '.', ':', ',', '_', '[', ']', '-', };
+
+CharSprite font_set[44];
+
+void FillSprites(CharSprite* sprites, int count)
+{
+	for (int i = 0; i < count; i++)
+	{
+		font_set[i] = sprites[i];
+	}
+}
+
+void DrawCharacter(CharSprite sprite, int x, int y)
+{
+	char* p = &sprite.row1;
+	for (int row = 0; row < 8; row++, p++)
+	{
+		for (int col = 0; col < 8; col++)
+		{
+			char pixel_active = ((*p << col) & 0b10000000) == 0b10000000;
+			if (pixel_active)
+				PutPixel(0xFFFFFFFF, col + x, row + y);
+		}
+	}
+}
+
+void DrawString(string sa, int x, int y)
+{
+	for (int i = 0; i < sa.length; i++)
+	{
+		char a = tolower(sa.characters[i]);
+		for (int o = 0; o < 44; o++)
+		{
+			if (a == char_dict[o])
+			{
+				DrawCharacter(font_set[o], x + i * 9, y);
+
+			}
+
+		}
+	}
+}
+
+
+
+void main()
+{
+	Mesh mesh = LoadMeshFile("P:/Assets/cube.obj");
+	PrintMesh(mesh);
+}
+# 1 "<stdin>"
