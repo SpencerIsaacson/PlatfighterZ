@@ -1,5 +1,4 @@
-﻿using Engine;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -43,7 +42,6 @@ namespace Engine
         public static GameStates current_game_state;
 
         SplashScreen splash_screen = new SplashScreen();
-        SkinnedMeshDemo skinned_demo = new SkinnedMeshDemo();
         GameplayState play_state = new GameplayState();
         MeshDemo mesh_demo = new MeshDemo();
 
@@ -56,12 +54,6 @@ namespace Engine
             Gameplay,
         }
 
-        [DllImport("SGL.dll")]
-        public static extern void GameplayState_Init(GameplayState state);
-        [DllImport("SGL.dll")]
-        public static extern void ResetGame(GameplayState state);
-        [DllImport("SGL.dll")]
-        public static unsafe extern void UpdateGameplay(GameplayState state);
 
         int state_count = 4;
         public static int game_state_index = 0;
@@ -88,9 +80,11 @@ namespace Engine
                 window.MaximizeBox = false;
                 window.Text = "Platfighter Z";
                 window.Icon = new Icon(GetAssetStream("icon.ico"));
-                System.Windows.Forms.Cursor.Hide();
+                //System.Windows.Forms.Cursor.Hide();
             }
 
+            SkinnedMeshDemo_Init();
+            InitMeshDemo();
             //Initialize Graphics
             {
                 InitGraphics();
@@ -109,8 +103,7 @@ namespace Engine
             }
         }
 
-        [DllImport("SGL.dll")]
-        static extern unsafe void FillSprites(CharSprite* sprites, int count);
+
 
         void GameLoop(object sender, EventArgs e)
         {
@@ -155,7 +148,8 @@ namespace Engine
                                 splash_screen.Update();
                                 break;
                             case GameStates.SkinnedMesh:
-                                SkinnedMeshDemo_Update(skinned_demo);
+                                SkinnedMeshDemo_Update(delta_time);
+                                OutputRender();
                                 break;
                             case GameStates.Gameplay:
                                 UpdateGameplay(play_state);
@@ -189,139 +183,29 @@ namespace Engine
             }
         }
 
-        private static bool skinnedmesh_demo_inited = false;
-
-        public unsafe void SkinnedMeshDemo_Update(SkinnedMeshDemo skinned_demo)
-        {
-            //if(!skinnedmesh_demo_inited)
-            {
-                skinned_demo.Init();
-                skinnedmesh_demo_inited = true;
-            }
-            SkinnedMeshDemo_Input(skinned_demo, delta_time);
-
-            //Animate
-            {
-                if (skinned_demo.rotation_play)
-                {
-                    skinned_demo.rotation_y += delta_time;
-                    skinned_demo.skeleton[0].rotation.y = skinned_demo.rotation_y;
-                }
-
-                if (skinned_demo.animation_play)
-                {
-                    //Animate Skeleton
-                    {
-                        foreach (AnimationCurve curve in DefinedAnimations.walk_animation.curves)
-                        {
-                            KeyFrame[] keyframes = curve.keyframes;
-                            int transform_index = curve.transform_index;
-
-                            fixed (Transform* p = &skinned_demo.skeleton[transform_index])
-                            {
-                                float* f = &(*p).position.x + curve.property_tag;
-                                AnimateProperty(keyframes, skinned_demo.frame, f);
-                            }
-
-                        }
-                    }
-                }
-
-                Matrix4x4[] skeleton_matrices = new Matrix4x4[skinned_demo.skeleton_length];
-
-                //Get Skeleton Matrices
-                {
-                    for (int i = 0; i < skeleton_matrices.Length; i++)
-                    {
-                        skeleton_matrices[i] = WorldSpaceMatrix(i, skinned_demo.skeleton);
-                    }
-                }
-
-                //Apply Mesh Skinning
-                {
-                    for (int i = 0; i < skinned_demo.c_mesh.vertices_length; i++)
-                    {
-                        Vector3 v_a = skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone1] * skeleton_matrices[skinned_demo.weight_indices[i].bone1] * skinned_demo.mesh.vertices[i];
-                        Vector3 v_b = skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone2] * skeleton_matrices[skinned_demo.weight_indices[i].bone2] * skinned_demo.mesh.vertices[i];
-                        Vector3 v_c = skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone3] * skeleton_matrices[skinned_demo.weight_indices[i].bone3] * skinned_demo.mesh.vertices[i];
-                        Vector3 v_d = skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone4] * skeleton_matrices[skinned_demo.weight_indices[i].bone4] * skinned_demo.mesh.vertices[i];
-
-                        skinned_demo.transformed_vertices[i] = (v_a * skinned_demo.weights[i].x) + (v_b * skinned_demo.weights[i].y) + (v_c * skinned_demo.weights[i].z) + (v_d * skinned_demo.weights[i].w);
-                    }
-                }
-
-                //Apply Facial Morph Targets
-                {
-                    //if (skinned_demo.has_a_face && skinned_demo.animate_face)
-                    //{
-                    //    Vector3[] deltas = new Vector3[259];
-                    //    for (int morph_index = 0; morph_index < skinned_demo.morphs_length; morph_index++)
-                    //    {
-                    //        if (skinned_demo.morphs[morph_index] != null)
-                    //        {
-                    //            var current_morph = skinned_demo.morphs[morph_index];
-
-                    //            foreach (var entry in current_morph)
-                    //            {
-                    //                int key = entry.Key;
-                    //                Vector3 point = entry.Value;
-                    //                int vertex_index = key + skinned_demo.facial_index_offset;
-                    //                Weight_Index weight_index = skinned_demo.weight_indices[vertex_index];
-                    //                Vector4 weight = skinned_demo.weights[key];
-
-                    //                Vector3 v_a = skinned_demo.bind_matrices[weight_index.bone1] * skeleton_matrices[weight_index.bone1] * point;
-                    //                Vector3 v_b = skinned_demo.bind_matrices[weight_index.bone2] * skeleton_matrices[weight_index.bone2] * point;
-                    //                Vector3 v_c = skinned_demo.bind_matrices[weight_index.bone3] * skeleton_matrices[weight_index.bone3] * point;
-                    //                Vector3 v_d = skinned_demo.bind_matrices[weight_index.bone4] * skeleton_matrices[weight_index.bone4] * point;
-
-                    //                Vector3 skinned_morph = (v_a * weight.x) + (v_b * weight.y) + (v_c * weight.z) + (v_d * weight.w);
-
-                    //                deltas[key] += (skinned_morph - skinned_demo.transformed_vertices[vertex_index]) * skinned_demo.morph_weights[morph_index];
-                    //            }
-                    //        }
-                    //    }
-
-                    //    for (int i = 0; i < deltas.Length; i++)
-                    //    {
-                    //        int vertex_index = i + skinned_demo.facial_index_offset;
-                    //        skinned_demo.transformed_vertices[vertex_index] += deltas[i];
-                    //    }
-                    //}
-
-                    //skinned_demo.morph_weights[0] = ((float)Math.Cos(skinned_demo.facial_time * 2) + 1) / 2;
-                    //skinned_demo.morph_weights[1] = ((float)Math.Sin(skinned_demo.facial_time * 2) + 1) / 2;
-
-                    //skinned_demo.facial_time += delta_time;
-                }
-
-                //Advance Animation Time
-                {
-                    skinned_demo.frame += TARGET_FRAMERATE * delta_time;
-                    skinned_demo.frame %= skinned_demo.animation_length;
-                }
-            }
-
-            C_Mesh c_mesh = new C_Mesh();
-
-            c_mesh.vertices = skinned_demo.transformed_vertices;
-            c_mesh.indices = skinned_demo.c_mesh.indices;
-            c_mesh.indices_length = skinned_demo.c_mesh.indices_length;
-            c_mesh.vertices_length = skinned_demo.transformed_vertices_length;
-            Render(c_mesh, skinned_demo.body_poly_colors, skinned_demo.camera, (skinned_demo.fill_toggle) ? (byte)1 : (byte)0);
-
-            OutputRender();
-        }
-
-        [DllImport("SGL.dll")]
-        static extern void SkinnedMeshDemo_Input(SkinnedMeshDemo skinned_demo, float delta_time);
-        [DllImport("SGL.dll")]
-        static unsafe extern void Render(C_Mesh mesh, uint* body_poly_colors, Transform camera, byte fill_toggle);
 
         bool WindowIsIdle()
         {
             return PeekMessage(out NativeMessage result, IntPtr.Zero, 0, 0, 0) == 0;
         }
-
+        [DllImport("SGL.dll")]
+        static extern void InitMeshDemo();
+        [DllImport("SGL.dll")]
+        public static extern void GameplayState_Init(GameplayState state);
+        [DllImport("SGL.dll")]
+        public static extern void ResetGame(GameplayState state);
+        [DllImport("SGL.dll")]
+        public static unsafe extern void UpdateGameplay(GameplayState state);
+        [DllImport("SGL.dll")]
+        static extern unsafe void FillSprites(CharSprite* sprites, int count);
+        [DllImport("SGL.dll")]
+        public static extern void RunMeshDemo(C_Mesh mesh, Transform camera, float delta_time, float frames_per_second);
+        [DllImport("SGL.dll")]
+        static extern void SkinnedMeshDemo_Init();
+        [DllImport("SGL.dll")]
+        static extern unsafe void SkinnedMeshDemo_Update(float delta_time);
+        [DllImport("SGL.dll")]
+        static unsafe extern void Render(C_Mesh mesh, uint* body_poly_colors, Transform camera, byte fill_toggle);
         //Imports a native Win32 function for checking the windows message queue
         [DllImport("User32.dll")]
         static extern int PeekMessage(out NativeMessage message, IntPtr handle, uint filterMin, uint filterMax, uint remove);
@@ -337,181 +221,10 @@ namespace Engine
         }
     }
 
-    public unsafe struct SkinnedMeshDemo
-    {
-        public Mesh mesh;
-        public C_Mesh c_mesh;
-        public int body_poly_colors_length;
-        public uint* body_poly_colors;
-        public int skeleton_length;
-        public Transform[] skeleton;
-        public int bind_matrices_length;
-        public Matrix4x4* bind_matrices;
-        public int weights_length;
-        public Vector4* weights;
-
-        public int weight_indices_length;
-        public Weight_Index* weight_indices;
-        //TODO reactivate morphs
-        //Dictionary<int, Vector3>[] morphs = new Dictionary<int, Vector3>[5];
-        public int morph_weights_length;
-        public float* morph_weights;
-        public int transformed_vertices_length;
-        public Vector3* transformed_vertices;
-        public Transform camera;
-
-        public bool has_a_face;
-        public bool animate_face;
-        public int facial_index_offset;
-        public bool fill_toggle;
-
-        public float frame;
-        public float animation_length;
-        public float rotation_y;
-        public bool animation_play;
-        public bool rotation_play;
-        public bool view_debug;
-        public bool view_fps;
-        public float facial_time;
-
-        public void Init()
-        {
-            camera = new Transform() { position = Vector3.Forward * -50, scale = Vector3.One };
-            mesh = LoadMesh("skin_translated.obj");
-            fixed (int* i = mesh.indices)
-            fixed (Vector3* v = mesh.vertices)
-            {
-                c_mesh = new C_Mesh() { indices = i, vertices = v, indices_length = mesh.indices.Length, vertices_length = mesh.vertices.Length };
-            }
-
-            skeleton = LoadHierarchy("avatar");
-            skeleton_length = skeleton.Length;
-
-            if (has_a_face)
-            {
-                //load face
-                Mesh face = LoadMesh("face.obj");
-                Mesh smile = LoadMesh("smile.obj");
-                Mesh angry_eyes = LoadMesh("angry_eyes.obj");
-
-                //adjust head vertices
-                {
-                    mesh.vertices[08].z -= .3f;
-                    mesh.vertices[01].z -= .2f;
-                    mesh.vertices[21].z -= .2f;
-
-                    mesh.vertices[07].z -= .3f;
-                    mesh.vertices[22].z -= .3f;
-                    mesh.vertices[14].z -= .3f;
-                    mesh.vertices[19].z -= .3f;
-                    mesh.vertices[29].z -= .3f;
-                    mesh.vertices[32].z -= .3f;
-                }
-
-                //Attach face
-                //mesh = AppendMesh(mesh, face);
-
-                //build facial morph targets
-                {
-                    //morphs[0] = new Dictionary<int, Vector3>();
-                    //for (int i = 0; i < smile.vertices.Length; i++)
-                    //{
-                    //    if (smile.vertices[i] - face.vertices[i] != Vector3.Zero)
-                    //    {
-                    //        morphs[0].Add(i, smile.vertices[i]);
-                    //    }
-                    //}
-
-                    //morphs[1] = new Dictionary<int, Vector3>();
-                    //for (int i = 0; i < angry_eyes.vertices.Length; i++)
-                    //{
-                    //    if (angry_eyes.vertices[i] - face.vertices[i] != Vector3.Zero)
-                    //    {
-                    //        morphs[1].Add(i, angry_eyes.vertices[i]);
-                    //    }
-                    //}
-                }
-            }
-
-            //TODO replace with files to load
-            PointerCountArray<uint> poly_colors = LoadPolygonColors("skin_poly_colors");
-            body_poly_colors = poly_colors.pointer;
-            body_poly_colors_length = poly_colors.count;
-            SetWeights();
-
-            //build bind matrices
-            {
-                fixed (Matrix4x4* p = new Matrix4x4[skeleton_length])
-                {
-                    bind_matrices = p;
-                    bind_matrices_length = skeleton.Length;
-                }
-
-                Transform[] bind_transforms = new Transform[skeleton_length];
-
-                for (int i = 0; i < bind_matrices_length; i++)
-                {
-                    bind_transforms[i] = InvertTransform(skeleton[i]);
-                    bind_matrices[i] = WorldSpaceMatrix(i, bind_transforms);
-                }
-            }
-
-            fixed (Vector3* p = new Vector3[c_mesh.vertices_length])
-            {
-                transformed_vertices = p;
-                transformed_vertices_length = c_mesh.vertices_length;
-            }
-            skeleton[0].position.y = -1;
-        }
-
-
-
-        public void SetWeights()
-        {
-            fixed (Vector4* p = new Vector4[c_mesh.vertices_length])
-            {
-                weights = p;
-                weights_length = c_mesh.vertices_length;
-            }
-
-            fixed (Weight_Index* p = new Weight_Index[c_mesh.vertices_length])
-            {
-                weight_indices = p;
-            }
-
-            for (int i = 0; i < c_mesh.vertices_length; i++)
-                weights[i] = new Vector4(1, 0, 0, 0);
-
-            Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(GetAssetPathPrefix() + "weight_indices");
-            using (BinaryReader reader = new BinaryReader(stream))
-            {
-                List<Weight_Index> weight_index_list = new List<Weight_Index>();
-                while (reader.BaseStream.Position != reader.BaseStream.Length)
-                {
-                    Weight_Index w = new Weight_Index();
-                    w.bone1 = reader.ReadInt32();
-                    w.bone2 = reader.ReadInt32();
-                    w.bone3 = reader.ReadInt32();
-                    w.bone4 = reader.ReadInt32();
-                    weight_index_list.Add(w);
-                }
-
-                fixed (Weight_Index* p = weight_index_list.ToArray())
-                {
-                    weight_indices = p;
-                }
-            }
-        }
-
-    }
-
     class MeshDemo
     {
-        static Mesh mesh = LoadMesh("teapot.obj");
+        static Mesh mesh = LoadMesh("cube.obj");
         static Transform camera = new Transform() { position = Vector3.Forward * -30, scale = Vector3.One };
-        static Transform cube_transform = new Transform() { position = Vector3.Forward * 10f, scale = Vector3.One };
-        static float field_of_view = Tau / 4;
-        static Matrix4x4 camera_to_clip = Perspective(0.1f, 100, field_of_view, WIDTH, HEIGHT);
 
 
         public unsafe void Update()
@@ -526,12 +239,10 @@ namespace Engine
                 c_mesh.indices_length = mesh.indices.Length;
             }
 
-            cube_transform = RunMeshDemo(c_mesh, cube_transform, camera, delta_time, frames_per_second);
+            RunMeshDemo(c_mesh, camera, delta_time, frames_per_second);
             OutputRender();
         }
 
-        [DllImport("SGL.dll")]
-        static extern Transform RunMeshDemo(C_Mesh mesh, Transform cube_transform, Transform camera, float delta_time, float frames_per_second);
     }
 
     class GameplayState
@@ -838,10 +549,8 @@ namespace Engine
         #region Linear Algebra
         [DllImport("SGL.dll")]
         public static extern Matrix4x4 Concatenate(Matrix4x4 a, Matrix4x4 b);
-
         [DllImport("SGL.dll")]
         public static extern Matrix4x4 Perspective(float near, float far, float field_of_view, float width, float height);
-
         [DllImport("SGL.dll")]
         public static extern Vector3 Transform_v3(Matrix4x4 m, Vector3 v);
         [DllImport("SGL.dll")]
@@ -1090,6 +799,8 @@ namespace Engine
         [DllImport("SGL.dll")]
         public static extern bool KeyDownFresh(Keys key);
         [DllImport("SGL.dll")]
+        public static extern bool KeyDown(Keys key);
+        [DllImport("SGL.dll")]
         public static extern void PollKeyboard();
     }
 
@@ -1122,7 +833,7 @@ namespace Engine
         public const uint brown = 0xFF_A5_2A_2A;
         public const uint purple = 0xFF_80_00_80;
         [DllImport("SGL.dll")]
-        public static extern void InitMeshDemo(float field_of_view, int WIDTH, int HEIGHT, uint[] pixels); //TODO rename
+        public static extern void InitViewport(float field_of_view, int WIDTH, int HEIGHT, uint[] pixels); //TODO rename
         [DllImport("SGL.dll")]
         public static extern void PutPixel(uint color, int x, int y);
 
@@ -1163,7 +874,7 @@ namespace Engine
             rendered_image = new Bitmap(WIDTH, HEIGHT, WIDTH * 4, PixelFormat.Format32bppPArgb, pixel_handle.AddrOfPinnedObject());
             buffered_graphics = BufferedGraphicsManager.Current.Allocate(window.CreateGraphics(), window.DisplayRectangle);
             graphics = buffered_graphics.Graphics;
-            InitMeshDemo(Tau / 4, WIDTH, HEIGHT, pixels);
+            InitViewport(Tau / 4, WIDTH, HEIGHT, pixels);
         }
 
         public static void OutputRender()
@@ -1771,7 +1482,7 @@ namespace Engine
             if (!splash_screen_started)
             {
                 System.Media.SoundPlayer player = new System.Media.SoundPlayer(GetAssetStream("preparations.wav"));
-                player.Play();
+                //player.Play();
                 splash_screen_started = true;
             }
 

@@ -171,10 +171,11 @@ int Partition(Triangle a[], int lo, int hi);
 v3 CameraToClipToScreen(v3 v);
 
 //Game States
-void InitMeshDemo(float field_of_view, int width, int height, uint _pixels[]);
-Transform RunMeshDemo(Mesh mesh, Transform cube_transform, Transform camera, float delta_time, float frames_per_second);
+void InitViewport(float field_of_view, int width, int height, uint _pixels[]);
+void RunMeshDemo(Mesh mesh, Transform camera, float delta_time, float frames_per_second);
 void Render(Mesh mesh, uint body_poly_colors[], Transform camera, bool fill_toggle);
 void PrintMesh(Mesh mesh);
+Mesh LoadMesh(char* path);
 
 uint Darker(uint color)
 {
@@ -520,7 +521,10 @@ m4x4 camera_to_clip;
 int WIDTH, HEIGHT;
 uint* pixels;
 
-__declspec(dllexport) void InitMeshDemo(float field_of_view, int width, int height, uint _pixels[])  //TODO move more state here and out of the "run" arguments
+Mesh mesh;
+Transform cube_transform;
+
+__declspec(dllexport) void InitViewport(float field_of_view, int width, int height, uint _pixels[])  //TODO move more state here and out of the "run" arguments
 {
 	WIDTH = width;
 	HEIGHT = height;
@@ -528,7 +532,20 @@ __declspec(dllexport) void InitMeshDemo(float field_of_view, int width, int heig
 	pixels = &_pixels[0];
 }
 
-__declspec(dllexport) Transform RunMeshDemo(Mesh mesh, Transform cube_transform, Transform camera, float delta_time, float frames_per_second)
+
+__declspec(dllexport) void InitMeshDemo()
+{
+	mesh = LoadMesh("P:/Assets/teapot.obj");
+	cube_transform.parent = -1;
+	v3 forward_10 = { 0, 0, 10 };
+	v3 zero = { 0, 0, 0 };
+	v3 one = { 1, 1, 1 };
+	cube_transform.position = forward_10;
+	cube_transform.rotation = zero;
+	cube_transform.scale = one;
+}
+
+__declspec(dllexport) void RunMeshDemo(Mesh mezsh, Transform camera, float delta_time, float frames_per_second)
 {
 	//Update
 	{
@@ -653,7 +670,6 @@ __declspec(dllexport) Transform RunMeshDemo(Mesh mesh, Transform cube_transform,
 	strcat(foo, result);
 	string moopa = { strlen(foo), foo };
 	DrawString(moopa, 16, 16);
-	return cube_transform;
 }
 
 void FillTriangle(uint color, int x1, int y1, int x2, int y2, int x3, int y3)
@@ -880,7 +896,7 @@ void Fill(uint color)
 	}
 }
 
-Mesh LoadMeshFile(char* path)
+__declspec(dllexport) Mesh LoadMesh(char* path)
 {
 	FILE* fp = fopen(path, "r");
 	int line_number = 0;
@@ -951,9 +967,9 @@ Mesh LoadMeshFile(char* path)
 			int b = (int)strtol(token, &ptr, 10);
 			token = strtok(NULL, " ");
 			int c = (int)strtol(token, &ptr, 10);
-			return_mesh.indices[index++] = a;
-			return_mesh.indices[index++] = b;
-			return_mesh.indices[index++] = c;
+			return_mesh.indices[index++] = a - 1;
+			return_mesh.indices[index++] = b - 1;
+			return_mesh.indices[index++] = c - 1;
 			break;
 		case '\n':
 			//empty line
@@ -963,6 +979,7 @@ Mesh LoadMeshFile(char* path)
 			break;
 		}
 	}
+
 	fclose(fp);
 	return return_mesh;
 }
@@ -1391,7 +1408,7 @@ __declspec(dllexport) bool KeyDownFresh(enum Keys key)
 	return keys_down[key] && !keys_stale[key];
 }
 
-bool KeyDown(enum Keys key)
+__declspec(dllexport) bool KeyDown(enum Keys key)
 {
 	return keys_down[key];
 }
@@ -1439,7 +1456,6 @@ typedef struct
 	m4x4* bind_matrices;
 	int weights_length;
 	v4* weights;
-
 	int weight_indices_length;
 	Weight_Index* weight_indices;
 	//Dictionary<int, Vector3>[] morphs = new Dictionary<int, Vector3>[5];
@@ -1464,7 +1480,143 @@ typedef struct
 	float facial_time;
 } SkinnedMeshDemo;
 
-__declspec(dllexport) void SkinnedMeshDemo_Input(SkinnedMeshDemo skinned_demo, float delta_time)
+SkinnedMeshDemo skinned_demo;
+
+void SetWeights()
+{
+//    fixed (Vector4* p = new Vector4[mesh.vertices_length])
+//    {
+//        weights = p;
+//        weights_length = mesh.vertices_length;
+//    }
+
+//    fixed (Weight_Index* p = new Weight_Index[mesh.vertices_length])
+//    {
+//        weight_indices = p;
+//    }
+
+//    for (int i = 0; i < mesh.vertices_length; i++)
+//        weights[i] = new Vector4(1, 0, 0, 0);
+
+//    Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(GetAssetPathPrefix() + "weight_indices");
+//    using (BinaryReader reader = new BinaryReader(stream))
+//    {
+//        List<Weight_Index> weight_index_list = new List<Weight_Index>();
+//        while (reader.BaseStream.Position != reader.BaseStream.Length)
+//        {
+//            Weight_Index w = new Weight_Index();
+//            w.bone1 = reader.ReadInt32();
+//            w.bone2 = reader.ReadInt32();
+//            w.bone3 = reader.ReadInt32();
+//            w.bone4 = reader.ReadInt32();
+//            weight_index_list.Add(w);
+//        }
+
+//        fixed (Weight_Index* p = weight_index_list.ToArray())
+//        {
+//            weight_indices = p;
+//        }
+//    }
+}
+
+__declspec(dllexport) void SkinnedMeshDemo_Init()
+{
+	Transform camera = { 0, { 0, 0, -50 }, { 0, 0, 0 }, { 1, 1, 1 } };
+	skinned_demo.camera = camera;
+	skinned_demo.mesh = LoadMesh("P:/Assets/skin_translated.obj");
+
+	//skeleton = LoadHierarchy("avatar");
+	//skeleton_length = skeleton.Length;
+
+	//if (has_a_face)
+	//{
+	//	//load face
+	//	Mesh face = LoadMesh("face.obj");
+	//	Mesh smile = LoadMesh("smile.obj");
+	//	Mesh angry_eyes = LoadMesh("angry_eyes.obj");
+
+	//	//adjust head vertices
+	//	{
+	//		mesh.vertices[08].z -= .3f;
+	//		mesh.vertices[01].z -= .2f;
+	//		mesh.vertices[21].z -= .2f;
+
+	//		mesh.vertices[07].z -= .3f;
+	//		mesh.vertices[22].z -= .3f;
+	//		mesh.vertices[14].z -= .3f;
+	//		mesh.vertices[19].z -= .3f;
+	//		mesh.vertices[29].z -= .3f;
+	//		mesh.vertices[32].z -= .3f;
+	//	}
+
+	//	//Attach face
+	//	//mesh = AppendMesh(mesh, face);
+
+	//	//build facial morph targets
+	//	{
+	//		//morphs[0] = new Dictionary<int, Vector3>();
+	//		//for (int i = 0; i < smile.vertices.Length; i++)
+	//		//{
+	//		//    if (smile.vertices[i] - face.vertices[i] != Vector3.Zero)
+	//		//    {
+	//		//        morphs[0].Add(i, smile.vertices[i]);
+	//		//    }
+	//		//}
+
+	//		//morphs[1] = new Dictionary<int, Vector3>();
+	//		//for (int i = 0; i < angry_eyes.vertices.Length; i++)
+	//		//{
+	//		//    if (angry_eyes.vertices[i] - face.vertices[i] != Vector3.Zero)
+	//		//    {
+	//		//        morphs[1].Add(i, angry_eyes.vertices[i]);
+	//		//    }
+	//		//}
+	//	}
+	//}
+
+	////TODO replace with files to load
+	//PointerCountArray<uint> poly_colors = LoadPolygonColors("skin_poly_colors");
+	int triangle_count = skinned_demo.mesh.indices_length / 3;
+
+	skinned_demo.body_poly_colors = malloc(triangle_count * sizeof(uint)); //TODO malloc the correct size (the number of triangles, which is 1/3 the number of indices)
+	
+	//todo load triangle colors from file
+	for (int i = 0; i < triangle_count; i++)
+	{
+		skinned_demo.body_poly_colors[i] = red;
+	}
+
+	skinned_demo.body_poly_colors_length = triangle_count;
+
+	SetWeights();
+
+	////build bind matrices
+	//{
+	//	fixed(Matrix4x4 * p = new Matrix4x4[skeleton_length])
+	//	{
+	//		bind_matrices = p;
+	//		bind_matrices_length = skeleton.Length;
+	//	}
+
+	//	Transform[] bind_transforms = new Transform[skeleton_length];
+
+	//	for (int i = 0; i < bind_matrices_length; i++)
+	//	{
+	//		bind_transforms[i] = InvertTransform(skeleton[i]);
+	//		bind_matrices[i] = WorldSpaceMatrix(i, bind_transforms);
+	//	}
+	//}
+
+	//fixed(Vector3 * p = new Vector3[c_mesh.vertices_length])
+	//{
+	//	transformed_vertices = p;
+	//	transformed_vertices_length = c_mesh.vertices_length;
+	//}
+	//skeleton[0].position.y = -1;
+}
+
+
+void SkinnedMeshDemo_Input(float delta_time)
 {
 	float delta = 5 * delta_time;
 	if (KeyDownFresh(Keys_Y))
@@ -1509,6 +1661,123 @@ __declspec(dllexport) void SkinnedMeshDemo_Input(SkinnedMeshDemo skinned_demo, f
 
 	if (KeyDownFresh(Keys_Space))
 		skinned_demo.fill_toggle = !skinned_demo.fill_toggle;
+}
+
+__declspec(dllexport) void SkinnedMeshDemo_Update(float delta_time)
+{
+	SkinnedMeshDemo_Input(delta_time);
+
+	//Animate
+	{
+		if (skinned_demo.rotation_play)
+		{
+			skinned_demo.rotation_y += delta_time;
+			//skinned_demo.skeleton[0].rotation.y = skinned_demo.rotation_y;
+		}
+
+		if (skinned_demo.animation_play)
+		{
+			//Animate Skeleton
+			{
+				//foreach(AnimationCurve curve in DefinedAnimations.walk_animation.curves)
+				//{
+				//	KeyFrame[] keyframes = curve.keyframes;
+				//	int transform_index = curve.transform_index;
+
+				//	fixed(Transform * p = &skinned_demo.skeleton[transform_index])
+				//	{
+				//		float* f = &(*p).position.x + curve.property_tag;
+				//		AnimateProperty(keyframes, skinned_demo.frame, f);
+				//	}
+
+				//}
+			}
+		}
+
+	m4x4 skeleton_matrices[skinned_demo.skeleton_length];
+
+	//Get Skeleton Matrices
+	{
+		for (int i = 0; i < skinned_demo.skeleton_length; i++)
+		{
+			skeleton_matrices[i] = WorldSpaceMatrix(i, skinned_demo.skeleton);
+		}
+	}
+
+	//	//Apply Mesh Skinning
+	//	{
+	//		for (int i = 0; i < skinned_demo.c_mesh.vertices_length; i++)
+	//		{
+	//			Vector3 v_a = skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone1] * skeleton_matrices[skinned_demo.weight_indices[i].bone1] * skinned_demo.mesh.vertices[i];
+	//			Vector3 v_b = skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone2] * skeleton_matrices[skinned_demo.weight_indices[i].bone2] * skinned_demo.mesh.vertices[i];
+	//			Vector3 v_c = skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone3] * skeleton_matrices[skinned_demo.weight_indices[i].bone3] * skinned_demo.mesh.vertices[i];
+	//			Vector3 v_d = skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone4] * skeleton_matrices[skinned_demo.weight_indices[i].bone4] * skinned_demo.mesh.vertices[i];
+
+	//			skinned_demo.transformed_vertices[i] = (v_a * skinned_demo.weights[i].x) + (v_b * skinned_demo.weights[i].y) + (v_c * skinned_demo.weights[i].z) + (v_d * skinned_demo.weights[i].w);
+	//		}
+	//	}
+
+	//	//Apply Facial Morph Targets
+	//	{
+	//		//if (skinned_demo.has_a_face && skinned_demo.animate_face)
+	//		//{
+	//		//    Vector3[] deltas = new Vector3[259];
+	//		//    for (int morph_index = 0; morph_index < skinned_demo.morphs_length; morph_index++)
+	//		//    {
+	//		//        if (skinned_demo.morphs[morph_index] != null)
+	//		//        {
+	//		//            var current_morph = skinned_demo.morphs[morph_index];
+
+	//		//            foreach (var entry in current_morph)
+	//		//            {
+	//		//                int key = entry.Key;
+	//		//                Vector3 point = entry.Value;
+	//		//                int vertex_index = key + skinned_demo.facial_index_offset;
+	//		//                Weight_Index weight_index = skinned_demo.weight_indices[vertex_index];
+	//		//                Vector4 weight = skinned_demo.weights[key];
+
+	//		//                Vector3 v_a = skinned_demo.bind_matrices[weight_index.bone1] * skeleton_matrices[weight_index.bone1] * point;
+	//		//                Vector3 v_b = skinned_demo.bind_matrices[weight_index.bone2] * skeleton_matrices[weight_index.bone2] * point;
+	//		//                Vector3 v_c = skinned_demo.bind_matrices[weight_index.bone3] * skeleton_matrices[weight_index.bone3] * point;
+	//		//                Vector3 v_d = skinned_demo.bind_matrices[weight_index.bone4] * skeleton_matrices[weight_index.bone4] * point;
+
+	//		//                Vector3 skinned_morph = (v_a * weight.x) + (v_b * weight.y) + (v_c * weight.z) + (v_d * weight.w);
+
+	//		//                deltas[key] += (skinned_morph - skinned_demo.transformed_vertices[vertex_index]) * skinned_demo.morph_weights[morph_index];
+	//		//            }
+	//		//        }
+	//		//    }
+
+	//		//    for (int i = 0; i < deltas.Length; i++)
+	//		//    {
+	//		//        int vertex_index = i + skinned_demo.facial_index_offset;
+	//		//        skinned_demo.transformed_vertices[vertex_index] += deltas[i];
+	//		//    }
+	//		//}
+
+	//		//skinned_demo.morph_weights[0] = ((float)Math.Cos(skinned_demo.facial_time * 2) + 1) / 2;
+	//		//skinned_demo.morph_weights[1] = ((float)Math.Sin(skinned_demo.facial_time * 2) + 1) / 2;
+
+	//		//skinned_demo.facial_time += delta_time;
+	//	}
+
+	//	//Advance Animation Time
+	//	{
+	//		skinned_demo.frame += TARGET_FRAMERATE * delta_time;
+	//		skinned_demo.frame %= skinned_demo.animation_length;
+	//	}
+	}
+
+
+
+	//C_Mesh c_mesh = new C_Mesh();
+
+	//c_mesh.vertices = skinned_demo.transformed_vertices;
+	//c_mesh.indices = skinned_demo.c_mesh.indices;
+	//c_mesh.indices_length = skinned_demo.c_mesh.indices_length;
+	//c_mesh.vertices_length = skinned_demo.transformed_vertices_length;
+
+	Render(skinned_demo.mesh, skinned_demo.body_poly_colors, skinned_demo.camera, skinned_demo.fill_toggle);
 }
 
 typedef struct
@@ -2364,6 +2633,6 @@ void DrawString(string s, int x, int y)
 
 void main()
 {
-	Mesh mesh = LoadMeshFile("P:/Assets/cube.obj");
+	Mesh mesh = LoadMesh("P:/Assets/cube.obj");
 	PrintMesh(mesh);
 }
