@@ -70,6 +70,7 @@
     <EmbeddedResource Include="Assets\walk" />
     <EmbeddedResource Include="Assets\weight_indices" />
     <EmbeddedResource Include="Assets\font_set" />
+    <None Include="Assets\viking_studios_logo" />
     <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>

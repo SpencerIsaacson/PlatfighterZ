@@ -1,20 +1,6 @@
 LIBRARY SGL.dll
 
 EXPORTS
-Concatenate
-FillSprites
-InitMeshDemo
+GameLoop
+InitEverything
 InitViewport
-InvertTransform
-KeyDown
-KeyDownFresh
-LoadMesh
-Perspective
-PollKeyboard
-Render
-RunMeshDemo
-SkinnedMeshDemo_Init
-SkinnedMeshDemo_Update
-Transform_v3
-UpdateGameplay
-WorldSpaceMatrix

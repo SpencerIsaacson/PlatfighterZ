@@ -11576,6 +11576,13 @@ typedef struct
 } Player;
 
 
+typedef struct
+{
+	int width, height;
+	unsigned int* pixels;
+} Bitmap;
+
+
 float GetMin(float a, float b, float c);
 float GetMax(float a, float b, float c);
 
@@ -11612,6 +11619,7 @@ v3 v3_Scale(v3 v, float s);
 float v3_DotProduct(v3 a, v3 b);
 void DrawLine(unsigned int color, float x1, float y1, float x2, float y2);
 void DrawRectangle(unsigned int color, float x, float y, float width, float height);
+void DrawSplashScreen(float frames_per_second);
 void Flatten();
 
 
@@ -11637,10 +11645,15 @@ int Partition(Triangle a[], int lo, int hi);
 v3 CameraToClipToScreen(v3 v);
 
 
-void InitMeshDemo(float field_of_view, int width, int height, unsigned int _pixels[]);
-Transform RunMeshDemo(Mesh mesh, Transform cube_transform, Transform camera, float delta_time, float frames_per_second);
+void InitViewport(float field_of_view, int width, int height, unsigned int _pixels[]);
+void RunMeshDemo(float delta_time, float frames_per_second);
 void Render(Mesh mesh, unsigned int body_poly_colors[], Transform camera, char fill_toggle);
 void PrintMesh(Mesh mesh);
+
+
+
+Mesh LoadMesh(char* path);
+void LoadFontSet();
 
 unsigned int Darker(unsigned int color)
 {
@@ -11650,7 +11663,7 @@ unsigned int Darker(unsigned int color)
 	return 0xFF000000 | r | g | b;
 }
 
-Transform InvertTransform(Transform t)
+__attribute__((dllexport)) Transform InvertTransform(Transform t)
 {
 	t.position = NegateVector(t.position);
 	t.rotation = NegateVector(t.rotation);
@@ -11668,7 +11681,7 @@ v3 NegateVector(v3 v)
 	return v;
 }
 
-m4x4 Concatenate(m4x4 a, m4x4 b)
+__attribute__((dllexport)) m4x4 Concatenate(m4x4 a, m4x4 b)
 {
 	m4x4 result;
 	result.m11 = a.m11 * b.m11 + a.m12 * b.m21 + a.m13 * b.m31 + a.m14 * b.m41;
@@ -11699,7 +11712,7 @@ m4x4 GetMatrix(Transform t)
 	return result;
 }
 
-m4x4 WorldSpaceMatrix(int index, Transform hierarchy[])
+__attribute__((dllexport)) m4x4 WorldSpaceMatrix(int index, Transform hierarchy[])
 {
 	Transform t = hierarchy[index];
 	m4x4 m = GetMatrix(t);
@@ -11712,7 +11725,7 @@ m4x4 WorldSpaceMatrix(int index, Transform hierarchy[])
 	return m;
 }
 
-v3 Transform_v3(m4x4 m, v3 v)
+__attribute__((dllexport)) v3 Transform_v3(m4x4 m, v3 v)
 {
 	v3 result =
 	{
@@ -11779,17 +11792,17 @@ m4x4 Rotation(float x, float y, float z)
 	return rotation;
 }
 
-m4x4 Perspective(float , float , float field_of_view, float width, float height)
+__attribute__((dllexport)) m4x4 Perspective(float near_plane, float far_plane, float field_of_view, float width, float height)
 {
 	float aspect_ratio = height / width;
 	float zoom = (float)(1 / tan(field_of_view / 2));
-	float q =  / ( - );
+	float q = far_plane / (far_plane - near_plane);
 
 	m4x4 result =
 	{
 		aspect_ratio * zoom, 0, 0, 0,
 		0, -zoom, 0, 0,
-		0, 0, q,  * q,
+		0, 0, q, near_plane * q,
 		0, 0, 1, 0
 	};
 
@@ -11986,15 +11999,156 @@ m4x4 camera_to_clip;
 int WIDTH, HEIGHT;
 unsigned int* pixels;
 
-void InitMeshDemo(float field_of_view, int width, int height, unsigned int _pixels[])
+Mesh mesh;
+Transform cube_transform;
+Transform mesh_demo_camera;
+
+
+typedef struct
+{
+	char splash_screen_started;
+	char splash_screen_ended;
+	float splash_screen_time;
+	float splash_screen_alpha;
+	Bitmap logo;
+} SplashScreen;
+
+SplashScreen splash;
+
+void Init_SplashScreen()
+{
+	splash.splash_screen_started = 0;
+	splash.splash_screen_ended = 0;
+	splash.splash_screen_time = 0;
+	splash.splash_screen_alpha = 0;
+}
+
+void DrawSplashScreen(float frames_per_second)
+{
+	memcpy(pixels, splash.logo.pixels, WIDTH * HEIGHT * 4);
+
+	int pixel_count = WIDTH * HEIGHT;
+
+	for (int i = 0; i < pixel_count; i += 4)
+	{
+		if (pixels[i] != 0xFF000000)
+		{
+			unsigned int red_channel = (unsigned int)((pixels[i] & 0xFF0000) * splash.splash_screen_alpha) & 0xFF0000;
+			pixels[i] = 0xFF000000 | red_channel;
+		}
+
+		if (pixels[i + 1] != 0xFF000000)
+		{
+			unsigned int red_channel = (unsigned int)((pixels[i + 1] & 0xFF0000) * splash.splash_screen_alpha) & 0xFF0000;
+			pixels[i + 1] = 0xFF000000 | red_channel;
+		}
+
+		if (pixels[i + 2] != 0xFF000000)
+		{
+			unsigned int red_channel = (unsigned int)((pixels[i + 2] & 0xFF0000) * splash.splash_screen_alpha) & 0xFF0000;
+			pixels[i + 2] = 0xFF000000 | red_channel;
+		}
+
+		if (pixels[i + 3] != 0xFF000000)
+		{
+			unsigned int red_channel = (unsigned int)((pixels[i + 3] & 0xFF0000) * splash.splash_screen_alpha) & 0xFF0000;
+			pixels[i + 3] = 0xFF000000 | red_channel;
+		}
+	}
+
+	char result[50];
+	sprintf(result, "FPS: %.3f", frames_per_second);
+	string message = { strlen(result), result };
+	DrawString(message, 0, 0);
+}
+
+__attribute__((dllexport)) char UpdateSplashScreen(float delta_time, float frames_per_second)
+{
+	if (splash.splash_screen_time > 10)
+	{
+		if (!splash.splash_screen_ended)
+		{
+
+			splash.splash_screen_ended = 1;
+		}
+		else
+		{
+			splash.splash_screen_time = 0;
+			splash.splash_screen_ended = 0;
+			splash.splash_screen_started = 0;
+		}
+	}
+
+	if (!splash.splash_screen_started)
+	{
+
+
+		splash.splash_screen_started = 1;
+	}
+
+	DrawSplashScreen(frames_per_second);
+
+	splash.splash_screen_time += delta_time;
+	if (splash.splash_screen_time > 2 && splash.splash_screen_time < 7 && splash.splash_screen_alpha < 1)
+	{
+		splash.splash_screen_alpha += delta_time / 5;
+		if (splash.splash_screen_alpha > 1)
+			splash.splash_screen_alpha = 1;
+	}
+
+	if (splash.splash_screen_time > 8)
+		splash.splash_screen_alpha -= delta_time;
+
+	if (splash.splash_screen_alpha < 0)
+		splash.splash_screen_alpha = 0;
+
+	return splash.splash_screen_ended;;
+}
+
+
+
+
+Bitmap GetMyFunImage()
+{
+	FILE* file_pointer = fopen("P:/Assets/viking_studios_logo", "r");
+	int width = 1920, height = 1080;
+	unsigned int* pixels = malloc(sizeof(unsigned int) * width * height);
+	fread(pixels, 4, 1920 * 1080, file_pointer);
+	splash.logo.width = width;
+	splash.logo.height = height;
+	splash.logo.pixels = pixels;
+	printf("This is here to remind that the image is being loaded more than once and that needs to be corrected at some point\n");
+	fclose(file_pointer);
+}
+
+__attribute__((dllexport)) void InitViewport(float field_of_view, int width, int height, unsigned int _pixels[])
 {
 	WIDTH = width;
 	HEIGHT = height;
 	camera_to_clip = Perspective(0.1f, 100, field_of_view, WIDTH, HEIGHT);
 	pixels = &_pixels[0];
+
+	GetMyFunImage();
 }
 
-Transform RunMeshDemo(Mesh mesh, Transform cube_transform, Transform camera, float delta_time, float frames_per_second)
+__attribute__((dllexport)) void InitMeshDemo()
+{
+	LoadFontSet();
+	mesh = LoadMesh("P:/Assets/teapot.obj");
+	v3 forward_10 = { 0, 0, 10 };
+	v3 backward_30 = { 0, 0, -30 };
+	v3 zero = { 0, 0, 0 };
+	v3 one = { 1, 1, 1 };
+	cube_transform.position = forward_10;
+	cube_transform.rotation = zero;
+	cube_transform.scale = one;
+	mesh_demo_camera.position = backward_30;
+	mesh_demo_camera.rotation = zero;
+	mesh_demo_camera.scale = one;
+}
+
+
+__attribute__((dllexport)) void RunMeshDemo(float delta_time, float frames_per_second)
 {
 
 	{
@@ -12023,7 +12177,7 @@ Transform RunMeshDemo(Mesh mesh, Transform cube_transform, Transform camera, flo
 		m4x4 object_to_world = GetMatrix(cube_transform);
 
 
-		Transform inverted_camera = InvertTransform(camera);
+		Transform inverted_camera = InvertTransform(mesh_demo_camera);
 		m4x4 world_to_camera = GetMatrix(inverted_camera);
 		m4x4 object_to_camera = Concatenate(object_to_world, world_to_camera);
 
@@ -12055,7 +12209,7 @@ Transform RunMeshDemo(Mesh mesh, Transform cube_transform, Transform camera, flo
 				v3 b = v3_Subtract(t.c, t.a);
 				v3 normal = v3_Normalized(CrossProduct(a, b));
 
-				v3 from_camera_to_triangle = v3_Normalized(v3_Subtract(t.a, camera.position));
+				v3 from_camera_to_triangle = v3_Normalized(v3_Subtract(t.a, mesh_demo_camera.position));
 
 				if (v3_DotProduct(normal, from_camera_to_triangle) > 0)
 				{
@@ -12119,7 +12273,6 @@ Transform RunMeshDemo(Mesh mesh, Transform cube_transform, Transform camera, flo
 	strcat(foo, result);
 	string moopa = { strlen(foo), foo };
 	DrawString(moopa, 16, 16);
-	return cube_transform;
 }
 
 void FillTriangle(unsigned int color, int x1, int y1, int x2, int y2, int x3, int y3)
@@ -12346,7 +12499,7 @@ void Fill(unsigned int color)
 	}
 }
 
-Mesh LoadMeshFile(char* path)
+__attribute__((dllexport)) Mesh LoadMesh(char* path)
 {
 	FILE* fp = fopen(path, "r");
 	int line_number = 0;
@@ -12417,9 +12570,9 @@ Mesh LoadMeshFile(char* path)
 			int b = (int)strtol(token, &ptr, 10);
 			token = strtok(((void*)0), " ");
 			int c = (int)strtol(token, &ptr, 10);
-			return_mesh.indices[index++] = a;
-			return_mesh.indices[index++] = b;
-			return_mesh.indices[index++] = c;
+			return_mesh.indices[index++] = a - 1;
+			return_mesh.indices[index++] = b - 1;
+			return_mesh.indices[index++] = c - 1;
 			break;
 		case '\n':
 
@@ -12429,6 +12582,7 @@ Mesh LoadMeshFile(char* path)
 			break;
 		}
 	}
+
 	fclose(fp);
 	return return_mesh;
 }
@@ -12479,7 +12633,6 @@ void DrawLine(unsigned int color, float x1, float y1, float x2, float y2)
 		}
 	}
 }
-
 
 void DrawRectangle(unsigned int color, float x, float y, float width, float height)
 {
@@ -12633,8 +12786,7 @@ void Blend_Circle(unsigned int color, float x, float y, float radius)
 	}
 }
 
-
-void Render(Mesh mesh, unsigned int* body_poly_colors, Transform camera, char fill_toggle)
+__attribute__((dllexport)) void Render(Mesh mesh, unsigned int* body_poly_colors, Transform camera, char fill_toggle)
 {
 	Fill(0xFF000000);
 
@@ -12829,7 +12981,6 @@ enum Keys
 	Keys_NumPad0 = 96, Keys_NumPad1, Keys_NumPad2, Keys_NumPad3, Keys_NumPad4, Keys_NumPad5, Keys_NumPad6, Keys_NumPad7, Keys_NumPad8, Keys_NumPad9,
 };
 
-
 enum Buttons
 {
 	LEFT,
@@ -12852,13 +13003,12 @@ enum Keys control_mappings[4][5] =
 	{Keys_NumPad4, Keys_NumPad6,  Keys_NumPad5,  Keys_NumPad8, Keys_NumPad7 }
 };
 
-int the_totally_awesome_index = 0;
-char KeyDownFresh(enum Keys key)
+__attribute__((dllexport)) char KeyDownFresh(enum Keys key)
 {
 	return keys_down[key] && !keys_stale[key];
 }
 
-char KeyDown(enum Keys key)
+__attribute__((dllexport)) char KeyDown(enum Keys key)
 {
 	return keys_down[key];
 }
@@ -12873,12 +13023,12 @@ char ButtonDownFresh(int player, enum Buttons action)
 	return KeyDownFresh(control_mappings[player][action]);
 }
 
-void PollKeyboard()
+__attribute__((dllexport)) void PollKeyboard()
 {
 	for (int i = 0; i < 256; i++)
 		keys_stale[i] = keys_down[i];
 
-
+	GetKeyboardState(keyboard_state);
 
 	for (int i = 0; i < 256; i++)
 		keys_down[i] = keyboard_state[i] & 128;
@@ -12906,7 +13056,6 @@ typedef struct
 	m4x4* bind_matrices;
 	int weights_length;
 	v4* weights;
-
 	int weight_indices_length;
 	Weight_Index* weight_indices;
 
@@ -12931,7 +13080,73 @@ typedef struct
 	float facial_time;
 } SkinnedMeshDemo;
 
-void SkinnedMeshDemo_Input(SkinnedMeshDemo skinned_demo, float delta_time)
+SkinnedMeshDemo skinned_demo;
+# 1632 "SGL.c"
+void SetWeights()
+{
+# 1667 "SGL.c"
+}
+
+unsigned int* LoadPolygonColors(char* path)
+{
+	FILE* file_pointer = fopen(path, "r");
+
+	int color_count = 0;
+	while (1)
+	{
+		fgetc(file_pointer);
+		fgetc(file_pointer);
+		fgetc(file_pointer);
+		fgetc(file_pointer);
+
+		if (feof(file_pointer))
+			break;
+
+		color_count++;
+	}
+
+	rewind(file_pointer);
+	unsigned int* colors = malloc(4 * color_count);
+
+	for (int i = 0; i < color_count; i++)
+	{
+		int r = fgetc(file_pointer);
+		int g = fgetc(file_pointer);
+		int b = fgetc(file_pointer);
+		int a = fgetc(file_pointer);
+		colors[i] = (a << 24) | (b << 16) | (g << 8) | r;
+	}
+
+	fclose(file_pointer);
+	return colors;
+}
+
+__attribute__((dllexport)) void SkinnedMeshDemo_Init()
+{
+	Transform camera = { 0, { 0, 0, -50 }, { 0, 0, 0 }, { 1, 1, 1 } };
+	skinned_demo.camera = camera;
+	skinned_demo.mesh = LoadMesh("P:/Assets/skin_translated.obj");
+# 1759 "SGL.c"
+	int triangle_count = skinned_demo.mesh.indices_length / 3;
+
+
+	skinned_demo.body_poly_colors = malloc(triangle_count * sizeof(unsigned int));
+
+
+	for (int i = 0; i < triangle_count; i++)
+	{
+		skinned_demo.body_poly_colors[i] = 0xFFFF0000;
+	}
+
+	skinned_demo.body_poly_colors = LoadPolygonColors("P:/Assets/skin_poly_colors");
+
+	skinned_demo.body_poly_colors_length = triangle_count;
+
+	SetWeights();
+# 1800 "SGL.c"
+}
+
+void SkinnedMeshDemo_Input(float delta_time)
 {
 	float delta = 5 * delta_time;
 	if (KeyDownFresh(Keys_Y))
@@ -12974,10 +13189,43 @@ void SkinnedMeshDemo_Input(SkinnedMeshDemo skinned_demo, float delta_time)
 		skinned_demo.rotation_play = !skinned_demo.rotation_play;
 	}
 
-
-
 	if (KeyDownFresh(Keys_Space))
 		skinned_demo.fill_toggle = !skinned_demo.fill_toggle;
+}
+
+__attribute__((dllexport)) void SkinnedMeshDemo_Update(float delta_time)
+{
+	SkinnedMeshDemo_Input(delta_time);
+
+
+	{
+		if (skinned_demo.rotation_play)
+		{
+			skinned_demo.rotation_y += delta_time;
+
+		}
+
+		if (skinned_demo.animation_play)
+		{
+
+			{
+# 1877 "SGL.c"
+			}
+		}
+
+		m4x4 skeleton_matrices[skinned_demo.skeleton_length];
+
+
+		{
+			for (int i = 0; i < skinned_demo.skeleton_length; i++)
+			{
+				skeleton_matrices[i] = WorldSpaceMatrix(i, skinned_demo.skeleton);
+			}
+		}
+# 1952 "SGL.c"
+	}
+# 1963 "SGL.c"
+	Render(skinned_demo.mesh, skinned_demo.body_poly_colors, skinned_demo.camera, skinned_demo.fill_toggle);
 }
 
 typedef struct
@@ -13034,28 +13282,27 @@ typedef struct
 } GameplayState;
 
 
-void UpdateGameplay(GameplayState state)
+__attribute__((dllexport)) void UpdateGameplay()
 {
-# 2152 "SGL.c"
+# 2601 "SGL.c"
 }
 
-
-void GameplayState_Init(GameplayState state)
+void GameplayState_Init()
 {
-# 2185 "SGL.c"
+# 2633 "SGL.c"
 }
 
-void ResetGame(GameplayState state)
+void ResetGame()
 {
-# 2261 "SGL.c"
+# 2709 "SGL.c"
 }
-# 2579 "SGL.c"
+# 2728 "SGL.c"
 void PrintMesh(Mesh mesh)
 {
 	printf("indices:\n");
 	for (int i = 0; i < mesh.indices_length; i += 3)
 	{
-		printf("{ %d, %d, %d }\n", mesh.indices[i], mesh.indices[i+1], mesh.indices[i+2]);
+		printf("{ %d, %d, %d }\n", mesh.indices[i], mesh.indices[i + 1], mesh.indices[i + 2]);
 	}
 
 	printf("vertices:\n");
@@ -13064,8 +13311,6 @@ void PrintMesh(Mesh mesh)
 		printf("{ %+f, %+f, %+f }\n", mesh.vertices[i].x, mesh.vertices[i].y, mesh.vertices[i].z);
 	}
 }
-
-
 
 typedef struct
 {
@@ -13080,13 +13325,11 @@ typedef struct
 		row8;
 } CharSprite;
 
-
-
 char char_dict[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', ' ', '.', ':', ',', '_', '[', ']', '-', };
 
 CharSprite font_set[44];
 
-void FillSprites(CharSprite* sprites, int count)
+__attribute__((dllexport)) void FillSprites(CharSprite* sprites, int count)
 {
 	for (int i = 0; i < count; i++)
 	{
@@ -13108,11 +13351,11 @@ void DrawCharacter(CharSprite sprite, int x, int y)
 	}
 }
 
-void DrawString(string sa, int x, int y)
+void DrawString(string s, int x, int y)
 {
-	for (int i = 0; i < sa.length; i++)
+	for (int i = 0; i < s.length; i++)
 	{
-		char a = tolower(sa.characters[i]);
+		char a = tolower(s.characters[i]);
 		for (int o = 0; o < 44; o++)
 		{
 			if (a == char_dict[o])
@@ -13124,12 +13367,50 @@ void DrawString(string sa, int x, int y)
 		}
 	}
 }
-
-
-
-void main()
+# 3499 "SGL.c"
+typedef enum
 {
-	Mesh mesh = LoadMeshFile("P:/Assets/cube.obj");
-	PrintMesh(mesh);
+	SplashScreenState,
+	MeshDemo,
+	SkinnedMesh,
+	Gameplay,
+} GameStates;
+
+struct Game
+{
+
+	int WIDTH;
+	int HEIGHT;
+# 3523 "SGL.c"
+	float previous_time;
+	float delta_time;
+	float time_since_last_frame;
+	float time_scale;
+	float time_scale;
+	float frames_per_second;
+	float time_since_timing_recalculated;
+	char fixed_framerate;
+	int frames_since_last_second;
+	GameStates current_game_state;
+}
+
+__attribute__((dllexport)) void InitEverything()
+{
+	SkinnedMeshDemo_Init();
+	InitMeshDemo();
+	GameplayState_Init();
+}
+# 3759 "SGL.c"
+void LoadFontSet()
+{
+	FILE* file_pointer = fopen("P:/Assets/font_set", "r");
+	fread(font_set, 8, 44, file_pointer);
+	fclose(file_pointer);
+}
+
+int main()
+{
+	printf("Here we go!");
+	return 0;
 }
 # 1 "<stdin>"

@@ -1,7 +1,8 @@
+#include <ctype.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
+#include <time.h>
 #include <windows.h>
 
 #define byte char
@@ -24,8 +25,13 @@
 #define black 0xFF000000
 #define white 0xFFFFFFFF
 
-#define brown 0xFFA52A2A;
-#define purple 0xFF800080;
+#define brown 0xFFA52A2A
+#define purple 0xFF800080
+
+#define open_file fopen
+#define seek_position fseek
+#define read_bytes fread
+#define close_file fclose
 
 typedef struct
 {
@@ -67,6 +73,31 @@ typedef struct
 
 typedef struct
 {
+	int transform_index;
+	char property_offset;
+	int keyframes_length;
+	KeyFrame* keyframes;
+} AnimationCurve;
+
+typedef struct
+{
+	bool looped;
+	int curves_length;
+	AnimationCurve* curves;
+	int** defendbox_keys;
+	bool** defendbox_values;
+	int** attackbox_keys;
+	bool** attackbox_values;
+} Animation;
+
+typedef struct
+{
+	float current_frame;
+	Animation current_animation;
+} Animator;
+
+typedef struct
+{
 	float
 		m11, m12, m13, m14,
 		m21, m22, m23, m24,
@@ -78,7 +109,7 @@ typedef struct
 {
 	int transform_index;
 	float radius;
-	bool active; 
+	bool active;
 } Hitbox;
 
 typedef struct
@@ -90,11 +121,17 @@ typedef struct
 
 typedef struct
 {
-	v3* vertices;
-	int* indices;
 	int vertices_length;
+	v3* vertices;
 	int indices_length;
+	int* indices;
 } Mesh;
+
+typedef struct
+{
+	int length;
+	Transform* joints;
+} Skeleton;
 
 typedef struct
 {
@@ -109,12 +146,53 @@ typedef struct
 	Hitbox* defendboxes;
 } Player;
 
+
+typedef struct
+{
+	int width, height;
+	uint* pixels;
+} Bitmap;
+
 //math and stuff
 float GetMin(float a, float b, float c);
 float GetMax(float a, float b, float c);
 
+typedef enum
+{
+	SplashScreenState,
+	MeshDemo,
+	SkinnedMesh,
+	Gameplay,
+} GameStates;
+
+struct Game
+{
+	//Resolution
+	int WIDTH;
+	int HEIGHT;
+
+	//Timing
+	float TIME_RECALCULATION_INTERVAL; //1.0f
+	float TARGET_FRAMERATE;// 60.0f
+	float STANDARD_TIMESTEP;// 1 / TARGET_FRAMERATE
+	//	public static Stopwatch stopwatch = new Stopwatch();
+	clock_t previous_time;
+	float delta_time;
+	float time_since_last_frame;
+	float time_scale; //1f
+	float frames_per_second;
+	float time_since_timing_recalculated;
+	bool fixed_framerate; //false
+	int frames_since_last_second;
+	GameStates current_game_state;
+	int game_state_index; //0
+};
+
+struct Game game;
+
 //Drawing
 uint Darker(uint color);
+void Clear();
 void Fill(uint color);
 void FillTriangle(uint color, int x1, int y1, int x2, int y2, int x3, int y3);
 void FillTriangle_VertexColors(v2 a, v2 b, v2 c, uint a_color, uint b_color, uint c_color);
@@ -125,6 +203,10 @@ void PutPixel(uint color, int x, int y);
 void PutPixel_ByIndex(uint color, int i);
 void DrawHorizontal(uint color, int y);
 void DrawString(string s, int x, int y);
+void DrawLine(uint color, float x1, float y1, float x2, float y2);
+void DrawRectangle(uint color, float x, float y, float width, float height);
+void DrawSplashScreen(float frames_per_second);
+void Flatten();
 //Linear Algebra
 Transform InvertTransform(Transform t);
 v3 NegateVector(v3 v);
@@ -143,39 +225,38 @@ v3 v3_CrossProduct(v3 a, v3 b);
 v3 v3_Normalized(v3 v);
 float v3_Magnitude(v3 v);
 v3 v3_Scale(v3 v, float s);
+v3 v3_Divide(v3 v, float s);
 float v3_DotProduct(v3 a, v3 b);
-void DrawLine(uint color, float x1, float y1, float x2, float y2);
-void DrawRectangle(uint color, float x, float y, float width, float height);
-void Flatten();
-
 //Interpolation
 v2 Lerp_v2(v2 a, v2 b, float t);
 float Lerp_Float(float a, float b, float t);
-void AnimateProperty(KeyFrame curve[], float frame, float* property);
+void AnimateProperty(AnimationCurve curve, float frame, float* property);
 float Sample(KeyFrame a, KeyFrame b, float frame);
-
+uint LerpColor(uint a, uint b, float t);
 //Collision
 bool Intersect(Transform a, Transform b);
-
 //Mesh Operations
 v3 GetCentroid(Triangle t);
-
 //Sorting
 bool Less(Triangle a, Triangle b);
 void SwapTriangles(Triangle triangles[], int a, int b);
 void SortByDepth(Triangle a[], int length);
 void QuickSort(Triangle a[], int lo, int hi);
 int Partition(Triangle a[], int lo, int hi);
-
 //Render Pipeline Operations
 v3 CameraToClipToScreen(v3 v);
-
 //Game States
-void InitViewport(float field_of_view, int width, int height, uint _pixels[]);
-void RunMeshDemo(Mesh mesh, Transform camera, float delta_time, float frames_per_second);
+void InitViewport(int width, int height, uint _pixels[]);
+void RunMeshDemo();
 void Render(Mesh mesh, uint body_poly_colors[], Transform camera, bool fill_toggle);
 void PrintMesh(Mesh mesh);
+void PrintMatrix(m4x4 m);
+//File IO
 Mesh LoadMesh(char* path);
+void LoadFontSet();
+Skeleton LoadTransformHierarchy(char* path);
+uint* LoadPolygonColors(char* path);
+Bitmap LoadSplashScreenImage();
 
 uint Darker(uint color)
 {
@@ -185,7 +266,7 @@ uint Darker(uint color)
 	return black | r | g | b;
 }
 
-__declspec(dllexport) Transform InvertTransform(Transform t)
+Transform InvertTransform(Transform t)
 {
 	t.position = NegateVector(t.position);
 	t.rotation = NegateVector(t.rotation);
@@ -203,7 +284,7 @@ v3 NegateVector(v3 v)
 	return v;
 }
 
-__declspec(dllexport) m4x4 Concatenate(m4x4 a, m4x4 b)
+m4x4 Concatenate(m4x4 a, m4x4 b)
 {
 	m4x4 result;
 	result.m11 = a.m11 * b.m11 + a.m12 * b.m21 + a.m13 * b.m31 + a.m14 * b.m41;
@@ -234,7 +315,7 @@ m4x4 GetMatrix(Transform t)
 	return result;
 }
 
-__declspec(dllexport) m4x4 WorldSpaceMatrix(int index, Transform hierarchy[])
+m4x4 WorldSpaceMatrix(int index, Transform hierarchy[])
 {
 	Transform t = hierarchy[index];
 	m4x4 m = GetMatrix(t);
@@ -247,7 +328,7 @@ __declspec(dllexport) m4x4 WorldSpaceMatrix(int index, Transform hierarchy[])
 	return m;
 }
 
-__declspec(dllexport) v3 Transform_v3(m4x4 m, v3 v)
+v3 Transform_v3(m4x4 m, v3 v)
 {
 	v3 result =
 	{
@@ -314,7 +395,7 @@ m4x4 Rotation(float x, float y, float z)
 	return rotation;
 }
 
-__declspec(dllexport) m4x4 Perspective(float near_plane, float far_plane, float field_of_view, float width, float height)
+m4x4 Perspective(float near_plane, float far_plane, float field_of_view, float width, float height)
 {
 	float aspect_ratio = height / width;
 	float zoom = (float)(1 / tan(field_of_view / 2));
@@ -363,7 +444,7 @@ v3 CrossProduct(v3 a, v3 b)
 
 v3 v3_Normalized(v3 v)
 {
-	return v3_Scale(v, v3_Magnitude(v));
+	return v3_Divide(v, v3_Magnitude(v));
 }
 
 float v3_Magnitude(v3 v)
@@ -372,6 +453,12 @@ float v3_Magnitude(v3 v)
 }
 
 v3 v3_Scale(v3 v, float s)
+{
+	v3 result = { v.x * s, v.y * s, v.z * s };
+	return result;
+}
+
+v3 v3_Divide(v3 v, float s)
 {
 	v3 result = { v.x / s, v.y / s, v.z / s };
 	return result;
@@ -394,13 +481,20 @@ float Lerp_Float(float a, float b, float t)
 }
 
 //Animate property doesn't work yet
-void AnimateProperty(KeyFrame curve[], float frame, float* property)
+void AnimateProperty(AnimationCurve curve, float frame, float* property)
 {
-	size_t n = sizeof(curve) / sizeof(curve[0]);
+	for (size_t o = 0; o < curve.keyframes_length; o++)
+	{
+		KeyFrame keyframe = curve.keyframes[o];
+		//printf("keyframe: %d, frame: %.3f, value: %.3f, left handle: { %.3f, %.3f }, right handle: { %.3f, %.3f }\n", o, keyframe.frame, keyframe.value, keyframe.left_handle_x, keyframe.left_handle_y, keyframe.right_handle_x, keyframe.right_handle_y);
+	}
+
+	int n = curve.keyframes_length;
 	for (int i = 0; i < n - 1; i++)
 	{
-		KeyFrame a = curve[i];
-		KeyFrame b = curve[i + 1];
+			printf("property: %.3f\n", frame);
+		KeyFrame a = curve.keyframes[i];
+		KeyFrame b = curve.keyframes[i + 1];
 		if (frame >= a.frame && frame <= b.frame)
 		{
 			*property = Sample(a, b, frame);
@@ -427,7 +521,6 @@ float Sample(KeyFrame a, KeyFrame b, float frame)
 	return i.y;
 }
 
-
 bool Intersect(Transform a, Transform b)
 {
 	float ax_half = a.scale.x / 2;
@@ -447,7 +540,6 @@ bool Intersect(Transform a, Transform b)
 	return a_right > b_left && a_left < b_right && a_top > b_bottom && a_bottom < b_top;
 }
 
-
 v3 GetCentroid(Triangle t)
 {
 	v3 v = v3_Add(v3_Add(t.a, t.b), t.c);
@@ -456,7 +548,6 @@ v3 GetCentroid(Triangle t)
 	v.z /= 3;
 	return v;
 }
-
 
 bool Less(Triangle a, Triangle b)
 {
@@ -514,8 +605,6 @@ int Partition(Triangle a[], int lo, int hi)
 }
 
 
-
-//todo initialize
 float light_rotation = 0;
 m4x4 camera_to_clip;
 int WIDTH, HEIGHT;
@@ -523,36 +612,152 @@ uint* pixels;
 
 Mesh mesh;
 Transform cube_transform;
+Transform mesh_demo_camera;
 
-__declspec(dllexport) void InitViewport(float field_of_view, int width, int height, uint _pixels[])  //TODO move more state here and out of the "run" arguments
+
+typedef struct
+{
+	bool splash_screen_started;
+	bool splash_screen_ended;
+	float splash_screen_time;
+	float splash_screen_alpha;
+	Bitmap logo;
+} SplashScreen;
+
+SplashScreen splash;
+
+void Init_SplashScreen()
+{
+	splash.splash_screen_started = false;
+	splash.splash_screen_ended = false;
+	splash.splash_screen_time = 0;
+	splash.splash_screen_alpha = 0;
+}
+
+void DrawSplashScreen()
+{
+	memcpy(pixels, splash.logo.pixels, WIDTH * HEIGHT * 4);
+
+	int pixel_count = WIDTH * HEIGHT;
+
+	for (int i = 0; i < pixel_count; i += 4)
+	{
+		if (pixels[i] != black)
+		{
+			uint red_channel = (uint)((pixels[i] & 0xFF0000) * splash.splash_screen_alpha) & 0xFF0000;
+			pixels[i] = black | red_channel;
+		}
+
+		if (pixels[i + 1] != black)
+		{
+			uint red_channel = (uint)((pixels[i + 1] & 0xFF0000) * splash.splash_screen_alpha) & 0xFF0000;
+			pixels[i + 1] = black | red_channel;
+		}
+
+		if (pixels[i + 2] != black)
+		{
+			uint red_channel = (uint)((pixels[i + 2] & 0xFF0000) * splash.splash_screen_alpha) & 0xFF0000;
+			pixels[i + 2] = black | red_channel;
+		}
+
+		if (pixels[i + 3] != black)
+		{
+			uint red_channel = (uint)((pixels[i + 3] & 0xFF0000) * splash.splash_screen_alpha) & 0xFF0000;
+			pixels[i + 3] = black | red_channel;
+		}
+	}
+
+	char result[50];
+	sprintf(result, "FPS: %.3f", game.frames_per_second);
+	string message = { strlen(result), result };
+	DrawString(message, 0, 0);
+}
+
+void UpdateSplashScreen()
+{
+	if (splash.splash_screen_time > 10)
+	{
+		if (!splash.splash_screen_ended)
+		{
+			game.game_state_index++;
+			splash.splash_screen_ended = true;
+		}
+		else
+		{
+			splash.splash_screen_time = 0;
+			splash.splash_screen_ended = false;
+			splash.splash_screen_started = false;
+		}
+	}
+
+	if (!splash.splash_screen_started)
+	{
+		//System.Media.SoundPlayer player = new System.Media.SoundPlayer(GetAssetStream("preparations.wav"));
+		//player.Play();
+		splash.splash_screen_started = true;
+	}
+
+	DrawSplashScreen(game.frames_per_second);
+
+	splash.splash_screen_time += game.delta_time;
+	if (splash.splash_screen_time > 2 && splash.splash_screen_time < 7 && splash.splash_screen_alpha < 1)
+	{
+		splash.splash_screen_alpha += game.delta_time / 5;
+		if (splash.splash_screen_alpha > 1)
+			splash.splash_screen_alpha = 1;
+	}
+
+	if (splash.splash_screen_time > 8)
+		splash.splash_screen_alpha -= game.delta_time;
+
+	if (splash.splash_screen_alpha < 0)
+		splash.splash_screen_alpha = 0;
+}
+
+Bitmap LoadSplashScreenImage()
+{
+	FILE* file_pointer = open_file("P:/Assets/viking_studios_logo", "r");
+	int width = 1920, height = 1080;
+	uint* pixels = malloc(sizeof(uint) * width * height);
+	read_bytes(pixels, 4, 1920 * 1080, file_pointer);
+	splash.logo.width = width;
+	splash.logo.height = height;
+	splash.logo.pixels = pixels;
+
+	close_file(file_pointer);
+}
+
+__declspec(dllexport) void InitViewport(int width, int height, uint _pixels[])  //TODO move more state here and out of the "run" arguments
 {
 	WIDTH = width;
 	HEIGHT = height;
-	camera_to_clip = Perspective(0.1f, 100, field_of_view, WIDTH, HEIGHT);
 	pixels = &_pixels[0];
 }
 
-
-__declspec(dllexport) void InitMeshDemo()
+void InitMeshDemo()
 {
+	LoadFontSet();
 	mesh = LoadMesh("P:/Assets/teapot.obj");
-	cube_transform.parent = -1;
 	v3 forward_10 = { 0, 0, 10 };
+	v3 backward_30 = { 0, 0, -30 };
 	v3 zero = { 0, 0, 0 };
 	v3 one = { 1, 1, 1 };
 	cube_transform.position = forward_10;
 	cube_transform.rotation = zero;
 	cube_transform.scale = one;
+	mesh_demo_camera.position = backward_30;
+	mesh_demo_camera.rotation = zero;
+	mesh_demo_camera.scale = one;
 }
 
-__declspec(dllexport) void RunMeshDemo(Mesh mezsh, Transform camera, float delta_time, float frames_per_second)
+void RunMeshDemo()
 {
 	//Update
 	{
-		cube_transform.rotation.y += Tau / 16 * delta_time;
+		cube_transform.rotation.y += Tau / 16 * game.delta_time;
 	}
 
-	Fill(black);
+	Clear();
 
 	size_t triangle_count = mesh.indices_length / 3;
 	Triangle* triangles = malloc(triangle_count * sizeof(Triangle));
@@ -574,7 +779,7 @@ __declspec(dllexport) void RunMeshDemo(Mesh mezsh, Transform camera, float delta
 		m4x4 object_to_world = GetMatrix(cube_transform);
 
 		//get camera matrix
-		Transform inverted_camera = InvertTransform(camera);
+		Transform inverted_camera = InvertTransform(mesh_demo_camera);
 		m4x4 world_to_camera = GetMatrix(inverted_camera);
 		m4x4 object_to_camera = Concatenate(object_to_world, world_to_camera);
 
@@ -606,7 +811,7 @@ __declspec(dllexport) void RunMeshDemo(Mesh mezsh, Transform camera, float delta
 				v3 b = v3_Subtract(t.c, t.a);
 				v3 normal = v3_Normalized(CrossProduct(a, b));
 
-				v3 from_camera_to_triangle = v3_Normalized(v3_Subtract(t.a, camera.position));
+				v3 from_camera_to_triangle = v3_Normalized(v3_Subtract(t.a, mesh_demo_camera.position));
 
 				if (v3_DotProduct(normal, from_camera_to_triangle) > 0)
 				{
@@ -663,13 +868,26 @@ __declspec(dllexport) void RunMeshDemo(Mesh mezsh, Transform camera, float delta
 	free(triangles);
 
 	char result[50];
-	sprintf(result, "%.3f", frames_per_second);
+	sprintf(result, "%.3f", game.frames_per_second);
 	char foo[50];
 	strcpy(foo, "FPS: ");
 
 	strcat(foo, result);
 	string moopa = { strlen(foo), foo };
 	DrawString(moopa, 16, 16);
+}
+
+void Clear()
+{
+	memset(pixels, 0, WIDTH * HEIGHT * 4);
+}
+
+void Fill(uint color)
+{
+	for (int i = 0; i < WIDTH * HEIGHT; i++)
+	{
+		pixels[i] = color;
+	}
 }
 
 void FillTriangle(uint color, int x1, int y1, int x2, int y2, int x3, int y3)
@@ -723,7 +941,6 @@ void FillTriangle(uint color, int x1, int y1, int x2, int y2, int x3, int y3)
 	}
 }
 
-
 void FillFlatBottom(uint color, int bottom, int left, int right, int top, int middle)
 {
 	float dy = bottom - top;
@@ -741,7 +958,6 @@ void FillFlatBottom(uint color, int bottom, int left, int right, int top, int mi
 		r += inverted_slope2;
 	}
 }
-
 
 void FillFlatTop(uint color, int top, int left, int right, int bottom, int middle)
 {
@@ -808,8 +1024,6 @@ v3 CameraToClipToScreen(v3 v)
 
 	return v;
 }
-
-uint LerpColor(uint a, uint b, float t);
 
 void FillVerticalGradient(uint color1, uint color2)
 {
@@ -888,15 +1102,7 @@ uint BlendColor(uint s, uint d)
 	return result;
 }
 
-void Fill(uint color)
-{
-	for (int i = 0; i < WIDTH * HEIGHT; i++)
-	{
-		pixels[i] = color;
-	}
-}
-
-__declspec(dllexport) Mesh LoadMesh(char* path)
+Mesh LoadMesh(char* path)
 {
 	FILE* fp = fopen(path, "r");
 	int line_number = 0;
@@ -1030,7 +1236,6 @@ void DrawLine(uint color, float x1, float y1, float x2, float y2)
 		}
 	}
 }
-
 
 void DrawRectangle(uint color, float x, float y, float width, float height)
 {
@@ -1184,10 +1389,9 @@ void Blend_Circle(uint color, float x, float y, float radius)
 	}
 }
 
-
-__declspec(dllexport) void Render(Mesh mesh, uint* body_poly_colors, Transform camera, bool fill_toggle)
+void Render(Mesh mesh, uint* body_poly_colors, Transform camera, bool fill_toggle)
 {
-	Fill(black);
+	Clear();
 
 	//if (mesh.indices?.Length > 0) //TODO?
 	{
@@ -1380,7 +1584,6 @@ enum Keys
 	Keys_NumPad0 = 96, Keys_NumPad1, Keys_NumPad2, Keys_NumPad3, Keys_NumPad4, Keys_NumPad5, Keys_NumPad6, Keys_NumPad7, Keys_NumPad8, Keys_NumPad9,
 };
 
-
 enum Buttons
 {
 	LEFT,
@@ -1403,12 +1606,12 @@ enum Keys control_mappings[4][5] = //each row represents a player's control sche
 	{Keys_NumPad4, Keys_NumPad6,  Keys_NumPad5,  Keys_NumPad8, Keys_NumPad7 }
 };
 
-__declspec(dllexport) bool KeyDownFresh(enum Keys key)
+bool KeyDownFresh(enum Keys key)
 {
 	return keys_down[key] && !keys_stale[key];
 }
 
-__declspec(dllexport) bool KeyDown(enum Keys key)
+bool KeyDown(enum Keys key)
 {
 	return keys_down[key];
 }
@@ -1423,7 +1626,7 @@ bool ButtonDownFresh(int player, enum Buttons action)
 	return KeyDownFresh(control_mappings[player][action]);
 }
 
-__declspec(dllexport) void PollKeyboard()
+void PollKeyboard()
 {
 	for (int i = 0; i < 256; i++)
 		keys_stale[i] = keys_down[i];
@@ -1450,8 +1653,7 @@ typedef struct
 	Mesh mesh;
 	int body_poly_colors_length;
 	uint* body_poly_colors;
-	int skeleton_length;
-	Transform* skeleton;
+	Skeleton skeleton;
 	int bind_matrices_length;
 	m4x4* bind_matrices;
 	int weights_length;
@@ -1461,7 +1663,7 @@ typedef struct
 	//Dictionary<int, Vector3>[] morphs = new Dictionary<int, Vector3>[5];
 	int morph_weights_length;
 	float* morph_weights;
-	v3 transformed_vertices_length;
+	int transformed_vertices_length;
 	v3* transformed_vertices;
 	Transform camera;
 
@@ -1481,52 +1683,85 @@ typedef struct
 } SkinnedMeshDemo;
 
 SkinnedMeshDemo skinned_demo;
+//public static Mesh AppendMesh(Mesh a, Mesh b)
+//{
+//	List<Vector3> vertices = new List<Vector3>(a.vertices);
+//	List<int> indices = new List<int>(a.indices);
+//	for (int i = 0; i < b.indices.Length; i++)
+//	{
+//		b.indices[i] += a.vertices.Length;
+//	}
+//	vertices.AddRange(b.vertices);
+//	indices.AddRange(b.indices);
+//
+//	return new Mesh{ vertices = vertices.ToArray(), indices = indices.ToArray() };
+//}
 
 void SetWeights()
 {
-//    fixed (Vector4* p = new Vector4[mesh.vertices_length])
-//    {
-//        weights = p;
-//        weights_length = mesh.vertices_length;
-//    }
+	skinned_demo.weights = malloc(skinned_demo.mesh.vertices_length * sizeof(v4));
+	skinned_demo.weights_length = mesh.vertices_length;
 
-//    fixed (Weight_Index* p = new Weight_Index[mesh.vertices_length])
-//    {
-//        weight_indices = p;
-//    }
+	for (int i = 0; i < skinned_demo.mesh.vertices_length; i++)
+	{
+		v4 weight = { 1, 0, 0, 0 };
+		skinned_demo.weights[i] = weight;
+	}
 
-//    for (int i = 0; i < mesh.vertices_length; i++)
-//        weights[i] = new Vector4(1, 0, 0, 0);
+	FILE* file_pointer = open_file("P:/Assets/weight_indices", "r");
+	seek_position(file_pointer, 0L, SEEK_END);
 
-//    Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(GetAssetPathPrefix() + "weight_indices");
-//    using (BinaryReader reader = new BinaryReader(stream))
-//    {
-//        List<Weight_Index> weight_index_list = new List<Weight_Index>();
-//        while (reader.BaseStream.Position != reader.BaseStream.Length)
-//        {
-//            Weight_Index w = new Weight_Index();
-//            w.bone1 = reader.ReadInt32();
-//            w.bone2 = reader.ReadInt32();
-//            w.bone3 = reader.ReadInt32();
-//            w.bone4 = reader.ReadInt32();
-//            weight_index_list.Add(w);
-//        }
+	int file_size = ftell(file_pointer);
+	skinned_demo.weight_indices_length = file_size / sizeof(Weight_Index);
+	skinned_demo.weight_indices = malloc(file_size);
 
-//        fixed (Weight_Index* p = weight_index_list.ToArray())
-//        {
-//            weight_indices = p;
-//        }
-//    }
+	rewind(file_pointer);
+	read_bytes(skinned_demo.weight_indices, sizeof(Weight_Index), skinned_demo.weight_indices_length, file_pointer);
+	close_file(file_pointer);
 }
 
-__declspec(dllexport) void SkinnedMeshDemo_Init()
+uint* LoadPolygonColors(char* path)//TODO fix endianness of file so you can read into memory in one go
+{
+	FILE* file_pointer = open_file(path, "r");
+
+	int color_count = 0;
+	while (true)
+	{
+		fgetc(file_pointer);
+		fgetc(file_pointer);
+		fgetc(file_pointer);
+		fgetc(file_pointer);
+
+		if (feof(file_pointer))
+			break;
+
+		color_count++;
+	}
+
+	rewind(file_pointer);
+	uint* colors = malloc(4 * color_count);
+
+	for (int i = 0; i < color_count; i++)
+	{
+		int r = fgetc(file_pointer);
+		int g = fgetc(file_pointer);
+		int b = fgetc(file_pointer);
+		int a = fgetc(file_pointer);
+		colors[i] = (a << 24) | (b << 16) | (g << 8) | r;
+	}
+
+	close_file(file_pointer);
+	return colors;
+}
+
+void SkinnedMeshDemo_Init()
 {
 	Transform camera = { 0, { 0, 0, -50 }, { 0, 0, 0 }, { 1, 1, 1 } };
 	skinned_demo.camera = camera;
 	skinned_demo.mesh = LoadMesh("P:/Assets/skin_translated.obj");
 
-	//skeleton = LoadHierarchy("avatar");
-	//skeleton_length = skeleton.Length;
+	skinned_demo.skeleton = LoadTransformHierarchy("P:/Assets/avatar");
+	skinned_demo.animation_length = 32;
 
 	//if (has_a_face)
 	//{
@@ -1575,50 +1810,39 @@ __declspec(dllexport) void SkinnedMeshDemo_Init()
 	//}
 
 	////TODO replace with files to load
-	//PointerCountArray<uint> poly_colors = LoadPolygonColors("skin_poly_colors");
 	int triangle_count = skinned_demo.mesh.indices_length / 3;
-
-	skinned_demo.body_poly_colors = malloc(triangle_count * sizeof(uint)); //TODO malloc the correct size (the number of triangles, which is 1/3 the number of indices)
-	
-	//todo load triangle colors from file
-	for (int i = 0; i < triangle_count; i++)
-	{
-		skinned_demo.body_poly_colors[i] = red;
-	}
+	skinned_demo.body_poly_colors = LoadPolygonColors("P:/Assets/skin_poly_colors");
 
 	skinned_demo.body_poly_colors_length = triangle_count;
 
 	SetWeights();
 
-	////build bind matrices
-	//{
-	//	fixed(Matrix4x4 * p = new Matrix4x4[skeleton_length])
-	//	{
-	//		bind_matrices = p;
-	//		bind_matrices_length = skeleton.Length;
-	//	}
+	//build bind matrices
+	{
+		skinned_demo.bind_matrices = malloc(sizeof(m4x4) * skinned_demo.skeleton.length);
+		skinned_demo.bind_matrices_length = skinned_demo.skeleton.length;
 
-	//	Transform[] bind_transforms = new Transform[skeleton_length];
+		Transform bind_transforms[skinned_demo.skeleton.length];
 
-	//	for (int i = 0; i < bind_matrices_length; i++)
-	//	{
-	//		bind_transforms[i] = InvertTransform(skeleton[i]);
-	//		bind_matrices[i] = WorldSpaceMatrix(i, bind_transforms);
-	//	}
-	//}
+		for (int i = 0; i < skinned_demo.bind_matrices_length; i++)
+		{
+			bind_transforms[i] = InvertTransform(skinned_demo.skeleton.joints[i]);
+			skinned_demo.bind_matrices[i] = WorldSpaceMatrix(i, bind_transforms);
 
-	//fixed(Vector3 * p = new Vector3[c_mesh.vertices_length])
-	//{
-	//	transformed_vertices = p;
-	//	transformed_vertices_length = c_mesh.vertices_length;
-	//}
+			m4x4 m = skinned_demo.bind_matrices[i];
+			PrintMatrix(m);
+		}
+	}
+
+	skinned_demo.transformed_vertices = malloc(sizeof(v3) * skinned_demo.mesh.vertices_length);
+	skinned_demo.transformed_vertices_length = skinned_demo.mesh.vertices_length;
+	printf("vector3 size: %d\n", sizeof(v3));
 	//skeleton[0].position.y = -1;
 }
 
-
-void SkinnedMeshDemo_Input(float delta_time)
+void SkinnedMeshDemo_Input()
 {
-	float delta = 5 * delta_time;
+	float delta = 5 * game.delta_time;
 	if (KeyDownFresh(Keys_Y))
 		skinned_demo.view_fps = !skinned_demo.view_fps;
 
@@ -1663,147 +1887,138 @@ void SkinnedMeshDemo_Input(float delta_time)
 		skinned_demo.fill_toggle = !skinned_demo.fill_toggle;
 }
 
-__declspec(dllexport) void SkinnedMeshDemo_Update(float delta_time)
+typedef struct
 {
-	SkinnedMeshDemo_Input(delta_time);
+	Animation walk_animation;
+} DefinedAnimations;
+
+DefinedAnimations defined_animations; //TODO initialize
+
+void SkinnedMeshDemo_Update()
+{
+	SkinnedMeshDemo_Input();
 
 	//Animate
 	{
 		if (skinned_demo.rotation_play)
 		{
-			skinned_demo.rotation_y += delta_time;
-			//skinned_demo.skeleton[0].rotation.y = skinned_demo.rotation_y;
+			skinned_demo.rotation_y += game.delta_time;
+			skinned_demo.skeleton.joints[0].rotation.y = skinned_demo.rotation_y;
 		}
 
 		if (skinned_demo.animation_play)
 		{
 			//Animate Skeleton
 			{
-				//foreach(AnimationCurve curve in DefinedAnimations.walk_animation.curves)
-				//{
-				//	KeyFrame[] keyframes = curve.keyframes;
-				//	int transform_index = curve.transform_index;
+				for (int i = 0; i < defined_animations.walk_animation.curves_length; i++)
+				{
+					AnimationCurve curve = defined_animations.walk_animation.curves[i];
+					int transform_index = curve.transform_index;
 
-				//	fixed(Transform * p = &skinned_demo.skeleton[transform_index])
-				//	{
-				//		float* f = &(*p).position.x + curve.property_tag;
-				//		AnimateProperty(keyframes, skinned_demo.frame, f);
-				//	}
-
-				//}
+					Transform* p = &skinned_demo.skeleton.joints[transform_index];
+					float* f = &(*p).position.x + curve.property_offset;
+					AnimateProperty(curve, skinned_demo.frame, f);
+				}
 			}
 		}
 
-	m4x4 skeleton_matrices[skinned_demo.skeleton_length];
+		m4x4 skeleton_matrices[skinned_demo.skeleton.length];
 
-	//Get Skeleton Matrices
-	{
-		for (int i = 0; i < skinned_demo.skeleton_length; i++)
+		//Get Skeleton Matrices
 		{
-			skeleton_matrices[i] = WorldSpaceMatrix(i, skinned_demo.skeleton);
+			for (int i = 0; i < skinned_demo.skeleton.length; i++)
+			{
+				skeleton_matrices[i] = WorldSpaceMatrix(i, skinned_demo.skeleton.joints);
+			}
 		}
+
+		//Apply Mesh Skinning
+		{
+			for (int i = 0; i < skinned_demo.mesh.vertices_length; i++)
+			{
+				v3 v_a = Transform_v3(Concatenate(skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone1], skeleton_matrices[skinned_demo.weight_indices[i].bone1]), skinned_demo.mesh.vertices[i]);
+				v3 v_b = Transform_v3(Concatenate(skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone2], skeleton_matrices[skinned_demo.weight_indices[i].bone2]), skinned_demo.mesh.vertices[i]);
+				v3 v_c = Transform_v3(Concatenate(skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone3], skeleton_matrices[skinned_demo.weight_indices[i].bone3]), skinned_demo.mesh.vertices[i]);
+				v3 v_d = Transform_v3(Concatenate(skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone4], skeleton_matrices[skinned_demo.weight_indices[i].bone4]), skinned_demo.mesh.vertices[i]);
+
+				v_a = v3_Scale(v_a, skinned_demo.weights[i].x);
+				v_b = v3_Scale(v_b, skinned_demo.weights[i].y);
+				v_c = v3_Scale(v_c, skinned_demo.weights[i].z);
+				v_d = v3_Scale(v_d, skinned_demo.weights[i].w);
+
+				v3 i_a = v3_Add(v_a, v_b);
+				v3 i_b = v3_Add(v_c, v_d);
+
+				skinned_demo.transformed_vertices[i] = v3_Add(i_a, i_b);
+				//skinned_demo.transformed_vertices[i] = v3_Scale(v_a, skinned_demo.weights[i].x) + v3_Scale(v_b, skinned_demo.weights[i].y) + v3_Scale(v_c, skinned_demo.weights[i].z) + v3_Scale(v_d, skinned_demo.weights[i].w);
+			}
+		}
+
+		//	//Apply Facial Morph Targets
+		//	{
+		//		//if (skinned_demo.has_a_face && skinned_demo.animate_face)
+		//		//{
+		//		//    Vector3[] deltas = new Vector3[259];
+		//		//    for (int morph_index = 0; morph_index < skinned_demo.morphs_length; morph_index++)
+		//		//    {
+		//		//        if (skinned_demo.morphs[morph_index] != null)
+		//		//        {
+		//		//            var current_morph = skinned_demo.morphs[morph_index];
+
+		//		//            foreach (var entry in current_morph)
+		//		//            {
+		//		//                int key = entry.Key;
+		//		//                Vector3 point = entry.Value;
+		//		//                int vertex_index = key + skinned_demo.facial_index_offset;
+		//		//                Weight_Index weight_index = skinned_demo.weight_indices[vertex_index];
+		//		//                Vector4 weight = skinned_demo.weights[key];
+
+		//		//                Vector3 v_a = skinned_demo.bind_matrices[weight_index.bone1] * skeleton_matrices[weight_index.bone1] * point;
+		//		//                Vector3 v_b = skinned_demo.bind_matrices[weight_index.bone2] * skeleton_matrices[weight_index.bone2] * point;
+		//		//                Vector3 v_c = skinned_demo.bind_matrices[weight_index.bone3] * skeleton_matrices[weight_index.bone3] * point;
+		//		//                Vector3 v_d = skinned_demo.bind_matrices[weight_index.bone4] * skeleton_matrices[weight_index.bone4] * point;
+
+		//		//                Vector3 skinned_morph = (v_a * weight.x) + (v_b * weight.y) + (v_c * weight.z) + (v_d * weight.w);
+
+		//		//                deltas[key] += (skinned_morph - skinned_demo.transformed_vertices[vertex_index]) * skinned_demo.morph_weights[morph_index];
+		//		//            }
+		//		//        }
+		//		//    }
+
+		//		//    for (int i = 0; i < deltas.Length; i++)
+		//		//    {
+		//		//        int vertex_index = i + skinned_demo.facial_index_offset;
+		//		//        skinned_demo.transformed_vertices[vertex_index] += deltas[i];
+		//		//    }
+		//		//}
+
+		//		//skinned_demo.morph_weights[0] = ((float)Math.Cos(skinned_demo.facial_time * 2) + 1) / 2;
+		//		//skinned_demo.morph_weights[1] = ((float)Math.Sin(skinned_demo.facial_time * 2) + 1) / 2;
+
+		//		//skinned_demo.facial_time += delta_time;
+		//	}
+
+			//Advance Animation Time
+			{
+				skinned_demo.frame += game.TARGET_FRAMERATE * game.delta_time;
+				if (skinned_demo.frame >= skinned_demo.animation_length)
+					skinned_demo.frame = 0;
+			}
 	}
 
-	//	//Apply Mesh Skinning
-	//	{
-	//		for (int i = 0; i < skinned_demo.c_mesh.vertices_length; i++)
-	//		{
-	//			Vector3 v_a = skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone1] * skeleton_matrices[skinned_demo.weight_indices[i].bone1] * skinned_demo.mesh.vertices[i];
-	//			Vector3 v_b = skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone2] * skeleton_matrices[skinned_demo.weight_indices[i].bone2] * skinned_demo.mesh.vertices[i];
-	//			Vector3 v_c = skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone3] * skeleton_matrices[skinned_demo.weight_indices[i].bone3] * skinned_demo.mesh.vertices[i];
-	//			Vector3 v_d = skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone4] * skeleton_matrices[skinned_demo.weight_indices[i].bone4] * skinned_demo.mesh.vertices[i];
-
-	//			skinned_demo.transformed_vertices[i] = (v_a * skinned_demo.weights[i].x) + (v_b * skinned_demo.weights[i].y) + (v_c * skinned_demo.weights[i].z) + (v_d * skinned_demo.weights[i].w);
-	//		}
-	//	}
-
-	//	//Apply Facial Morph Targets
-	//	{
-	//		//if (skinned_demo.has_a_face && skinned_demo.animate_face)
-	//		//{
-	//		//    Vector3[] deltas = new Vector3[259];
-	//		//    for (int morph_index = 0; morph_index < skinned_demo.morphs_length; morph_index++)
-	//		//    {
-	//		//        if (skinned_demo.morphs[morph_index] != null)
-	//		//        {
-	//		//            var current_morph = skinned_demo.morphs[morph_index];
-
-	//		//            foreach (var entry in current_morph)
-	//		//            {
-	//		//                int key = entry.Key;
-	//		//                Vector3 point = entry.Value;
-	//		//                int vertex_index = key + skinned_demo.facial_index_offset;
-	//		//                Weight_Index weight_index = skinned_demo.weight_indices[vertex_index];
-	//		//                Vector4 weight = skinned_demo.weights[key];
-
-	//		//                Vector3 v_a = skinned_demo.bind_matrices[weight_index.bone1] * skeleton_matrices[weight_index.bone1] * point;
-	//		//                Vector3 v_b = skinned_demo.bind_matrices[weight_index.bone2] * skeleton_matrices[weight_index.bone2] * point;
-	//		//                Vector3 v_c = skinned_demo.bind_matrices[weight_index.bone3] * skeleton_matrices[weight_index.bone3] * point;
-	//		//                Vector3 v_d = skinned_demo.bind_matrices[weight_index.bone4] * skeleton_matrices[weight_index.bone4] * point;
-
-	//		//                Vector3 skinned_morph = (v_a * weight.x) + (v_b * weight.y) + (v_c * weight.z) + (v_d * weight.w);
-
-	//		//                deltas[key] += (skinned_morph - skinned_demo.transformed_vertices[vertex_index]) * skinned_demo.morph_weights[morph_index];
-	//		//            }
-	//		//        }
-	//		//    }
-
-	//		//    for (int i = 0; i < deltas.Length; i++)
-	//		//    {
-	//		//        int vertex_index = i + skinned_demo.facial_index_offset;
-	//		//        skinned_demo.transformed_vertices[vertex_index] += deltas[i];
-	//		//    }
-	//		//}
-
-	//		//skinned_demo.morph_weights[0] = ((float)Math.Cos(skinned_demo.facial_time * 2) + 1) / 2;
-	//		//skinned_demo.morph_weights[1] = ((float)Math.Sin(skinned_demo.facial_time * 2) + 1) / 2;
-
-	//		//skinned_demo.facial_time += delta_time;
-	//	}
-
-	//	//Advance Animation Time
-	//	{
-	//		skinned_demo.frame += TARGET_FRAMERATE * delta_time;
-	//		skinned_demo.frame %= skinned_demo.animation_length;
-	//	}
-	}
 
 
+	Mesh mesh;
 
-	//C_Mesh c_mesh = new C_Mesh();
+	mesh.vertices = skinned_demo.transformed_vertices;
+	mesh.indices = skinned_demo.mesh.indices;
+	mesh.indices_length = skinned_demo.mesh.indices_length;
+	mesh.vertices_length = skinned_demo.transformed_vertices_length;
 
-	//c_mesh.vertices = skinned_demo.transformed_vertices;
-	//c_mesh.indices = skinned_demo.c_mesh.indices;
-	//c_mesh.indices_length = skinned_demo.c_mesh.indices_length;
-	//c_mesh.vertices_length = skinned_demo.transformed_vertices_length;
-
-	Render(skinned_demo.mesh, skinned_demo.body_poly_colors, skinned_demo.camera, skinned_demo.fill_toggle);
+	Render(mesh, skinned_demo.body_poly_colors, skinned_demo.camera, skinned_demo.fill_toggle);
 }
 
-typedef struct
-{
-	int transform_index;
-	char property_tag;
-	int keyframes_length;
-	KeyFrame* keyframes;
-} AnimationCurve;
 
-typedef struct
-{
-	bool looped;
-	int curves_length;
-	AnimationCurve* curves;
-	int** defendbox_keys;
-	bool** defendbox_values;
-	int** attackbox_keys;
-	bool** attackbox_values;
-} Animation;
-
-typedef struct
-{
-	float current_frame;
-	Animation current_animation;
-} Animator;
 
 #define PLAYER_COUNT 4 //currently capped at 4, as control mappings aren't yet flexible enough to handle arbitrary numbers of players
 
@@ -1829,12 +2044,11 @@ typedef struct
 
 	//physics
 	float gravity;// = 10;
-
-
 } GameplayState;
 
+GameplayState gameplay_state;
 
-__declspec(dllexport) void UpdateGameplay(GameplayState state)
+void UpdateGameplay()
 {
 	//	//Update
 	//	{
@@ -2139,322 +2353,288 @@ __declspec(dllexport) void UpdateGameplay(GameplayState state)
 	//		}
 	//	}
 
-	//	//Render
-	//	{
-	//		FillVerticalGradient(cyan, 0xFF_00_44_AA);
+	//Render
+	{
+		FillVerticalGradient(cyan, 0xFF0044AA);
 
-	//		//Draw Scene
-	//		{
-	//			//get camera matrix
-	//			Matrix4x4 world_to_camera = GetMatrix(InvertTransform(state.camera));
+		//		//Draw Scene
+		//		{
+		//			//get camera matrix
+		//			Matrix4x4 world_to_camera = GetMatrix(InvertTransform(state.camera));
 
 
-	//			//Draw Blocks
-	//			{
-	//				for (int i = 0; i < state.blocks.Length; i++)
-	//				{
-	//					Matrix4x4 local_to_world = WorldSpaceMatrix(i, state.blocks);
-	//					Matrix4x4 camera_to_clip = Perspective(0.1f, 100, state.field_of_view, WIDTH, HEIGHT);
-	//					Matrix4x4 local_to_clip = local_to_world * world_to_camera * camera_to_clip;
+		//			//Draw Blocks
+		//			{
+		//				for (int i = 0; i < state.blocks.Length; i++)
+		//				{
+		//					Matrix4x4 local_to_world = WorldSpaceMatrix(i, state.blocks);
+		//					Matrix4x4 camera_to_clip = Perspective(0.1f, 100, state.field_of_view, WIDTH, HEIGHT);
+		//					Matrix4x4 local_to_clip = local_to_world * world_to_camera * camera_to_clip;
 
-	//					Vector4 position = new Vector4(-.5f, .5f, 0, 1);
-	//					position = Transform_Vector4(local_to_clip, position);
+		//					Vector4 position = new Vector4(-.5f, .5f, 0, 1);
+		//					position = Transform_Vector4(local_to_clip, position);
 
-	//					if (position.w != 0)
-	//						position /= position.w;
+		//					if (position.w != 0)
+		//						position /= position.w;
 
-	//					//place origin at center of screen
-	//					position.x++;
-	//					position.y++;
+		//					//place origin at center of screen
+		//					position.x++;
+		//					position.y++;
 
-	//					//scale space to fill screen
-	//					position.x *= WIDTH / 2;
-	//					position.y *= HEIGHT / 2;
+		//					//scale space to fill screen
+		//					position.x *= WIDTH / 2;
+		//					position.y *= HEIGHT / 2;
 
-	//					Vector4 position2 = new Vector4(.5f, -.5f, 0, 1);
-	//					position2 = Transform_Vector4(local_to_clip, position2);
+		//					Vector4 position2 = new Vector4(.5f, -.5f, 0, 1);
+		//					position2 = Transform_Vector4(local_to_clip, position2);
 
-	//					if (position2.w != 0)
-	//						position2 /= position2.w;
+		//					if (position2.w != 0)
+		//						position2 /= position2.w;
 
-	//					//place origin at center of screen
-	//					position2.x++;
-	//					position2.y++;
+		//					//place origin at center of screen
+		//					position2.x++;
+		//					position2.y++;
 
-	//					//scale space to fill screen
-	//					position2.x *= WIDTH / 2;
-	//					position2.y *= HEIGHT / 2;
+		//					//scale space to fill screen
+		//					position2.x *= WIDTH / 2;
+		//					position2.y *= HEIGHT / 2;
 
-	//					float width = position2.x - position.x;
-	//					float height = position2.y - position.y;
-	//					FillRectangle(brown, position.x, position.y, width, height);
-	//				}
-	//			}
+		//					float width = position2.x - position.x;
+		//					float height = position2.y - position.y;
+		//					FillRectangle(brown, position.x, position.y, width, height);
+		//				}
+		//			}
 
-	//			Vector3[] transformed_positions = new Vector3[state.transforms.Length];
+		//			Vector3[] transformed_positions = new Vector3[state.transforms.Length];
 
-	//			//Draw Transforms
-	//			{
-	//				for (int i = 0; i < state.transforms.Length; i++)
-	//				{
-	//					Matrix4x4 local_to_world = WorldSpaceMatrix(i, state.transforms);
-	//					Matrix4x4 local_to_camera = local_to_world * world_to_camera;
+		//			//Draw Transforms
+		//			{
+		//				for (int i = 0; i < state.transforms.Length; i++)
+		//				{
+		//					Matrix4x4 local_to_world = WorldSpaceMatrix(i, state.transforms);
+		//					Matrix4x4 local_to_camera = local_to_world * world_to_camera;
 
-	//					Vector3 position = Transform_v3(local_to_camera, Vector3.Zero);
+		//					Vector3 position = Transform_v3(local_to_camera, Vector3.Zero);
 
-	//					Matrix4x4 camera_to_clip = Perspective(0.1f, 100, state.field_of_view, WIDTH, HEIGHT);
+		//					Matrix4x4 camera_to_clip = Perspective(0.1f, 100, state.field_of_view, WIDTH, HEIGHT);
 
-	//					var v4 = new Vector4(position.x, position.y, position.z, 1);
-	//					v4 = Transform_Vector4(camera_to_clip, v4);
+		//					var v4 = new Vector4(position.x, position.y, position.z, 1);
+		//					v4 = Transform_Vector4(camera_to_clip, v4);
 
-	//					position = new Vector3(v4.x, v4.y, v4.z);
+		//					position = new Vector3(v4.x, v4.y, v4.z);
 
-	//					if (v4.w != 0)
-	//						position /= v4.w;
+		//					if (v4.w != 0)
+		//						position /= v4.w;
 
-	//					//place origin at center of screen
-	//					position.x++;
-	//					position.y++;
+		//					//place origin at center of screen
+		//					position.x++;
+		//					position.y++;
 
-	//					//scale space to fill screen
-	//					position.x *= WIDTH / 2;
-	//					position.y *= HEIGHT / 2;
+		//					//scale space to fill screen
+		//					position.x *= WIDTH / 2;
+		//					position.y *= HEIGHT / 2;
 
-	//					transformed_positions[i] = position;
-	//				}
+		//					transformed_positions[i] = position;
+		//				}
 
-	//				for (int i = 0; i < transformed_positions.Length; i++)
-	//				{
-	//					var position = transformed_positions[i];
-	//					var parent_position = position;
+		//				for (int i = 0; i < transformed_positions.Length; i++)
+		//				{
+		//					var position = transformed_positions[i];
+		//					var parent_position = position;
 
-	//					if (state.transforms[i].parent != -1)
-	//						parent_position = transformed_positions[state.transforms[i].parent];
+		//					if (state.transforms[i].parent != -1)
+		//						parent_position = transformed_positions[state.transforms[i].parent];
 
-	//					float d = state.camera.position.z - position.z;
-	//					float width = 450 / (d);
-	//					float half_width = width / 2;
+		//					float d = state.camera.position.z - position.z;
+		//					float width = 450 / (d);
+		//					float half_width = width / 2;
 
-	//					DrawLine(GameplayState.player_colors[i / state.GetSkeleton().Length], position.x, position.y, parent_position.x, parent_position.y);
-	//					Draw_Circle(GameplayState.player_colors[i / state.GetSkeleton().Length], position.x, position.y, -half_width, 1);
-	//				}
-	//			}
+		//					DrawLine(GameplayState.player_colors[i / state.GetSkeleton().Length], position.x, position.y, parent_position.x, parent_position.y);
+		//					Draw_Circle(GameplayState.player_colors[i / state.GetSkeleton().Length], position.x, position.y, -half_width, 1);
+		//				}
+		//			}
 
-	//			if (state.view_debug)
-	//			{
-	//				//Draw Hitboxes
-	//				{
-	//					for (int player_index = 0; player_index < GameplayState.PLAYER_COUNT; player_index++)
-	//					{
-	//						for (int attackbox_index = 0; attackbox_index < GameplayState.players[player_index].attackboxes.Length; attackbox_index++)
-	//						{
-	//							if (GameplayState.players[player_index].attackboxes[attackbox_index].active)
-	//							{
-	//								Vector3 center = transformed_positions[GameplayState.players[player_index].attackboxes[attackbox_index].transform_index];
-	//								float width = GameplayState.players[player_index].attackboxes[attackbox_index].radius * 2 * PIXELS_PER_UNIT;
-	//								GameplayState.DrawHitbox(center, red, width);
-	//							}
-	//						}
+		//			if (state.view_debug)
+		//			{
+		//				//Draw Hitboxes
+		//				{
+		//					for (int player_index = 0; player_index < GameplayState.PLAYER_COUNT; player_index++)
+		//					{
+		//						for (int attackbox_index = 0; attackbox_index < GameplayState.players[player_index].attackboxes.Length; attackbox_index++)
+		//						{
+		//							if (GameplayState.players[player_index].attackboxes[attackbox_index].active)
+		//							{
+		//								Vector3 center = transformed_positions[GameplayState.players[player_index].attackboxes[attackbox_index].transform_index];
+		//								float width = GameplayState.players[player_index].attackboxes[attackbox_index].radius * 2 * PIXELS_PER_UNIT;
+		//								GameplayState.DrawHitbox(center, red, width);
+		//							}
+		//						}
 
-	//						for (int i = 0; i < GameplayState.players[player_index].defendboxes.Length; i++)
-	//						{
+		//						for (int i = 0; i < GameplayState.players[player_index].defendboxes.Length; i++)
+		//						{
 
-	//							if (GameplayState.players[player_index].defendboxes[i].active)
-	//							{
-	//								Vector3 center = transformed_positions[GameplayState.players[player_index].defendboxes[i].transform_index];
-	//								float d = state.camera.position.z - center.z;
-	//								float width = 30 * (GameplayState.players[player_index].defendboxes[i].radius * 2 * PIXELS_PER_UNIT) / (d);
-	//								GameplayState.DrawHitbox(center, blue, -width);
-	//							}
-	//						}
-	//					}
-	//				}
+		//							if (GameplayState.players[player_index].defendboxes[i].active)
+		//							{
+		//								Vector3 center = transformed_positions[GameplayState.players[player_index].defendboxes[i].transform_index];
+		//								float d = state.camera.position.z - center.z;
+		//								float width = 30 * (GameplayState.players[player_index].defendboxes[i].radius * 2 * PIXELS_PER_UNIT) / (d);
+		//								GameplayState.DrawHitbox(center, blue, -width);
+		//							}
+		//						}
+		//					}
+		//				}
 
-	//				//Draw Colliders
-	//				{
-	//					for (int i = 0; i < state.blocks.Length; i++)
-	//					{
-	//						Matrix4x4 local_to_world = WorldSpaceMatrix(i, state.blocks);
-	//						Matrix4x4 camera_to_clip = Perspective(0.1f, 100, state.field_of_view, WIDTH, HEIGHT);
-	//						Matrix4x4 local_to_clip = local_to_world * world_to_camera * camera_to_clip;
+		//				//Draw Colliders
+		//				{
+		//					for (int i = 0; i < state.blocks.Length; i++)
+		//					{
+		//						Matrix4x4 local_to_world = WorldSpaceMatrix(i, state.blocks);
+		//						Matrix4x4 camera_to_clip = Perspective(0.1f, 100, state.field_of_view, WIDTH, HEIGHT);
+		//						Matrix4x4 local_to_clip = local_to_world * world_to_camera * camera_to_clip;
 
-	//						Vector4 position = new Vector4(-.5f, .5f, 0, 1);
-	//						position = Transform_Vector4(local_to_clip, position);
+		//						Vector4 position = new Vector4(-.5f, .5f, 0, 1);
+		//						position = Transform_Vector4(local_to_clip, position);
 
-	//						if (position.w != 0)
-	//							position /= position.w;
+		//						if (position.w != 0)
+		//							position /= position.w;
 
-	//						//place origin at center of screen
-	//						position.x++;
-	//						position.y++;
+		//						//place origin at center of screen
+		//						position.x++;
+		//						position.y++;
 
-	//						//scale space to fill screen
-	//						position.x *= WIDTH / 2;
-	//						position.y *= HEIGHT / 2;
+		//						//scale space to fill screen
+		//						position.x *= WIDTH / 2;
+		//						position.y *= HEIGHT / 2;
 
-	//						Vector4 position2 = new Vector4(.5f, -.5f, 0, 1);
-	//						position2 = Transform_Vector4(local_to_clip, position2);
+		//						Vector4 position2 = new Vector4(.5f, -.5f, 0, 1);
+		//						position2 = Transform_Vector4(local_to_clip, position2);
 
-	//						if (position2.w != 0)
-	//							position2 /= position2.w;
+		//						if (position2.w != 0)
+		//							position2 /= position2.w;
 
-	//						//place origin at center of screen
-	//						position2.x++;
-	//						position2.y++;
+		//						//place origin at center of screen
+		//						position2.x++;
+		//						position2.y++;
 
-	//						//scale space to fill screen
-	//						position2.x *= WIDTH / 2;
-	//						position2.y *= HEIGHT / 2;
+		//						//scale space to fill screen
+		//						position2.x *= WIDTH / 2;
+		//						position2.y *= HEIGHT / 2;
 
-	//						DrawRectangle(blue, position.x, position.y, position2.x - position.x, position2.y - position.y);
-	//					}
+		//						DrawRectangle(blue, position.x, position.y, position2.x - position.x, position2.y - position.y);
+		//					}
 
-	//					for (int i = 0; i < GameplayState.players.Length; i++)
-	//					{
-	//						Matrix4x4 local_to_world = WorldSpaceMatrix(GameplayState.players[i].entity_ID, state.transforms);
-	//						Matrix4x4 camera_to_clip = Perspective(0.1f, 100, state.field_of_view, WIDTH, HEIGHT);
-	//						Matrix4x4 local_to_clip = local_to_world * world_to_camera * camera_to_clip;
+		//					for (int i = 0; i < GameplayState.players.Length; i++)
+		//					{
+		//						Matrix4x4 local_to_world = WorldSpaceMatrix(GameplayState.players[i].entity_ID, state.transforms);
+		//						Matrix4x4 camera_to_clip = Perspective(0.1f, 100, state.field_of_view, WIDTH, HEIGHT);
+		//						Matrix4x4 local_to_clip = local_to_world * world_to_camera * camera_to_clip;
 
-	//						Vector4 position = new Vector4(-.5f, .5f, 0, 1);
-	//						position = Transform_Vector4(local_to_clip, position);
+		//						Vector4 position = new Vector4(-.5f, .5f, 0, 1);
+		//						position = Transform_Vector4(local_to_clip, position);
 
-	//						if (position.w != 0)
-	//							position /= position.w;
+		//						if (position.w != 0)
+		//							position /= position.w;
 
-	//						//place origin at center of screen
-	//						position.x++;
-	//						position.y++;
+		//						//place origin at center of screen
+		//						position.x++;
+		//						position.y++;
 
-	//						//scale space to fill screen
-	//						position.x *= WIDTH / 2;
-	//						position.y *= HEIGHT / 2;
+		//						//scale space to fill screen
+		//						position.x *= WIDTH / 2;
+		//						position.y *= HEIGHT / 2;
 
-	//						Vector4 position2 = new Vector4(.5f, -.5f, 0, 1);
-	//						position2 = Transform_Vector4(local_to_clip, position2);
+		//						Vector4 position2 = new Vector4(.5f, -.5f, 0, 1);
+		//						position2 = Transform_Vector4(local_to_clip, position2);
 
-	//						if (position2.w != 0)
-	//							position2 /= position2.w;
+		//						if (position2.w != 0)
+		//							position2 /= position2.w;
 
-	//						//place origin at center of screen
-	//						position2.x++;
-	//						position2.y++;
+		//						//place origin at center of screen
+		//						position2.x++;
+		//						position2.y++;
 
-	//						//scale space to fill screen
-	//						position2.x *= WIDTH / 2;
-	//						position2.y *= HEIGHT / 2;
+		//						//scale space to fill screen
+		//						position2.x *= WIDTH / 2;
+		//						position2.y *= HEIGHT / 2;
 
-	//						DrawRectangle(blue, position.x, position.y, position2.x - position.x, position2.y - position.y);
-	//					}
-	//				}
-	//			}
-	//		}
+		//						DrawRectangle(blue, position.x, position.y, position2.x - position.x, position2.y - position.y);
+		//					}
+		//				}
+		//			}
+		//		}
 
-	//		//Draw Heads-Up Display (HUD)
-	//		{
-	//			var available_space = WIDTH / GameplayState.PLAYER_COUNT;
-	//			int indent_x = 30;
-	//			int indent_y = 10;
-	//			int max_width = available_space - indent_x * 2;
-	//			int health_height = 15;
-	//			int padding = 4;
-	//			int half_padding = padding / 2;
-	//			for (int player = 0; player < GameplayState.PLAYER_COUNT; player++)
-	//			{
-	//				//Draw HealthBar
-	//				{
-	//					float portion = GameplayState.players[player].current_health / state.max_health;
-	//					int current_width = (int)(portion * max_width);
-	//					int x_pos = indent_x + available_space * player;
-	//					int padded_height = health_height - padding;
-	//					int padded_x_pos = x_pos + half_padding;
-	//					int padded_y_pos = indent_y + half_padding;
+		//		//Draw Heads-Up Display (HUD)
+		//		{
+		//			var available_space = WIDTH / GameplayState.PLAYER_COUNT;
+		//			int indent_x = 30;
+		//			int indent_y = 10;
+		//			int max_width = available_space - indent_x * 2;
+		//			int health_height = 15;
+		//			int padding = 4;
+		//			int half_padding = padding / 2;
+		//			for (int player = 0; player < GameplayState.PLAYER_COUNT; player++)
+		//			{
+		//				//Draw HealthBar
+		//				{
+		//					float portion = GameplayState.players[player].current_health / state.max_health;
+		//					int current_width = (int)(portion * max_width);
+		//					int x_pos = indent_x + available_space * player;
+		//					int padded_height = health_height - padding;
+		//					int padded_x_pos = x_pos + half_padding;
+		//					int padded_y_pos = indent_y + half_padding;
 
-	//					FillRectangle(black, x_pos, indent_y, max_width, health_height);
-	//					FillRectangle(red, padded_x_pos, padded_y_pos, max_width - padding, padded_height);
-	//					FillRectangle(green, padded_x_pos, padded_y_pos, current_width - padding, padded_height);
-	//				}
+		//					FillRectangle(black, x_pos, indent_y, max_width, health_height);
+		//					FillRectangle(red, padded_x_pos, padded_y_pos, max_width - padding, padded_height);
+		//					FillRectangle(green, padded_x_pos, padded_y_pos, current_width - padding, padded_height);
+		//				}
 
-	//				//Draw Stocks
-	//				{
-	//					for (int stock = 0; stock < GameplayState.players[player].stock; stock++)
-	//					{
-	//						FillCircle(GameplayState.player_colors[player], available_space * player + indent_x + 10 + (stock * (20 + 5)), 40, 10);
-	//						Draw_Circle(black, available_space * player + indent_x + 10 + (stock * (25)), 40, 10, 3f);
-	//					}
-	//				}
-	//			}
+		//				//Draw Stocks
+		//				{
+		//					for (int stock = 0; stock < GameplayState.players[player].stock; stock++)
+		//					{
+		//						FillCircle(GameplayState.player_colors[player], available_space * player + indent_x + 10 + (stock * (20 + 5)), 40, 10);
+		//						Draw_Circle(black, available_space * player + indent_x + 10 + (stock * (25)), 40, 10, 3f);
+		//					}
+		//				}
+		//			}
 
-	//			//Draw Timer
-	//			{
-	//				int char_sprite_size = 8;
-	//				DrawString($"{state.time_remaining:F0}", WIDTH / 2 - char_sprite_size * (((int)state.time_remaining).ToString().Length - 1), char_sprite_size * 2);
-	//			}
+		//			//Draw Timer
+		//			{
+		//				int char_sprite_size = 8;
+		//				DrawString($"{state.time_remaining:F0}", WIDTH / 2 - char_sprite_size * (((int)state.time_remaining).ToString().Length - 1), char_sprite_size * 2);
+		//			}
 
-	//			if (state.game_over)
-	//			{
-	//				//Draw Game End Message
-	//				{
-	//					int offset_x = WIDTH / 2, offset_y = HEIGHT / 2;
+		//			if (state.game_over)
+		//			{
+		//				//Draw Game End Message
+		//				{
+		//					int offset_x = WIDTH / 2, offset_y = HEIGHT / 2;
 
-	//					string message = (state.winner == 0) ? "TIE!" : ("PLAYER " + state.winner + " WINS!");
-	//					DrawString(message, offset_x - 5, offset_y - 5);
-	//					DrawString(message, offset_x, offset_y);
-	//				}
-	//			}
-	//		}
+		//					string message = (state.winner == 0) ? "TIE!" : ("PLAYER " + state.winner + " WINS!");
+		//					DrawString(message, offset_x - 5, offset_y - 5);
+		//					DrawString(message, offset_x, offset_y);
+		//				}
+		//			}
+		//		}
 
-	//		if (state.view_debug)
-	//		{
-	//			//Display Game Stats
-	//			{
-	//				DrawString($"FPS: {frames_per_second:F2}", PIXELS_PER_UNIT / 2, 50);
-	//				DrawString($"delta_time: {delta_time:F9}", PIXELS_PER_UNIT / 2, 65);
-	//			}
-	//		}
+		//		if (state.view_debug)
+		//		{
+		//			//Display Game Stats
+		//			{
+		//				DrawString($"FPS: {frames_per_second:F2}", PIXELS_PER_UNIT / 2, 50);
+		//				DrawString($"delta_time: {delta_time:F9}", PIXELS_PER_UNIT / 2, 65);
+		//			}
+		//		}
 
-	//		Flatten();
-	//		OutputRender();
-	//	}
+		Flatten();
+	}
 }
 
-
-void GameplayState_Init(GameplayState state)
+void ResetGame()
 {
-	//ResetGame(state);
-	//for (int i = 0; i < state.blocks.Length; i++)
-	//{
-	//	state.blocks[i] = Transform.Default();
-	//	state.blocks[i].position.x = (i % 10) - 5;
-	//}
-
-	//for (int i = 0; i < 10; i++)
-	//{
-	//	state.blocks[i].position.y = 4f;
-	//}
-
-	//for (int i = 10; i < 20; i++)
-	//{
-	//	state.blocks[i].position.y = -2f;
-	//}
-
-	//for (int i = 20; i < 30; i++)
-	//{
-	//	state.blocks[i].position.y = -3f;
-	//}
-
-	//state.blocks[17].position.y = -1;
-	//state.blocks[15].position.y = -1;
-	//state.blocks[15].position.x -= .25f;
-	//state.blocks[18].scale.x = 50f;
-	//state.blocks[29].scale.x = 10f;
-	//state.blocks[29].position = new Vector3(-10, 1, 0);
-}
-
-void ResetGame(GameplayState state)
-{
-	//state.game_over = false;
-	//state.time_remaining = state.initial_time;
-	//state.skeleton = state.GetSkeleton();
+	gameplay_state.game_over = false;
+	gameplay_state.time_remaining = gameplay_state.initial_time;
+	//gameplay_state.skeleton = GetSkeleton();
 	//state.skeleton[1].position.y = 2;
 
 	//state.transforms = new Transform[state.skeleton.Length * GameplayState.PLAYER_COUNT];
@@ -2526,7 +2706,37 @@ void ResetGame(GameplayState state)
 	//state.camera.scale = Vector3.One;
 }
 
+void GameplayState_Init()
+{
+	ResetGame();
+	//for (int i = 0; i < gameplay_state.blocks.Length; i++)
+	//{
+	//	gameplay_state.blocks[i] = Transform.Default();
+	//	gameplay_state.blocks[i].position.x = (i % 10) - 5;
+	//}
 
+	//for (int i = 0; i < 10; i++)
+	//{
+	//	state.blocks[i].position.y = 4f;
+	//}
+
+	//for (int i = 10; i < 20; i++)
+	//{
+	//	state.blocks[i].position.y = -2f;
+	//}
+
+	//for (int i = 20; i < 30; i++)
+	//{
+	//	state.blocks[i].position.y = -3f;
+	//}
+
+	//state.blocks[17].position.y = -1;
+	//state.blocks[15].position.y = -1;
+	//state.blocks[15].position.x -= .25f;
+	//state.blocks[18].scale.x = 50f;
+	//state.blocks[29].scale.x = 10f;
+	//state.blocks[29].position = new Vector3(-10, 1, 0);
+}
 
 
 //public static void DrawHitbox(Vector3 center, uint color, float width)
@@ -2542,24 +2752,16 @@ void ResetGame(GameplayState state)
 //public Transform[] GetSkeleton()
 //{
 //	if (skeleton == null)
-//		skeleton = LoadHierarchy("avatar");
+//		skeleton = LoadTransformHierarchy("avatar");
 //	return skeleton;
 //}
-
-
-
-
-
-
-
-
 
 void PrintMesh(Mesh mesh)
 {
 	printf("indices:\n");
 	for (int i = 0; i < mesh.indices_length; i += 3)
 	{
-		printf("{ %d, %d, %d }\n", mesh.indices[i], mesh.indices[i+1], mesh.indices[i+2]);
+		printf("{ %d, %d, %d }\n", mesh.indices[i], mesh.indices[i + 1], mesh.indices[i + 2]);
 	}
 
 	printf("vertices:\n");
@@ -2568,8 +2770,6 @@ void PrintMesh(Mesh mesh)
 		printf("{ %+f, %+f, %+f }\n", mesh.vertices[i].x, mesh.vertices[i].y, mesh.vertices[i].z);
 	}
 }
-
-
 
 typedef struct
 {
@@ -2584,13 +2784,11 @@ typedef struct
 		row8;
 } CharSprite;
 
-
-
 char char_dict[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', ' ', '.', ':', ',', '_', '[', ']', '-', };
 #define char_dict_length 44 //TODO don't rely on this magic number long term, at least until you've verified it will stay the same
 CharSprite font_set[char_dict_length];
 
-__declspec(dllexport) void FillSprites(CharSprite* sprites, int count)
+void FillSprites(CharSprite* sprites, int count)
 {
 	for (int i = 0; i < count; i++)
 	{
@@ -2629,10 +2827,711 @@ void DrawString(string s, int x, int y)
 	}
 }
 
+//Transform DefaultTransform()
+//{
+//	return new Transform()
+//	{
+//		parent = -1,
+//		position = Vector3.Zero,
+//		rotation = Vector3.Zero,
+//		scale = Vector3.One
+//	};
+//}
 
 
-void main()
+Skeleton LoadTransformHierarchy(char* path)
 {
-	Mesh mesh = LoadMesh("P:/Assets/cube.obj");
-	PrintMesh(mesh);
+	int joint_count = 0;
+	int file_size = 0;
+
+	FILE* file_pointer = open_file(path, "r");
+	Transform* hierarchy;
+
+	seek_position(file_pointer, 0L, SEEK_END);
+
+	file_size = ftell(file_pointer);
+	joint_count = file_size / sizeof(Transform);
+
+	hierarchy = malloc(file_size);
+
+	rewind(file_pointer);
+	read_bytes(hierarchy, sizeof(Transform), joint_count, file_pointer);
+	close_file(file_pointer);
+
+	Skeleton skel;
+	skel.length = joint_count;
+	skel.joints = hierarchy;
+	return skel;
+}
+
+
+//static class DefinedAnimations
+//{
+//	public static List<AnimationCurve> idle_curves = new List<AnimationCurve>
+//	{
+//		new AnimationCurve()
+//		{
+//			transform_index = 1, //core 
+//			property_tag = 1,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 2 },
+//				new KeyFrame {frame = 30, value = 1.93f },
+//				new KeyFrame {frame = 60, value = 2 },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 1, //core
+//			property_tag = 4,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = .3f },
+//				new KeyFrame {frame = 60, value = .3f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 2, //chest
+//			property_tag = 4,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = .0f },
+//				new KeyFrame {frame = 30, value = .3f },
+//				new KeyFrame {frame = 60, value = .0f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 4,
+//			property_tag = 5,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = Tau / 4f },
+//				new KeyFrame {frame = 30, value = Tau / 5f },
+//				new KeyFrame {frame = 60, value = Tau / 4f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 4,
+//			property_tag = 4,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = Tau / 6f },
+//				new KeyFrame {frame = 30, value = Tau / 8f },
+//				new KeyFrame {frame = 60, value = Tau / 6f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 5,
+//			property_tag = 4,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = Tau / 4f },
+//				new KeyFrame {frame = 30, value = Tau / 3f },
+//				new KeyFrame {frame = 60, value = Tau / 4f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 6,
+//			property_tag = 5,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = -Tau / 4f },
+//				new KeyFrame {frame = 30, value = -Tau / 5f },
+//				new KeyFrame {frame = 60, value = -Tau / 4f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 6,
+//			property_tag = 4,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = -Tau / 6f },
+//				new KeyFrame {frame = 30, value = -Tau / 8f },
+//				new KeyFrame {frame = 60, value = -Tau / 6f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 7,
+//			property_tag = 4,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = -Tau / 4f },
+//				new KeyFrame {frame = 30, value = -Tau / 3f },
+//				new KeyFrame {frame = 60, value = -Tau / 4f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 8,
+//			property_tag = 3,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 0f },
+//				new KeyFrame {frame = 30, value = -0.3f },
+//				new KeyFrame {frame = 60, value = 0f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 9,
+//			property_tag = 3,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 0f },
+//				new KeyFrame {frame = 30, value = 0.6f },
+//				new KeyFrame {frame = 60, value = 0f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 11,
+//			property_tag = 3,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 0.3f },
+//				new KeyFrame {frame = 30, value = 0.0f },
+//				new KeyFrame {frame = 60, value = 0.3f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 12,
+//			property_tag = 3,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 0f },
+//				new KeyFrame {frame = 30, value = 0.6f },
+//				new KeyFrame {frame = 60, value = 0f },
+//			},
+//		},
+//	};
+
+
+//	public static List<AnimationCurve> punch_curves = new List<AnimationCurve>
+//	{
+//		new AnimationCurve()
+//		{
+//			transform_index = 1, //core 
+//			property_tag = 1,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 2 },
+//				new KeyFrame {frame = 30, value = 2 },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 1, //core
+//			property_tag = 4,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = .3f },
+//				new KeyFrame {frame = 30, value = .3f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 2, //chest
+//			property_tag = 4,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = .0f },
+//				new KeyFrame {frame = 15, value = -.9f },
+//				new KeyFrame {frame = 30, value = .0f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 4,
+//			property_tag = 5,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = Tau / 4f },
+//				new KeyFrame {frame = 30, value = Tau / 4f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 4,
+//			property_tag = 4,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = Tau / 6f },
+//				new KeyFrame {frame = 15, value = -Tau / 9f },
+//				new KeyFrame {frame = 30, value = Tau / 6f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 5,
+//			property_tag = 4,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = Tau / 4f },
+//				new KeyFrame {frame = 30, value = Tau / 4f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 6,
+//			property_tag = 5,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = -Tau / 4f },
+//				new KeyFrame {frame = 15, value = 0 },
+//				new KeyFrame {frame = 30, value = -Tau / 4f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 6,
+//			property_tag = 4,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = -Tau / 6f },
+//				new KeyFrame {frame = 15, value = -Tau / 4 },
+//				new KeyFrame {frame = 30, value = -Tau / 6f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 7,
+//			property_tag = 4,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = -Tau / 4f },
+//				new KeyFrame {frame = 15, value = 0 },
+//				new KeyFrame {frame = 30, value = -Tau / 4f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 8,
+//			property_tag = 3,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 0f },
+//				new KeyFrame {frame = 30, value = 0f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 9,
+//			property_tag = 3,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 0f },
+//				new KeyFrame {frame = 30, value = 0f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 11,
+//			property_tag = 3,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 0.3f },
+//				new KeyFrame {frame = 30, value = 0.3f },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 12,
+//			property_tag = 3,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 0f },
+//				new KeyFrame {frame = 30, value = 0f },
+//			},
+//		},
+//	};
+//	public static List<AnimationCurve> jump_curves = new List<AnimationCurve>
+//	{
+//		new AnimationCurve()
+//		{
+//			transform_index = 1, //core 
+//			property_tag = 1,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 0 },
+//				new KeyFrame {frame = 27, value = -0.75f },
+//				new KeyFrame {frame = 30, value = -0.5f },
+//				new KeyFrame {frame = 45, value = 0f },
+//				new KeyFrame {frame = 60, value = 0 },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 8,
+//			property_tag = 3,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 0 },
+//				new KeyFrame {frame = 30, value = -0.5f },
+//				new KeyFrame {frame = 40, value = 0 },
+//				new KeyFrame {frame = 60, value = 0 },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 9,
+//			property_tag = 3,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 0 },
+//				new KeyFrame {frame = 30, value = 1f },
+//				new KeyFrame {frame = 40, value = 0 },
+//				new KeyFrame {frame = 60, value = 0 },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 11,
+//			property_tag = 3,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 0 },
+//				new KeyFrame {frame = 30, value = -0.5f },
+//				new KeyFrame {frame = 40, value = 0 },
+//				new KeyFrame {frame = 60, value = 0 },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 12,
+//			property_tag = 3,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 0 },
+//				new KeyFrame {frame = 30, value = 1f },
+//				new KeyFrame {frame = 40, value = 0 },
+//				new KeyFrame {frame = 60, value = 0 },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 4,
+//			property_tag = 5,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 1 / 4f * Tau },
+//				new KeyFrame {frame = 30, value = 1 / 8f * Tau },
+//				new KeyFrame {frame = 40, value = 1 / 4f * Tau },
+//				new KeyFrame {frame = 60, value = 1 / 4f * Tau },
+//			},
+//		},
+//		new AnimationCurve()
+//		{
+//			transform_index = 6,
+//			property_tag = 5,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = -1 / 4f * Tau },
+//				new KeyFrame {frame = 30, value = -1 / 8f * Tau },
+//				new KeyFrame {frame = 40, value = -1 / 4f * Tau },
+//				new KeyFrame {frame = 60, value = -1 / 4f * Tau },
+//			},
+//		},
+//	};
+//
+//	public static Animation idle_animation = new Animation(){ looped = true, curves = idle_curves };
+//	public static Animation punch_animation = new Animation()
+//	{
+//		looped = true,
+//		curves = punch_curves,
+//		attackbox_keys = new int[][]
+//		{
+//		new int[] { 1 },
+//		new int[] { 1, 5, 20 },
+//		},
+//		attackbox_values = new bool[][]
+//		{
+//		new bool[] { false },
+//		new bool[] { false, true, false },
+//		}
+//	};
+//	public static Animation jump_animation = new Animation(){ curves = jump_curves };
+//	public static Animation die_animation = new Animation()
+//	{
+//		curves = new List<AnimationCurve>
+//	{
+//		new AnimationCurve()
+//		{
+//			transform_index = 1, //core 
+//			property_tag = 1,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 2 },
+//				new KeyFrame {frame = 60, value = 0 },
+//			},
+//		},
+//
+//		new AnimationCurve()
+//		{
+//			transform_index = 1, //core 
+//			property_tag = 3,
+//			keyframes = new KeyFrame[]
+//			{
+//				new KeyFrame {frame = 01, value = 0 },
+//				new KeyFrame {frame = 60, value = 1.6f },
+//			},
+//		},
+//	}
+//	};
+//}
+
+
+//public static KeyFrame[] LoadKeyFrames(string path)
+//{
+//	Stream stream = GetAssetStream(path);
+//	using (BinaryReader reader = new BinaryReader(stream))
+//	{
+//		List<KeyFrame> curve = new List<KeyFrame>();
+//		while (reader.BaseStream.Position != reader.BaseStream.Length)
+//		{
+//			var keyframe = new KeyFrame();
+//			keyframe.frame = reader.ReadSingle();
+//			keyframe.value = reader.ReadSingle();
+//			keyframe.left_handle_x = reader.ReadSingle();
+//			keyframe.left_handle_y = reader.ReadSingle();
+//			keyframe.right_handle_x = reader.ReadSingle();
+//			keyframe.right_handle_y = reader.ReadSingle();
+//			curve.Add(keyframe);
+//		}
+//		return curve.ToArray();
+//	}
+//}
+
+void PrintMatrix(m4x4 m)
+{
+	printf("{ %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f }\n",
+		m.m11, m.m12, m.m13, m.m14, m.m21, m.m22, m.m23, m.m24, m.m31, m.m32, m.m33, m.m34, m.m41, m.m42, m.m43, m.m44);
+}
+
+void PrintAnimation(Animation animation)
+{
+	for (size_t i = 0; i < animation.curves_length; i++)
+	{
+		printf("curve: %d transform: %d, property: %d, keyframe count: %d\n", i, animation.curves[0].transform_index, animation.curves[0].property_offset, animation.curves[0].keyframes_length);
+		for (size_t o = 0; o < animation.curves[0].keyframes_length; o++)
+		{
+			KeyFrame keyframe = animation.curves[0].keyframes[o];
+			printf("keyframe: %d, frame: %.3f, value: %.3f, left handle: { %.3f, %.3f }, right handle: { %.3f, %.3f }\n", o, keyframe.frame, keyframe.value, keyframe.left_handle_x, keyframe.left_handle_y, keyframe.right_handle_x, keyframe.right_handle_y);
+		}
+	}
+}
+__declspec(dllexport) void InitEverything()
+{
+	game.TIME_RECALCULATION_INTERVAL = 1.0f;
+	game.TARGET_FRAMERATE = 60.0f;
+	game.STANDARD_TIMESTEP = 1 / game.TARGET_FRAMERATE;
+	game.time_scale = 1.0f;
+	game.fixed_framerate = false;
+	game.game_state_index = 0;
+	float field_of_view = Tau / 4.0f;
+	camera_to_clip = Perspective(0.1f, 100, field_of_view, WIDTH, HEIGHT);
+
+	//Init Animations
+	{
+		defined_animations.walk_animation.looped = true;
+		defined_animations.walk_animation.curves_length = 12;//12
+		defined_animations.walk_animation.curves = malloc(sizeof(AnimationCurve) * defined_animations.walk_animation.curves_length);
+		
+		defined_animations.walk_animation.curves[0].transform_index = 1; //core
+		defined_animations.walk_animation.curves[0].property_offset = 1;
+		defined_animations.walk_animation.curves[0].keyframes_length = 5;
+		defined_animations.walk_animation.curves[0].keyframes = malloc(5 * sizeof(KeyFrame));
+		defined_animations.walk_animation.curves[0].keyframes[0] = ((KeyFrame) { 1, 2, 0, 0 });
+		defined_animations.walk_animation.curves[0].keyframes[1] = ((KeyFrame) { 8, 1.75f, 0, 0 });
+		defined_animations.walk_animation.curves[0].keyframes[2] = ((KeyFrame) { 16, 2, 0, 0 });
+		defined_animations.walk_animation.curves[0].keyframes[3] = ((KeyFrame) { 24, 1.75f, 0, 0 });
+		defined_animations.walk_animation.curves[0].keyframes[4] = ((KeyFrame) { 32, 2, 0, 0 });
+
+		defined_animations.walk_animation.curves[1].transform_index = 2; //chest
+		defined_animations.walk_animation.curves[1].property_offset = 4;
+		defined_animations.walk_animation.curves[1].keyframes_length = 5;
+		defined_animations.walk_animation.curves[1].keyframes = malloc(5 * sizeof(KeyFrame));
+		defined_animations.walk_animation.curves[1].keyframes[0] = ((KeyFrame) { 1, 0, 0, 0 });
+		defined_animations.walk_animation.curves[1].keyframes[1] = ((KeyFrame) { 8, -0.5f, 0, 0 });
+		defined_animations.walk_animation.curves[1].keyframes[2] = ((KeyFrame) { 16, 0, 0, 0 });
+		defined_animations.walk_animation.curves[1].keyframes[3] = ((KeyFrame) { 24, 0.5f, 0, 0 });
+		defined_animations.walk_animation.curves[1].keyframes[4] = ((KeyFrame) { 32, 0, 0, 0 });
+
+		defined_animations.walk_animation.curves[2].transform_index = 4; //left shoulder
+		defined_animations.walk_animation.curves[2].property_offset = 5;
+		defined_animations.walk_animation.curves[2].keyframes_length = 2;
+		defined_animations.walk_animation.curves[2].keyframes = malloc(2 * sizeof(KeyFrame));
+		defined_animations.walk_animation.curves[2].keyframes[0] = ((KeyFrame) { 1, Tau / 6.0f, 0, 0 });
+		defined_animations.walk_animation.curves[2].keyframes[1] = ((KeyFrame) { 32, Tau / 6.0f, 0, 0 });
+
+		defined_animations.walk_animation.curves[3].transform_index = 4; //left shoulder
+		defined_animations.walk_animation.curves[3].property_offset = 4;
+		defined_animations.walk_animation.curves[3].keyframes_length = 5;
+		defined_animations.walk_animation.curves[3].keyframes = malloc(5 * sizeof(KeyFrame));
+		defined_animations.walk_animation.curves[3].keyframes[0] = ((KeyFrame) { 1, 0, 0, 0 });
+		defined_animations.walk_animation.curves[3].keyframes[1] = ((KeyFrame) { 8, -0.5f, 0, 0 });
+		defined_animations.walk_animation.curves[3].keyframes[2] = ((KeyFrame) { 16, 0, 0, 0 });
+		defined_animations.walk_animation.curves[3].keyframes[3] = ((KeyFrame) { 24, 0.5f, 0, 0 });
+		defined_animations.walk_animation.curves[3].keyframes[4] = ((KeyFrame) { 32, 0, 0, 0 });
+
+		defined_animations.walk_animation.curves[4].transform_index = 5; //left elbow
+		defined_animations.walk_animation.curves[4].property_offset = 4;
+		defined_animations.walk_animation.curves[4].keyframes_length = 2;
+		defined_animations.walk_animation.curves[4].keyframes = malloc(2 * sizeof(KeyFrame));
+		defined_animations.walk_animation.curves[4].keyframes[0] = ((KeyFrame) { 1, 0.5f, 0, 0 });
+		defined_animations.walk_animation.curves[4].keyframes[1] = ((KeyFrame) { 60, 0.5f, 0, 0 });
+
+		defined_animations.walk_animation.curves[5].transform_index = 6; //right shoulder
+		defined_animations.walk_animation.curves[5].property_offset = 5;
+		defined_animations.walk_animation.curves[5].keyframes_length = 2;
+		defined_animations.walk_animation.curves[5].keyframes = malloc(2 * sizeof(KeyFrame));
+		defined_animations.walk_animation.curves[5].keyframes[0] = ((KeyFrame) { 1, -Tau / 6.0f, 0, 0 });
+		defined_animations.walk_animation.curves[5].keyframes[1] = ((KeyFrame) { 32, -Tau / 6.0f, 0, 0 });
+
+		defined_animations.walk_animation.curves[6].transform_index = 6; //right shoulder
+		defined_animations.walk_animation.curves[6].property_offset = 4;
+		defined_animations.walk_animation.curves[6].keyframes_length = 5;
+		defined_animations.walk_animation.curves[6].keyframes = malloc(5 * sizeof(KeyFrame));
+		defined_animations.walk_animation.curves[6].keyframes[0] = ((KeyFrame) { 1, 0, 0, 0 });
+		defined_animations.walk_animation.curves[6].keyframes[1] = ((KeyFrame) { 8, -0.5f, 0, 0 });
+		defined_animations.walk_animation.curves[6].keyframes[2] = ((KeyFrame) { 16, 0, 0, 0 });
+		defined_animations.walk_animation.curves[6].keyframes[3] = ((KeyFrame) { 24, 0.5f, 0, 0 });
+		defined_animations.walk_animation.curves[6].keyframes[4] = ((KeyFrame) { 32, 0, 0, 0 });
+
+		defined_animations.walk_animation.curves[7].transform_index = 7; //right elbow
+		defined_animations.walk_animation.curves[7].property_offset = 4;
+		defined_animations.walk_animation.curves[7].keyframes_length = 2;
+		defined_animations.walk_animation.curves[7].keyframes = malloc(2 * sizeof(KeyFrame));
+		defined_animations.walk_animation.curves[7].keyframes[0] = ((KeyFrame) { 1, -0.5f, 0, 0 });
+		defined_animations.walk_animation.curves[7].keyframes[1] = ((KeyFrame) { 32, -0.5f, 0, 0 });
+
+		defined_animations.walk_animation.curves[8].transform_index = 8; //left hip
+		defined_animations.walk_animation.curves[8].property_offset = 3;
+		defined_animations.walk_animation.curves[8].keyframes_length = 5;
+		defined_animations.walk_animation.curves[8].keyframes = malloc(5 * sizeof(KeyFrame));
+		defined_animations.walk_animation.curves[8].keyframes[0] = ((KeyFrame) { 1, 0, 0, 0 });
+		defined_animations.walk_animation.curves[8].keyframes[1] = ((KeyFrame) { 8, -0.5f, 0, 0 });
+		defined_animations.walk_animation.curves[8].keyframes[2] = ((KeyFrame) { 16, 0, 0, 0 });
+		defined_animations.walk_animation.curves[8].keyframes[3] = ((KeyFrame) { 24, 0.5f, 0, 0 });
+		defined_animations.walk_animation.curves[8].keyframes[4] = ((KeyFrame) { 32, 0, 0, 0 });
+
+		defined_animations.walk_animation.curves[9].transform_index = 9; //left knee
+		defined_animations.walk_animation.curves[9].property_offset = 3;
+		defined_animations.walk_animation.curves[9].keyframes_length = 3;
+		defined_animations.walk_animation.curves[9].keyframes = malloc(3 * sizeof(KeyFrame));
+		defined_animations.walk_animation.curves[9].keyframes[0] = ((KeyFrame) { 1, 0, 0, 0 });
+		defined_animations.walk_animation.curves[9].keyframes[1] = ((KeyFrame) { 16, 0.5f, 0, 0 });
+		defined_animations.walk_animation.curves[9].keyframes[2] = ((KeyFrame) { 32, 0, 0, 0 });
+
+		defined_animations.walk_animation.curves[10].transform_index = 11; //right hip
+		defined_animations.walk_animation.curves[10].property_offset = 3;
+		defined_animations.walk_animation.curves[10].keyframes_length = 5;
+		defined_animations.walk_animation.curves[10].keyframes = malloc(5 * sizeof(KeyFrame));
+		defined_animations.walk_animation.curves[10].keyframes[0] = ((KeyFrame) { 1, 0, 0, 0 });
+		defined_animations.walk_animation.curves[10].keyframes[1] = ((KeyFrame) { 8, 0.5f, 0, 0 });
+		defined_animations.walk_animation.curves[10].keyframes[2] = ((KeyFrame) { 16, 0, 0, 0 });
+		defined_animations.walk_animation.curves[10].keyframes[3] = ((KeyFrame) { 24, -0.5f, 0, 0 });
+		defined_animations.walk_animation.curves[10].keyframes[4] = ((KeyFrame) { 32, 0, 0, 0 });
+
+		defined_animations.walk_animation.curves[11].transform_index = 12; //right knee
+		defined_animations.walk_animation.curves[11].property_offset = 3;
+		defined_animations.walk_animation.curves[11].keyframes_length = 5;
+		defined_animations.walk_animation.curves[11].keyframes = malloc(5 * sizeof(KeyFrame));
+		defined_animations.walk_animation.curves[11].keyframes[0] = ((KeyFrame) { 1, 0, 0, 0 });
+		defined_animations.walk_animation.curves[11].keyframes[1] = ((KeyFrame) { 8, 0, 0, 0 });
+		defined_animations.walk_animation.curves[11].keyframes[2] = ((KeyFrame) { 16, 0, 0, 0 });
+		defined_animations.walk_animation.curves[11].keyframes[3] = ((KeyFrame) { 24, 0.5f, 0, 0 });
+		defined_animations.walk_animation.curves[11].keyframes[4] = ((KeyFrame) { 32, 0, 0, 0 });
+
+		PrintAnimation(defined_animations.walk_animation);
+	}
+
+	SkinnedMeshDemo_Init();
+	InitMeshDemo();
+	GameplayState_Init();
+	LoadSplashScreenImage();
+}
+
+#define state_count 4
+
+__declspec(dllexport) void GameLoop()
+{
+	if (!game.fixed_framerate || game.time_since_last_frame > game.STANDARD_TIMESTEP)
+	{
+		//Tick
+		{
+			//Update Input Devices
+			{
+				PollKeyboard();
+			}
+
+			//Cycle Through GameStates
+			{
+				if (KeyDownFresh(Keys_Tab))
+				{
+					game.game_state_index = (game.game_state_index + 1) % state_count;
+				}
+
+				else if (KeyDownFresh(Keys_Z))
+				{
+					game.game_state_index--;
+					if (game.game_state_index < 0)
+						game.game_state_index += state_count;
+				}
+
+				game.current_game_state = game.game_state_index;
+			}
+
+			game.frames_since_last_second++;
+
+			switch (game.current_game_state)
+			{
+			case SplashScreenState:
+				UpdateSplashScreen();
+				break;
+			case SkinnedMesh:
+				SkinnedMeshDemo_Update();
+				break;
+			case Gameplay:
+				UpdateGameplay();
+				break;
+			case MeshDemo:
+				RunMeshDemo();
+				break;
+			}
+
+			game.time_since_last_frame = 0;
+		}
+	}
+
+	//Update Timing
+	{
+		float elapsed = (float)(clock() - game.previous_time) / CLOCKS_PER_SEC;
+		game.time_since_last_frame += elapsed;
+		game.time_since_timing_recalculated += elapsed;
+
+		game.delta_time = (game.fixed_framerate) ? game.STANDARD_TIMESTEP : (game.time_since_last_frame * game.time_scale);
+
+		if (game.time_since_timing_recalculated >= game.TIME_RECALCULATION_INTERVAL)
+		{
+			game.frames_per_second = game.frames_since_last_second / game.time_since_timing_recalculated;
+			game.time_since_timing_recalculated = game.frames_since_last_second = 0;
+		}
+
+		game.previous_time = clock();
+	}
+}
+
+void LoadFontSet()
+{
+	FILE* file_pointer = open_file("P:/Assets/font_set", "r");
+	fread(font_set, 8, 44, file_pointer);
+	close_file(file_pointer);
 }
