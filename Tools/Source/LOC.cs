@@ -9,7 +9,7 @@ class Program
 		int character_count = 0;
 		DirectoryInfo di = new DirectoryInfo("P:/SourceCode/");
 		
-		foreach(FileInfo file in di.GetFiles("*.cs",SearchOption.AllDirectories))
+		foreach(FileInfo file in di.GetFiles("*.c",SearchOption.AllDirectories))
 		{
 			string[] lines = File.ReadAllLines(file.FullName);
 			line_count += lines.Length;
@@ -17,7 +17,7 @@ class Program
 			character_count += text.Length;
 		}
 		
-		Console.WriteLine("The game contains " + line_count + " lines and " + character_count + " characters of C# code.");
+		Console.WriteLine("The game contains " + line_count + " lines and " + character_count + " characters of C code.");
 
 		System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
 		stopwatch.Start();
