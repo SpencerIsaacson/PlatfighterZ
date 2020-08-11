@@ -5,6 +5,7 @@
 #include <time.h>
 #include <windows.h>
 #include <float.h>
+#include "SDL_Headers/SDL.h"
 
 #define byte char
 #define bool char
@@ -35,6 +36,7 @@
 #define open_file fopen
 #define seek_position fseek
 #define read_bytes fread
+#define write_bytes fwrite
 #define close_file fclose
 
 typedef struct
@@ -46,22 +48,22 @@ typedef struct
 typedef struct
 {
 	float x, y;
-} v2;
+} Vec2;
 
 typedef struct
 {
 	float x, y, z;
-} v3;
+} Vec3;
 
 typedef struct
 {
 	float x, y, z, w;
-} v4;
+} Vec4;
 
 typedef struct
 {
 	int parent;
-	v3
+	Vec3
 		position,
 		rotation,
 		scale;
@@ -111,24 +113,43 @@ typedef struct
 
 typedef struct
 {
-	int transform_index;
-	float radius;
-	bool active;
+	Vec2 position;
+	Vec2 size;
 } Hitbox;
 
-typedef struct
+#define MAX_HITBOX_COUNT 20
+typedef struct 
 {
-	v3 a, b, c;
-	uint color;
-	float brightness;
-} Triangle;
+	int hit_count;
+	int hurt_count;
+	Hitbox boxes[MAX_HITBOX_COUNT];
+} HitFrame;
+
+#define MAX_HITBOX_FRAMES 120
+typedef struct {
+	int frame_count;
+	HitFrame frames[MAX_HITBOX_FRAMES];
+
+} HitboxAnimation;
 
 typedef struct
 {
+	Vec3 a, b, c;
+	uint color;
+	float brightness;
+	Vec2 a_uv, b_uv, c_uv;
+} Triangle;
+
+typedef struct Mesh
+{
 	int vertices_length;
-	v3* vertices;
+	Vec3* vertices;
 	int indices_length;
 	int* indices;
+	int uvs_length;
+	Vec2* uvs;
+	int uv_indices_length;
+	int* uv_indices;
 } Mesh;
 
 typedef struct
@@ -144,12 +165,8 @@ typedef struct
 	bool defeated;
 	int stock;
 	float current_health;
-	v2 velocity;
+	Vec2 velocity;
 	bool grounded;
-	int attackbox_count;
-	Hitbox* attackboxes;
-	int defendbox_count;
-	Hitbox* defendboxes;
 } Player;
 
 
@@ -163,29 +180,31 @@ typedef struct
 float GetMin(float a, float b, float c);
 float GetMax(float a, float b, float c);
 
-typedef enum
+typedef enum GameStates
 {
+	SaveAnimation,
+	AnimationEditor,
 	SplashScreenState,
 	TitleScreen,
+	MainMenu,
+	Level1,
+	CharacterSelect,
 	MeshDemo,
 	SkinnedMesh,
 	Gameplay,
-	Particle
+	Particle, 
+	TextureMappedTriangle,
+	TextureMappedCube
 } GameStates;
 
-#define state_count 6
+#define state_count 13
 
 typedef struct
 {
-	//Resolution
-	int WIDTH;
-	int HEIGHT;
-
 	//Timing
 	float TIME_RECALCULATION_INTERVAL; //1.0f
 	float TARGET_FRAMERATE;// 60.0f
 	float STANDARD_TIMESTEP;// 1 / TARGET_FRAMERATE
-	//	public static Stopwatch stopwatch = new Stopwatch();
 	clock_t previous_time;
 	float delta_time;
 	float time_since_last_frame;
@@ -200,55 +219,6 @@ typedef struct
 
 Game game;
 
-//Linear Algebra
-Transform DefaultTransform();
-Transform InvertTransform(Transform t);
-v3 NegateVector(v3 v);
-m4x4 Concatenate(m4x4 a, m4x4 b);
-m4x4 GetMatrix(Transform t);
-m4x4 WorldSpaceMatrix(int index, Transform hierarchy[]);
-v3 Transform_v3(m4x4 m, v3 v);
-v4 TransformVector4(m4x4 m, v4 v);
-m4x4 Transpose(m4x4 m);
-m4x4 Translation(float x, float y, float z);
-m4x4 Rotation(float x, float y, float z);
-m4x4 Scale(float x, float y, float z);
-v3 v3_Add(v3 a, v3 b);
-v3 v3_Subtract(v3 a, v3 b);
-v3 v3_CrossProduct(v3 a, v3 b);
-v3 v3_Normalized(v3 v);
-float v3_Magnitude(v3 v);
-v3 v3_Scale(v3 v, float s);
-v3 v3_Divide(v3 v, float s);
-v4 v4_Divide(v4 v, float s);
-float v3_DotProduct(v3 a, v3 b);
-//Interpolation
-v2 Lerp_v2(v2 a, v2 b, float t);
-float Lerp_Float(float a, float b, float t);
-void AnimateProperty(AnimationCurve curve, float frame, float* property);
-float Sample(KeyFrame a, KeyFrame b, float frame);
-uint LerpColor(uint a, uint b, float t);
-//Collision
-bool Intersect(Transform a, Transform b);
-//Mesh Operations
-v3 GetCentroid(Triangle t);
-//Sorting
-bool Less(Triangle a, Triangle b);
-void SwapTriangles(Triangle triangles[], int a, int b);
-void SortByDepth(Triangle a[], int length);
-void QuickSort(Triangle a[], int lo, int hi);
-int Partition(Triangle a[], int lo, int hi);
-//Render Pipeline Operations
-v3 CameraToClipToScreen(v3 v);
-//Printing
-void PrintMesh(Mesh mesh);
-void PrintMatrix(m4x4 m);
-//File IO
-Mesh LoadMesh(char* path);
-void LoadFontSet();
-Skeleton LoadTransformHierarchy(char* path);
-uint* LoadPolygonColors(char* path);
-
 uint Darker(uint color)
 {
 	uint r = (color & red ^ black) >> 17 << 16;
@@ -257,97 +227,12 @@ uint Darker(uint color)
 	return black | r | g | b;
 }
 
-Transform InvertTransform(Transform t)
-{
-	t.position = NegateVector(t.position);
-	t.rotation = NegateVector(t.rotation);
-	t.scale.x = 1 / t.scale.x;
-	t.scale.y = 1 / t.scale.y;
-	t.scale.z = 1 / t.scale.z;
-	return t;
-}
-
-v3 NegateVector(v3 v)
+Vec3 NegateVector(Vec3 v)
 {
 	v.x = -v.x;
 	v.y = -v.y;
 	v.z = -v.z;
 	return v;
-}
-
-m4x4 Concatenate(m4x4 a, m4x4 b)
-{
-	m4x4 result;
-	result.m11 = a.m11 * b.m11 + a.m12 * b.m21 + a.m13 * b.m31 + a.m14 * b.m41;
-	result.m12 = a.m11 * b.m12 + a.m12 * b.m22 + a.m13 * b.m32 + a.m14 * b.m42;
-	result.m13 = a.m11 * b.m13 + a.m12 * b.m23 + a.m13 * b.m33 + a.m14 * b.m43;
-	result.m14 = a.m11 * b.m14 + a.m12 * b.m24 + a.m13 * b.m34 + a.m14 * b.m44;
-	result.m21 = a.m21 * b.m11 + a.m22 * b.m21 + a.m23 * b.m31 + a.m24 * b.m41;
-	result.m22 = a.m21 * b.m12 + a.m22 * b.m22 + a.m23 * b.m32 + a.m24 * b.m42;
-	result.m23 = a.m21 * b.m13 + a.m22 * b.m23 + a.m23 * b.m33 + a.m24 * b.m43;
-	result.m24 = a.m21 * b.m14 + a.m22 * b.m24 + a.m23 * b.m34 + a.m24 * b.m44;
-	result.m31 = a.m31 * b.m11 + a.m32 * b.m21 + a.m33 * b.m31 + a.m34 * b.m41;
-	result.m32 = a.m31 * b.m12 + a.m32 * b.m22 + a.m33 * b.m32 + a.m34 * b.m42;
-	result.m33 = a.m31 * b.m13 + a.m32 * b.m23 + a.m33 * b.m33 + a.m34 * b.m43;
-	result.m34 = a.m31 * b.m14 + a.m32 * b.m24 + a.m33 * b.m34 + a.m34 * b.m44;
-	result.m41 = a.m41 * b.m11 + a.m42 * b.m21 + a.m43 * b.m31 + a.m44 * b.m41;
-	result.m42 = a.m41 * b.m12 + a.m42 * b.m22 + a.m43 * b.m32 + a.m44 * b.m42;
-	result.m43 = a.m41 * b.m13 + a.m42 * b.m23 + a.m43 * b.m33 + a.m44 * b.m43;
-	result.m44 = a.m41 * b.m14 + a.m42 * b.m24 + a.m43 * b.m34 + a.m44 * b.m44;
-	return result;
-}
-
-m4x4 GetMatrix(Transform t)
-{
-	m4x4 result = m4x4_identity;
-	result = Concatenate(result, Scale(t.scale.x, t.scale.y, t.scale.z));
-	result = Concatenate(result, Rotation(t.rotation.x, t.rotation.y, t.rotation.z));
-	result = Concatenate(result, Translation(t.position.x, t.position.y, t.position.z));
-	return result;
-}
-
-m4x4 WorldSpaceMatrix(int index, Transform hierarchy[])
-{
-	Transform t = hierarchy[index];
-	m4x4 m = GetMatrix(t);
-	while (t.parent != -1)
-	{
-		m = Concatenate(m, GetMatrix(hierarchy[t.parent]));
-		t = hierarchy[t.parent];
-	}
-
-	return m;
-}
-
-v3 Transform_v3(m4x4 m, v3 v)
-{
-	v3 result =
-	{
-		m.m11 * v.x + m.m21 * v.y + m.m31 * v.z + m.m41,
-		m.m12 * v.x + m.m22 * v.y + m.m32 * v.z + m.m42,
-		m.m13 * v.x + m.m23 * v.y + m.m33 * v.z + m.m43,
-	};
-
-	return result;
-}
-
-v4 Transform_Vector4(m4x4 m, v4 v)
-{
-	v4 result =
-	{
-		m.m11 * v.x + m.m21 * v.y + m.m31 * v.z + m.m41 * v.w,
-		m.m12 * v.x + m.m22 * v.y + m.m32 * v.z + m.m42 * v.w,
-		m.m13 * v.x + m.m23 * v.y + m.m33 * v.z + m.m43 * v.w,
-		m.m14 * v.x + m.m24 * v.y + m.m34 * v.z + m.m44 * v.w,
-	};
-
-	return result;
-}
-
-m4x4 Transpose(m4x4 m)
-{
-	m4x4 transposed = { m.m11, m.m21, m.m31, m.m41, m.m12, m.m22, m.m32, m.m42, m.m13, m.m23, m.m33, m.m43, m.m14, m.m24, m.m34, m.m44 };
-	return transposed;
 }
 
 m4x4 Translation(float x, float y, float z)
@@ -403,27 +288,27 @@ m4x4 Perspective(float near_plane, float far_plane, float field_of_view, float w
 	return result;
 }
 
-v3 v3_Add(v3 a, v3 b)
+Vec3 v3_Add(Vec3 a, Vec3 b)
 {
-	v3 v;
+	Vec3 v;
 	v.x = a.x + b.x;
 	v.y = a.y + b.y;
 	v.z = a.z + b.z;
 	return v;
 }
 
-v3 v3_Subtract(v3 a, v3 b)
+Vec3 v3_Subtract(Vec3 a, Vec3 b)
 {
-	v3 v;
+	Vec3 v;
 	v.x = a.x - b.x;
 	v.y = a.y - b.y;
 	v.z = a.z - b.z;
 	return v;
 }
 
-v3 CrossProduct(v3 a, v3 b)
+Vec3 CrossProduct(Vec3 a, Vec3 b)
 {
-	v3 result =
+	Vec3 result =
 	{
 		a.y * b.z - a.z * b.y,
 		a.z * b.x - a.x * b.z,
@@ -433,40 +318,124 @@ v3 CrossProduct(v3 a, v3 b)
 	return result;
 }
 
-v3 v3_Normalized(v3 v)
-{
-	return v3_Divide(v, v3_Magnitude(v));
-}
-
-float v3_Magnitude(v3 v)
+float v3_Magnitude(Vec3 v)
 {
 	return (float)sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
-v3 v3_Scale(v3 v, float s)
+Vec3 v3_Scale(Vec3 v, float s)
 {
-	v3 result = { v.x * s, v.y * s, v.z * s };
+	Vec3 result = { v.x * s, v.y * s, v.z * s };
 	return result;
 }
 
-v3 v3_Divide(v3 v, float s)
+Vec3 v3_Divide(Vec3 v, float s)
 {
-	v3 result = { v.x / s, v.y / s, v.z / s };
+	Vec3 result = { v.x / s, v.y / s, v.z / s };
 	return result;
 }
 
-v4 v4_Divide(v4 v, float s)
+Vec4 v4_Divide(Vec4 v, float s)
 {
-	v4 result = { v.x / s, v.y / s, v.z / s, v.w / s };
+	Vec4 result = { v.x / s, v.y / s, v.z / s, v.w / s };
 	return result;
 }
 
-float v3_DotProduct(v3 a, v3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+float v3_DotProduct(Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 
-
-v2 Lerp_v2(v2 a, v2 b, float t)
+Vec3 v3_Normalized(Vec3 v)
 {
-	v2 v;
+	return v3_Divide(v, v3_Magnitude(v));
+}
+
+Transform InvertTransform(Transform t)
+{
+	t.position = NegateVector(t.position);
+	t.rotation = NegateVector(t.rotation);
+	t.scale.x = 1 / t.scale.x;
+	t.scale.y = 1 / t.scale.y;
+	t.scale.z = 1 / t.scale.z;
+	return t;
+}
+
+m4x4 Concatenate(m4x4 a, m4x4 b)
+{
+	m4x4 result;
+	result.m11 = a.m11 * b.m11 + a.m12 * b.m21 + a.m13 * b.m31 + a.m14 * b.m41;
+	result.m12 = a.m11 * b.m12 + a.m12 * b.m22 + a.m13 * b.m32 + a.m14 * b.m42;
+	result.m13 = a.m11 * b.m13 + a.m12 * b.m23 + a.m13 * b.m33 + a.m14 * b.m43;
+	result.m14 = a.m11 * b.m14 + a.m12 * b.m24 + a.m13 * b.m34 + a.m14 * b.m44;
+	result.m21 = a.m21 * b.m11 + a.m22 * b.m21 + a.m23 * b.m31 + a.m24 * b.m41;
+	result.m22 = a.m21 * b.m12 + a.m22 * b.m22 + a.m23 * b.m32 + a.m24 * b.m42;
+	result.m23 = a.m21 * b.m13 + a.m22 * b.m23 + a.m23 * b.m33 + a.m24 * b.m43;
+	result.m24 = a.m21 * b.m14 + a.m22 * b.m24 + a.m23 * b.m34 + a.m24 * b.m44;
+	result.m31 = a.m31 * b.m11 + a.m32 * b.m21 + a.m33 * b.m31 + a.m34 * b.m41;
+	result.m32 = a.m31 * b.m12 + a.m32 * b.m22 + a.m33 * b.m32 + a.m34 * b.m42;
+	result.m33 = a.m31 * b.m13 + a.m32 * b.m23 + a.m33 * b.m33 + a.m34 * b.m43;
+	result.m34 = a.m31 * b.m14 + a.m32 * b.m24 + a.m33 * b.m34 + a.m34 * b.m44;
+	result.m41 = a.m41 * b.m11 + a.m42 * b.m21 + a.m43 * b.m31 + a.m44 * b.m41;
+	result.m42 = a.m41 * b.m12 + a.m42 * b.m22 + a.m43 * b.m32 + a.m44 * b.m42;
+	result.m43 = a.m41 * b.m13 + a.m42 * b.m23 + a.m43 * b.m33 + a.m44 * b.m43;
+	result.m44 = a.m41 * b.m14 + a.m42 * b.m24 + a.m43 * b.m34 + a.m44 * b.m44;
+	return result;
+}
+
+m4x4 GetMatrix(Transform t)
+{
+	m4x4 result = m4x4_identity;
+	result = Concatenate(result, Scale(t.scale.x, t.scale.y, t.scale.z));
+	result = Concatenate(result, Rotation(t.rotation.x, t.rotation.y, t.rotation.z));
+	result = Concatenate(result, Translation(t.position.x, t.position.y, t.position.z));
+	return result;
+}
+
+m4x4 WorldSpaceMatrix(int index, Transform hierarchy[])
+{
+	Transform t = hierarchy[index];
+	m4x4 m = GetMatrix(t);
+	while (t.parent != -1)
+	{
+		m = Concatenate(m, GetMatrix(hierarchy[t.parent]));
+		t = hierarchy[t.parent];
+	}
+
+	return m;
+}
+
+Vec3 Transform_v3(m4x4 m, Vec3 v)
+{
+	Vec3 result =
+	{
+		m.m11 * v.x + m.m21 * v.y + m.m31 * v.z + m.m41,
+		m.m12 * v.x + m.m22 * v.y + m.m32 * v.z + m.m42,
+		m.m13 * v.x + m.m23 * v.y + m.m33 * v.z + m.m43,
+	};
+
+	return result;
+}
+
+Vec4 Transform_Vector4(m4x4 m, Vec4 v)
+{
+	Vec4 result =
+	{
+		m.m11 * v.x + m.m21 * v.y + m.m31 * v.z + m.m41 * v.w,
+		m.m12 * v.x + m.m22 * v.y + m.m32 * v.z + m.m42 * v.w,
+		m.m13 * v.x + m.m23 * v.y + m.m33 * v.z + m.m43 * v.w,
+		m.m14 * v.x + m.m24 * v.y + m.m34 * v.z + m.m44 * v.w,
+	};
+
+	return result;
+}
+
+m4x4 Transpose(m4x4 m)
+{
+	m4x4 transposed = { m.m11, m.m21, m.m31, m.m41, m.m12, m.m22, m.m32, m.m42, m.m13, m.m23, m.m33, m.m43, m.m14, m.m24, m.m34, m.m44 };
+	return transposed;
+}
+
+Vec2 Lerp_v2(Vec2 a, Vec2 b, float t)
+{
+	Vec2 v;
 	v.x = a.x + (t * (b.x - a.x));
 	v.y = a.y + (t * (b.y - a.y));
 	return v;
@@ -475,6 +444,24 @@ v2 Lerp_v2(v2 a, v2 b, float t)
 float Lerp_Float(float a, float b, float t)
 {
 	return a + t * (b - a);
+}
+
+float Sample(KeyFrame a, KeyFrame b, float frame)
+{
+	float t = (frame - a.frame) / (b.frame - a.frame);
+
+	Vec2 c1 = { a.frame, a.value };
+	Vec2 c2 = { a.frame + a.right_handle_x, a.value + a.right_handle_y };
+	Vec2 c3 = { b.frame + b.left_handle_x, b.value + b.left_handle_y };
+	Vec2 c4 = { b.frame, b.value };
+	Vec2 d = Lerp_v2(c1, c2, t);
+	Vec2 e = Lerp_v2(c2, c3, t);
+	Vec2 f = Lerp_v2(c3, c4, t);
+	Vec2 g = Lerp_v2(d, e, t);
+	Vec2 h = Lerp_v2(e, f, t);
+	Vec2 i = Lerp_v2(g, h, t);
+
+	return i.y;
 }
 
 void AnimateProperty(AnimationCurve curve, float frame, float* property)
@@ -497,24 +484,6 @@ void AnimateProperty(AnimationCurve curve, float frame, float* property)
 	}
 }
 
-float Sample(KeyFrame a, KeyFrame b, float frame)
-{
-	float t = (frame - a.frame) / (b.frame - a.frame);
-
-	v2 c1 = { a.frame, a.value };
-	v2 c2 = { a.frame + a.right_handle_x, a.value + a.right_handle_y };
-	v2 c3 = { b.frame + b.left_handle_x, b.value + b.left_handle_y };
-	v2 c4 = { b.frame, b.value };
-	v2 d = Lerp_v2(c1, c2, t);
-	v2 e = Lerp_v2(c2, c3, t);
-	v2 f = Lerp_v2(c3, c4, t);
-	v2 g = Lerp_v2(d, e, t);
-	v2 h = Lerp_v2(e, f, t);
-	v2 i = Lerp_v2(g, h, t);
-
-	return i.y;
-}
-
 bool Intersect(Transform a, Transform b)
 {
 	float ax_half = a.scale.x / 2;
@@ -534,9 +503,9 @@ bool Intersect(Transform a, Transform b)
 	return a_right > b_left && a_left < b_right && a_top > b_bottom && a_bottom < b_top;
 }
 
-v3 GetCentroid(Triangle t)
+Vec3 GetCentroid(Triangle t)
 {
-	v3 v = v3_Add(v3_Add(t.a, t.b), t.c);
+	Vec3 v = v3_Add(v3_Add(t.a, t.b), t.c);
 	v.x /= 3;
 	v.y /= 3;
 	v.z /= 3;
@@ -545,8 +514,8 @@ v3 GetCentroid(Triangle t)
 
 bool Less(Triangle a, Triangle b)
 {
-	v3 a_centroid = GetCentroid(a);
-	v3 b_centroid = GetCentroid(b);
+	Vec3 a_centroid = GetCentroid(a);
+	Vec3 b_centroid = GetCentroid(b);
 
 	return a_centroid.z < b_centroid.z;
 }
@@ -556,19 +525,6 @@ void SwapTriangles(Triangle triangles[], int a, int b)
 	Triangle temp = triangles[a];
 	triangles[a] = triangles[b];
 	triangles[b] = temp;
-}
-
-void SortByDepth(Triangle a[], int length)
-{
-	QuickSort(a, 0, length - 1);
-}
-
-void QuickSort(Triangle a[], int lo, int hi)
-{
-	if (hi <= lo) return;
-	int j = Partition(a, lo, hi);
-	QuickSort(a, lo, j - 1);
-	QuickSort(a, j + 1, hi);
 }
 
 int Partition(Triangle a[], int lo, int hi)
@@ -598,6 +554,19 @@ int Partition(Triangle a[], int lo, int hi)
 	return j;
 }
 
+void QuickSort(Triangle a[], int lo, int hi)
+{
+	if (hi <= lo) return;
+	int j = Partition(a, lo, hi);
+	QuickSort(a, lo, j - 1);
+	QuickSort(a, j + 1, hi);
+}
+
+void SortByDepth(Triangle a[], int length)
+{
+	QuickSort(a, 0, length - 1);
+}
+
 typedef struct
 {
 	byte
@@ -617,10 +586,11 @@ CharSprite font_set[char_dict_length];
 
 float light_rotation = 0;
 m4x4 camera_to_clip;
-int WIDTH, HEIGHT;
+int WIDTH, HEIGHT, pixel_count;
 uint* pixels;
 
 Mesh mesh;
+Mesh cube_mesh;
 Transform cube_transform;
 Transform mesh_demo_camera;
 
@@ -632,6 +602,7 @@ typedef struct
 	float time;
 	float alpha;
 	Bitmap logo;
+	int x_min, x_max, y_min, y_max;
 } SplashScreen;
 
 SplashScreen splash;
@@ -640,23 +611,38 @@ __declspec(dllexport) void InitViewport(int width, int height, uint _pixels[])  
 {
 	WIDTH = width;
 	HEIGHT = height;
+	pixel_count = WIDTH*HEIGHT;
 	pixels = &_pixels[0];
+}
+
+InitViewport2(int width, int height)  //TODO move more state here and out of the "run" arguments
+{
+	WIDTH = width;
+	HEIGHT = height;
+	pixel_count = WIDTH*HEIGHT;
 }
 
 void Clear()
 {
-	memset(pixels, 0, WIDTH * HEIGHT * sizeof(uint));
+	memset(pixels, 0, pixel_count * sizeof(uint));
 }
 
 void Fill(uint color)
 {
-	for (int i = 0; i < WIDTH * HEIGHT; i++)
+	for (int i = 0; i < pixel_count; i+=8)
 	{
-		pixels[i] = color;
+		pixels[i+0] = color;
+		pixels[i+1] = color;
+		pixels[i+2] = color;
+		pixels[i+3] = color;
+		pixels[i+4] = color;
+		pixels[i+5] = color;
+		pixels[i+6] = color;
+		pixels[i+7] = color;								
 	}
 }
 
-void PutPixel(uint color, int x, int y)
+void PutPixel_ByPosition(uint color, int x, int y)
 {
 	if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT)
 		pixels[y * WIDTH + x] = color;
@@ -664,7 +650,7 @@ void PutPixel(uint color, int x, int y)
 
 void PutPixel_ByIndex(uint color, int i)
 {
-	if (i >= 0 && i < WIDTH * HEIGHT)
+	if (i >= 0 && i < pixel_count)
 		pixels[i] = color;
 }
 
@@ -675,7 +661,7 @@ void DrawHorizontalSegment(uint color, int y, int x1, int x2)
 	for (int i = pixel_row + x1; i <= pixel_row + x2; i++)
 	{
 		int x = i - pixel_row;
-		PutPixel(color, x, y);
+		PutPixel_ByPosition(color, x, y);
 	}
 }
 
@@ -765,7 +751,7 @@ void FillTriangle(uint color, int x1, int y1, int x2, int y2, int x3, int y3)
 	}
 }
 
-v3 ToBarycentricSpace(float v_x, float v_y, v2 a, v2 b, v2 c)
+Vec3 ToBarycentricSpace(float v_x, float v_y, Vec2 a, Vec2 b, Vec2 c)
 {
 	float b1, b2, b3;
 	float denom = (a.y - c.y) * (b.x - c.x) + (b.y - c.y) * (c.x - a.x);
@@ -774,11 +760,51 @@ v3 ToBarycentricSpace(float v_x, float v_y, v2 a, v2 b, v2 c)
 	b2 = ((v_y - a.y) * (c.x - a.x) + (c.y - a.y) * (a.x - v_x)) / denom;
 	b3 = ((v_y - b.y) * (a.x - b.x) + (a.y - b.y) * (b.x - v_x)) / denom;
 
-	v3 result = { b1, b2, b3 };
+	Vec3 result = { b1, b2, b3 };
 	return result;
 }
 
-void FillTriangle_VertexColors(v2 a, v2 b, v2 c, uint a_color, uint b_color, uint c_color)
+Vec2 FromBaryCentricSpace(float b1, float b2, float b3, Vec2 a, Vec2 b, Vec2 c)
+{
+	float v_x, v_y;
+
+	v_x = b1*a.x + b2*b.x + b3*c.x;
+	v_y = b1*a.y + b2*b.y + b3*c.y;
+	Vec2 result = {v_x, v_y};
+	return result;
+}
+
+uint LerpColor(uint a, uint b, float t)
+{
+	//separate out channels
+	uint a_a = (0xFF000000 & a) >> 24;
+	uint a_r = (0x00FF0000 & a) >> 16;
+	uint a_g = (0x0000FF00 & a) >> 8;
+	uint a_b = (0x000000FF & a);
+	uint b_a = (0xFF000000 & b) >> 24;
+	uint b_r = (0x00FF0000 & b) >> 16;
+	uint b_g = (0x0000FF00 & b) >> 8;
+	uint b_b = (0x000000FF & b);
+
+	//lerp per channel
+	uint l_a = (uint)(((float)a_a) + (t * ((float)b_a - (float)a_a)));
+	uint l_r = (uint)(((float)a_r) + (t * ((float)b_r - (float)a_r)));
+	uint l_g = (uint)(((float)a_g) + (t * ((float)b_g - (float)a_g)));
+	uint l_b = (uint)(((float)a_b) + (t * ((float)b_b - (float)a_b)));
+
+
+	//align lerped channels
+	l_a <<= 24;
+	l_r <<= 16;
+	l_g <<= 8;
+
+
+	//reassemble channels
+	uint l = l_a | l_r | l_g | l_b;
+	return l;
+}
+
+void FillTriangle_VertexColors(Vec2 a, Vec2 b, Vec2 c, uint a_color, uint b_color, uint c_color)
 {
 	int x_min = (int)GetMin(a.x, b.x, c.x);
 	int y_min = (int)GetMin(a.y, b.y, c.y);
@@ -790,22 +816,64 @@ void FillTriangle_VertexColors(v2 a, v2 b, v2 c, uint a_color, uint b_color, uin
 	{
 		for (int _y = y_min; _y <= y_max; _y++)
 		{
-			v3 v = ToBarycentricSpace(_x, _y, a, b, c);
+			Vec3 v = ToBarycentricSpace(_x, _y, a, b, c);
 			bool in_triangle = !(v.x < 0 || v.y < 0 || v.z < 0);
 			if (in_triangle)
 			{
 				uint d_color = LerpColor(c_color, a_color, v.x);
 				uint e_color = LerpColor(a_color, b_color, v.y);
 				uint f_color = LerpColor(e_color, d_color, v.z);
-				PutPixel(f_color, _x, _y);
+				PutPixel_ByPosition(f_color, _x, _y);
 			}
 		}
 	}
 }
 
-v3 CameraToClipToScreen(v3 v)
+void FillTriangle_Texture(Vec2 a, Vec2 b, Vec2 c, Vec2 a_uv, Vec2 b_uv, Vec2 c_uv, Bitmap texture)
 {
-	v4 v_4 = { v.x, v.y, v.z, 1 };
+	int x_min = (int)GetMin(a.x, b.x, c.x);
+	int y_min = (int)GetMin(a.y, b.y, c.y);
+	int x_max = (int)roundf(GetMax(a.x, b.x, c.x));
+	int y_max = (int)roundf(GetMax(a.y, b.y, c.y));
+
+
+	for (int _x = x_min; _x <= x_max; _x++)
+	{
+		for (int _y = y_min; _y <= y_max; _y++)
+		{
+			Vec3 v = ToBarycentricSpace(_x, _y, a, b, c);
+			bool in_triangle = !(v.x < 0 || v.y < 0 || v.z < 0);
+			if (in_triangle)
+			{
+				Vec2 v_uv = FromBaryCentricSpace(v.x, v.y, v.z, a_uv, b_uv, c_uv);
+				
+				while(v_uv.y > 1)
+					v_uv.y--;
+
+				while(v_uv.x > 1)
+					v_uv.x--;
+
+				v_uv.x*=texture.width-1;
+				v_uv.y*=texture.height-1;
+
+				int texture_index = (int)v_uv.y*texture.width+(int)v_uv.x;
+				
+				if(texture_index >= texture.width*texture.height)
+					texture_index = texture.width*texture.height - 1;
+				else if(texture_index < 0)
+					texture_index = 0;
+				
+				uint color_from_texture = texture.pixels[texture_index];
+				PutPixel_ByPosition(color_from_texture, _x, _y);
+			}
+		}
+	}
+}
+
+
+Vec3 CameraToClipToScreen(Vec3 v)
+{
+	Vec4 v_4 = { v.x, v.y, v.z, 1 };
 	v_4 = Transform_Vector4(camera_to_clip, v_4); //Projection
 
 	v.x = v_4.x;
@@ -841,34 +909,16 @@ void FillVerticalGradient(uint color1, uint color2)
 	}
 }
 
-uint LerpColor(uint a, uint b, float t)
+void FillHorizontalGradient(uint color1, uint color2)
 {
-	//separate out channels
-	uint a_a = (0xFF000000 & a) >> 24;
-	uint a_r = (0x00FF0000 & a) >> 16;
-	uint a_g = (0x0000FF00 & a) >> 8;
-	uint a_b = (0x000000FF & a);
-	uint b_a = (0xFF000000 & b) >> 24;
-	uint b_r = (0x00FF0000 & b) >> 16;
-	uint b_g = (0x0000FF00 & b) >> 8;
-	uint b_b = (0x000000FF & b);
-
-	//lerp per channel
-	uint l_a = (uint)(((float)a_a) + (t * ((float)b_a - (float)a_a)));
-	uint l_r = (uint)(((float)a_r) + (t * ((float)b_r - (float)a_r)));
-	uint l_g = (uint)(((float)a_g) + (t * ((float)b_g - (float)a_g)));
-	uint l_b = (uint)(((float)a_b) + (t * ((float)b_b - (float)a_b)));
-
-
-	//align lerped channels
-	l_a <<= 24;
-	l_r <<= 16;
-	l_g <<= 8;
-
-
-	//reassemble channels
-	uint l = l_a | l_r | l_g | l_b;
-	return l;
+	for (int x = 0; x < WIDTH; x++)
+	{
+		uint color = LerpColor(color1, color2, x / (float)WIDTH);
+		for (int y = 0; y < HEIGHT; y++)
+		{
+			pixels[y * WIDTH + x] = color;
+		}
+	}
 }
 
 uint BlendColor(uint s, uint d)
@@ -906,14 +956,14 @@ uint BlendColor(uint s, uint d)
 	return result;
 }
 
-Mesh LoadMesh(char* path)
+Mesh LoadMeshWithUVindices(char* path)
 {
 	FILE* fp = fopen(path, "r");
 	int line_number = 0;
 
 	int vertex_count = 0;
 	int index_count = 0;
-
+	int uv_count = 0;
 	while (true)
 	{
 		char str[500];
@@ -927,6 +977,9 @@ Mesh LoadMesh(char* path)
 		case 'v':
 			vertex_count++;
 			break;
+		case 'u': //TODO replace with vt
+			uv_count++;
+			break;			
 		case 'f':
 			index_count += 3;
 			break;
@@ -938,16 +991,24 @@ Mesh LoadMesh(char* path)
 	rewind(fp);
 
 	Mesh return_mesh;
-	v3* vertices = malloc(sizeof(v3) * vertex_count);
+	Vec3* vertices = malloc(sizeof(Vec3) * vertex_count);
+	Vec2* uvs = malloc(sizeof(Vec2) * uv_count);
 	int* indices = malloc(sizeof(int) * index_count);
+	int* uv_indices = malloc(sizeof(int) * index_count);
 
 	return_mesh.vertices = vertices;
 	return_mesh.vertices_length = vertex_count;
 	return_mesh.indices = indices;
 	return_mesh.indices_length = index_count;
+	return_mesh.uvs = uvs;
+	return_mesh.uvs_length = uv_count;
+	return_mesh.uv_indices = uv_indices;
+	return_mesh.uv_indices_length = index_count;
 
 	int vertex = 0;
-	int index = 0;
+	int vertex_index = 0;
+	int uv = 0;
+	int uv_index = 0;
 
 	while (true)
 	{
@@ -960,37 +1021,174 @@ Mesh LoadMesh(char* path)
 		char* ptr;
 		switch (*token)
 		{
+			case 'v':
+			{
+
+				token = strtok(NULL, " ");
+				float x = (float)strtod(token, &ptr);
+				token = strtok(NULL, " ");
+				float y = (float)strtod(token, &ptr);
+				token = strtok(NULL, " ");
+				float z = (float)strtod(token, &ptr);
+				Vec3 v = { x, y, z };
+				return_mesh.vertices[vertex++] = v;
+			} break;
+			case 'u': //TODO replace with vt
+			{
+				token = strtok(NULL, " ");
+				float u = (float)strtod(token, &ptr);
+				token = strtok(NULL, " ");
+				float v = (float)strtod(token, &ptr);
+				Vec2 v2 = { u, v };
+				return_mesh.uvs[uv++] = v2;
+			} break;			
+			case 'f':
+				token = strtok(NULL, " /");
+				int a = (int)strtol(token, &ptr, 10);
+
+				token = strtok(NULL, "/ ");
+				int uv_a = (int)strtol(token, &ptr, 10);
+
+				token = strtok(NULL, " /");
+				int b = (int)strtol(token, &ptr, 10);
+
+				token = strtok(NULL, "/ ");
+				int uv_b = (int)strtol(token, &ptr, 10);
+
+				token = strtok(NULL, " /");
+				int c = (int)strtol(token, &ptr, 10);
+
+				token = strtok(NULL, "/ ");
+				int uv_c = (int)strtol(token, &ptr, 10);
+
+				return_mesh.indices[vertex_index++] = a - 1;
+				return_mesh.indices[vertex_index++] = b - 1;
+				return_mesh.indices[vertex_index++] = c - 1;
+
+				return_mesh.uv_indices[uv_index++] = uv_a - 1;
+				return_mesh.uv_indices[uv_index++] = uv_b - 1;
+				return_mesh.uv_indices[uv_index++] = uv_c - 1;
+				break;
+			case '\n':
+				//empty line
+				break;
+			default:
+				//unsupported line ignored
+				break;
+		}
+	}
+
+	close_file(fp);
+	return return_mesh;
+}
+
+Mesh LoadMesh(char* path)
+{
+	FILE* fp = fopen(path, "r");
+	int line_number = 0;
+
+	int vertex_count = 0;
+	int index_count = 0;
+	int uv_count = 0;
+	while (true)
+	{
+		char str[500];
+		char* line = fgets(str, 500, fp);
+		if (feof(fp))
+			break;
+		char* token = strtok(line, " ");
+		char* ptr;
+		switch (*token)
+		{
 		case 'v':
-			token = strtok(NULL, " ");
-			float x = (float)strtod(token, &ptr);
-			token = strtok(NULL, " ");
-			float y = (float)strtod(token, &ptr);
-			token = strtok(NULL, " ");
-			float z = (float)strtod(token, &ptr);
-			v3 v = { x, y, z };
-			return_mesh.vertices[vertex++] = v;
+			vertex_count++;
 			break;
+		case 'u': //TODO replace with vt
+			uv_count++;
+			break;			
 		case 'f':
-			token = strtok(NULL, " ");
-			int a = (int)strtol(token, &ptr, 10);
-			token = strtok(NULL, " ");
-			int b = (int)strtol(token, &ptr, 10);
-			token = strtok(NULL, " ");
-			int c = (int)strtol(token, &ptr, 10);
-			return_mesh.indices[index++] = a - 1;
-			return_mesh.indices[index++] = b - 1;
-			return_mesh.indices[index++] = c - 1;
-			break;
-		case '\n':
-			//empty line
+			index_count += 3;
 			break;
 		default:
-			//unsupported line ignored
 			break;
 		}
 	}
 
-	fclose(fp);
+	rewind(fp);
+
+	Mesh return_mesh;
+	Vec3* vertices = malloc(sizeof(Vec3) * vertex_count);
+	Vec2* uvs = malloc(sizeof(Vec2) * uv_count);
+	int* indices = malloc(sizeof(int) * index_count);
+	int* uv_indices = malloc(sizeof(int) * index_count);
+
+	return_mesh.vertices = vertices;
+	return_mesh.vertices_length = vertex_count;
+	return_mesh.indices = indices;
+	return_mesh.indices_length = index_count;
+	return_mesh.uvs = uvs;
+	return_mesh.uvs_length = uv_count;
+	return_mesh.uv_indices = uv_indices;
+	return_mesh.uv_indices_length = index_count;
+
+	int vertex = 0;
+	int vertex_index = 0;
+	int uv = 0;
+	int uv_index = 0;
+
+	while (true)
+	{
+		char str[500];
+		char* line = fgets(str, 500, fp);
+		if (feof(fp))
+			break;
+		line_number++;
+		char* token = strtok(line, " ");
+		char* ptr;
+		switch (*token)
+		{
+			case 'v':
+			{
+
+				token = strtok(NULL, " ");
+				float x = (float)strtod(token, &ptr);
+				token = strtok(NULL, " ");
+				float y = (float)strtod(token, &ptr);
+				token = strtok(NULL, " ");
+				float z = (float)strtod(token, &ptr);
+				Vec3 v = { x, y, z };
+				return_mesh.vertices[vertex++] = v;
+			} break;
+			case 'u': //TODO replace with vt
+			{
+				token = strtok(NULL, " ");
+				float u = (float)strtod(token, &ptr);
+				token = strtok(NULL, " ");
+				float v = (float)strtod(token, &ptr);
+				Vec2 v2 = { u, v };
+				return_mesh.uvs[uv++] = v2;
+			} break;			
+			case 'f':
+				token = strtok(NULL, " ");
+				int a = (int)strtol(token, &ptr, 10);
+				token = strtok(NULL, " ");
+				int b = (int)strtol(token, &ptr, 10);
+				token = strtok(NULL, " ");
+				int c = (int)strtol(token, &ptr, 10);
+				return_mesh.indices[vertex_index++] = a - 1;
+				return_mesh.indices[vertex_index++] = b - 1;
+				return_mesh.indices[vertex_index++] = c - 1;
+				break;
+			case '\n':
+				//empty line
+				break;
+			default:
+				//unsupported line ignored
+				break;
+		}
+	}
+
+	close_file(fp);
 	return return_mesh;
 }
 
@@ -1019,7 +1217,7 @@ void DrawLine(uint color, float x1, float y1, float x2, float y2)
 		for (float x = x1; x <= x2; x++)
 		{
 			float y = (y1 + dy * (x - x1) / dx);
-			PutPixel(color, (int)x, (int)y);
+			PutPixel_ByPosition(color, (int)x, (int)y);
 		}
 	}
 	else
@@ -1036,7 +1234,7 @@ void DrawLine(uint color, float x1, float y1, float x2, float y2)
 		for (float y = y1; y <= y2; y++)
 		{
 			float x = (x1 + dx * (y - y1) / dy);
-			PutPixel(color, (int)x, (int)y);
+			PutPixel_ByPosition(color, (int)x, (int)y);
 		}
 	}
 }
@@ -1051,7 +1249,7 @@ void DrawRectangle(uint color, float x, float y, float width, float height)
 
 void Flatten()
 {
-	for (int i = 0; i < WIDTH * HEIGHT; i++)
+	for (int i = 0; i < pixel_count; i++)
 	{
 		pixels[i] |= black;
 	}
@@ -1063,7 +1261,7 @@ void FillRectangle_Blend(uint color, int x, int y, int width, int height)
 	{
 		for (int _y = 0; _y < height; _y++)
 		{
-			PutPixel(BlendColor(color, pixels[(y + _y) * WIDTH + (x + _x)]), _x + x, _y + y);
+			PutPixel_ByPosition(BlendColor(color, pixels[(y + _y) * WIDTH + (x + _x)]), _x + x, _y + y);
 		}
 	}
 }
@@ -1076,7 +1274,7 @@ void  DrawHorizontal_Blend(uint color, int y)
 
 void DrawVertical_Blend(uint color, int x)
 {
-	for (int i = x; i < (WIDTH * HEIGHT) - WIDTH - x; i += WIDTH)
+	for (int i = x; i < pixel_count - WIDTH - x; i += WIDTH)
 	{
 		PutPixel_ByIndex(BlendColor(color, pixels[i]), i);
 	}
@@ -1084,7 +1282,7 @@ void DrawVertical_Blend(uint color, int x)
 
 void DrawVertical(uint color, int x)
 {
-	for (int i = x; i < (WIDTH * HEIGHT) - WIDTH - x; i += WIDTH)
+	for (int i = x; i < pixel_count - WIDTH - x; i += WIDTH)
 	{
 		pixels[i] = color;
 	}
@@ -1115,7 +1313,7 @@ void FillRectangle(uint color, float x, float y, float width, float height)
 	{
 		for (float _y = 0; _y <= height; _y++)
 		{
-			PutPixel(color, (int)(_x + x), (int)(_y + y));
+			PutPixel_ByPosition(color, (int)(_x + x), (int)(_y + y));
 		}
 	}
 }
@@ -1139,7 +1337,7 @@ void Draw_Circle(uint color, float x, float y, float radius, float stroke)
 			bool distance_equals_radius_within_delta = distance <= radius + stroke / 2 && distance >= radius - stroke / 2;
 
 			if (distance_equals_radius_within_delta)
-				PutPixel(color, _x, _y);
+				PutPixel_ByPosition(color, _x, _y);
 		}
 	}
 }
@@ -1161,7 +1359,7 @@ void FillCircle(uint color, float x, float y, float radius)
 			bool distance_less_than_radius = dx * dx + dy * dy <= radius * radius;
 
 			if (distance_less_than_radius)
-				PutPixel(color, _x, _y);
+				PutPixel_ByPosition(color, _x, _y);
 		}
 	}
 }
@@ -1186,8 +1384,8 @@ void Blend_Circle(uint color, float x, float y, float radius)
 			{
 				int index = _y * WIDTH + _x;
 
-				if (index >= 0 && index < (WIDTH * HEIGHT))
-					PutPixel(BlendColor(color, pixels[_y * WIDTH + _x]), _x, _y);
+				if (index >= 0 && index < pixel_count)
+					PutPixel_ByPosition(BlendColor(color, pixels[_y * WIDTH + _x]), _x, _y);
 			}
 		}
 	}
@@ -1217,7 +1415,7 @@ void Render(Mesh mesh, uint* body_poly_colors, Transform camera, bool fill_toggl
 		//transform points
 		{
 			//get object transform matrix
-			m4x4 object_to_world = m4x4_identity;
+			m4x4 object_to_world = m4x4_identity; //replace with object transform parameter
 
 			//get camera matrix
 			m4x4 world_to_camera = GetMatrix(InvertTransform(camera));
@@ -1247,11 +1445,11 @@ void Render(Mesh mesh, uint* body_poly_colors, Transform camera, bool fill_toggl
 					if (i == remaining_count) //TODO verify no off by one error
 						break;
 					Triangle t = triangles[i];
-					v3 a = v3_Subtract(t.b, t.a);
-					v3 b = v3_Subtract(t.c, t.a);
-					v3 normal = v3_Normalized(CrossProduct(a, b));
+					Vec3 a = v3_Subtract(t.b, t.a);
+					Vec3 b = v3_Subtract(t.c, t.a);
+					Vec3 normal = v3_Normalized(CrossProduct(a, b));
 
-					v3 from_camera_to_triangle = v3_Normalized(v3_Subtract(t.a, camera.position));
+					Vec3 from_camera_to_triangle = v3_Normalized(v3_Subtract(t.a, camera.position));
 
 					if (v3_DotProduct(normal, from_camera_to_triangle) > 0)
 					{
@@ -1261,7 +1459,7 @@ void Render(Mesh mesh, uint* body_poly_colors, Transform camera, bool fill_toggl
 					}
 					else
 					{
-						v3 backward = { 0,0,-1 };
+						Vec3 backward = { 0,0,-1 };
 						float dot = v3_DotProduct(normal, Transform_v3(Rotation(0, light_rotation, 0), backward));
 
 						if (dot < 0)
@@ -1312,14 +1510,146 @@ void Render(Mesh mesh, uint* body_poly_colors, Transform camera, bool fill_toggl
 			for (int i = 0; i < triangle_count; i++)
 			{
 				Triangle t = triangles[i];
-				v2 a = { t.a.x, t.a.y };
-				v2 b = { t.b.x, t.b.y };
-				v2 c = { t.c.x, t.c.y };
+				Vec2 a = { t.a.x, t.a.y };
+				Vec2 b = { t.b.x, t.b.y };
+				Vec2 c = { t.c.x, t.c.y };
 
 				if (fill_toggle)
 					FillTriangle_VertexColors(a, b, c, red, green, blue);
 				else
 					FillTriangle(t.color, (int)t.a.x, (int)t.a.y, (int)t.b.x, (int)t.b.y, (int)t.c.x, (int)t.c.y);
+			}
+		}
+
+		free(triangles);
+	}
+}
+
+
+void RenderTexturedMesh(Mesh mesh, Transform object_transform, Transform camera, Bitmap texture)
+{
+	//if (mesh.indices?.Length > 0) //TODO?
+	{
+		size_t triangle_count = mesh.indices_length / 3;
+		Triangle* triangles = malloc(triangle_count * sizeof(Triangle));
+
+		//fill triangle list
+		{
+			int i;
+			for (i = 0; i < triangle_count; i++)
+			{
+				triangles[i].a = mesh.vertices[mesh.indices[i * 3 + 0]];
+				triangles[i].b = mesh.vertices[mesh.indices[i * 3 + 1]];
+				triangles[i].c = mesh.vertices[mesh.indices[i * 3 + 2]];
+				triangles[i].a_uv = mesh.uvs[mesh.uv_indices[i * 3 + 0]];
+				triangles[i].b_uv = mesh.uvs[mesh.uv_indices[i * 3 + 1]];
+				triangles[i].c_uv = mesh.uvs[mesh.uv_indices[i * 3 + 2]];
+			}
+		}
+
+		//transform points
+		{
+			//get object transform matrix
+			m4x4 object_to_world =  GetMatrix(object_transform);
+
+			//get camera matrix
+			m4x4 world_to_camera = GetMatrix(InvertTransform(camera));
+
+			m4x4 object_to_camera = Concatenate(object_to_world, world_to_camera);
+
+			for (int i = 0; i < triangle_count; i++)
+			{
+				Triangle t = triangles[i];
+
+				//To Camera Space
+				{
+					t.a = Transform_v3(object_to_camera, t.a);
+					t.b = Transform_v3(object_to_camera, t.b);
+					t.c = Transform_v3(object_to_camera, t.c);
+				}
+
+				triangles[i] = t;
+			}
+
+			//cull backfaces and perform lighting
+			{
+				size_t remaining_count = triangle_count;
+				for (int i = 0; i < triangle_count; i++)
+				{
+				label:
+					if (i == remaining_count) //TODO verify no off by one error
+						break;
+					Triangle t = triangles[i];
+					Vec3 a = v3_Subtract(t.b, t.a);
+					Vec3 b = v3_Subtract(t.c, t.a);
+					Vec3 normal = v3_Normalized(CrossProduct(a, b));
+
+					Vec3 from_camera_to_triangle = v3_Normalized(v3_Subtract(t.a, camera.position));
+
+					if (v3_DotProduct(normal, from_camera_to_triangle) > 0)
+					{
+						SwapTriangles(triangles, i, remaining_count - 1);
+						remaining_count--;
+						goto label;//TODO replace with while
+					}
+					else
+					{
+						Vec3 backward = { 0,0,-1 };
+						float dot = v3_DotProduct(normal, Transform_v3(Rotation(0, light_rotation, 0), backward));
+
+						if (dot < 0)
+							dot = 0;
+
+						if (!isnan(dot))//TODO - remove, just a temporary fix
+						{
+							t.brightness = (unsigned char)(dot * 255);
+							triangles[i] = t;
+						}
+
+						float light = t.brightness / 255.0f;
+
+						uint r = ((t.color & red) ^ black) >> 16;
+						uint g = ((t.color & green) ^ black) >> 8;
+						uint b = (t.color & blue) ^ black;
+
+						r = (uint)(r * light);
+						g = (uint)(g * light);
+						b = (uint)(b * light);
+
+						t.color = r << 16 | g << 8 | b | black;
+						triangles[i] = t;
+					}
+				}
+
+				triangle_count = remaining_count;
+				triangles = realloc(triangles, triangle_count * sizeof(Triangle));
+			}
+
+			for (int i = 0; i < triangle_count; i++)
+			{
+				Triangle t = triangles[i];
+				t.a = CameraToClipToScreen(t.a);
+				t.b = CameraToClipToScreen(t.b);
+				t.c = CameraToClipToScreen(t.c);
+				triangles[i] = t;
+			}
+		}
+
+		//sort triangles by depth painter's algorithm YAY!
+		{
+			SortByDepth(triangles, triangle_count);
+		}
+
+		//rasterize
+		{
+			for (int i = 0; i < triangle_count; i++)
+			{
+				Triangle t = triangles[i];
+				Vec2 a = { t.a.x, t.a.y };
+				Vec2 b = { t.b.x, t.b.y };
+				Vec2 c = { t.c.x, t.c.y };
+
+				FillTriangle_Texture(a, b, c, t.a_uv, t.b_uv, t.c_uv, texture);
 			}
 		}
 
@@ -1343,13 +1673,18 @@ float GetMax(float a, float b, float c)
 
 enum Keys
 {
+	Keys_Backspace = 8,
 	Keys_Tab = 9,
+	Keys_Enter = 13,
 	Keys_Space = 32,
 	Keys_Left = 37, Keys_Up, Keys_Right, Keys_Down,
 	Keys_Delete = 46,
 	Keys_A = 65, Keys_B, Keys_C, Keys_D, Keys_E, Keys_F, Keys_G, Keys_H, Keys_I, Keys_J, Keys_K, Keys_L, Keys_M, Keys_N, Keys_O, Keys_P, Keys_Q, Keys_R, Keys_S, Keys_T, Keys_U, Keys_V, Keys_W, Keys_X, Keys_Y, Keys_Z,
-	Keys_F4 = 115,
+	Keys_Add = 107,
+	Keys_Subtract = 109,
 	Keys_NumPad0 = 96, Keys_NumPad1, Keys_NumPad2, Keys_NumPad3, Keys_NumPad4, Keys_NumPad5, Keys_NumPad6, Keys_NumPad7, Keys_NumPad8, Keys_NumPad9,
+	Keys_F4 = 115,
+	Keys_LCtrl = 162,
 };
 
 enum Buttons
@@ -1425,19 +1760,13 @@ typedef struct
 	int bind_matrices_length;
 	m4x4* bind_matrices;
 	int weights_length;
-	v4* weights;
+	Vec4* weights;
 	int weight_indices_length;
 	Weight_Index* weight_indices;
-	//Dictionary<int, Vector3>[] morphs = new Dictionary<int, Vector3>[5];
-	int morph_weights_length;
-	float* morph_weights;
 	int transformed_vertices_length;
-	v3* transformed_vertices;
+	Vec3* transformed_vertices;
 	Transform camera;
 
-	bool has_a_face;
-	bool animate_face;
-	int facial_index_offset;
 	bool fill_toggle;
 
 	float frame;
@@ -1446,32 +1775,18 @@ typedef struct
 	bool animation_play;
 	bool rotation_play;
 	bool view_fps;
-	float facial_time;
 } SkinnedMeshDemo;
 
 SkinnedMeshDemo skinned_demo;
-//public static Mesh AppendMesh(Mesh a, Mesh b)
-//{
-//	List<Vector3> vertices = new List<Vector3>(a.vertices);
-//	List<int> indices = new List<int>(a.indices);
-//	for (int i = 0; i < b.indices.Length; i++)
-//	{
-//		b.indices[i] += a.vertices.Length;
-//	}
-//	vertices.AddRange(b.vertices);
-//	indices.AddRange(b.indices);
-//
-//	return new Mesh{ vertices = vertices.ToArray(), indices = indices.ToArray() };
-//}
 
 void SetWeights()
 {
-	skinned_demo.weights = malloc(skinned_demo.mesh.vertices_length * sizeof(v4));
+	skinned_demo.weights = malloc(skinned_demo.mesh.vertices_length * sizeof(Vec4));
 	skinned_demo.weights_length = mesh.vertices_length;
 
 	for (int i = 0; i < skinned_demo.mesh.vertices_length; i++)
 	{
-		v4 weight = { 1, 0, 0, 0 };
+		Vec4 weight = { 1, 0, 0, 0 };
 		skinned_demo.weights[i] = weight;
 	}
 
@@ -1529,118 +1844,6 @@ typedef struct
 
 DefinedAnimations defined_animations; //TODO initialize
 
-#define PLAYER_COUNT 4 //currently capped at 4, as control mappings aren't yet flexible enough to handle arbitrary numbers of players
-#define block_count 30
-
-typedef struct
-{
-	//Game World
-	Transform camera;
-	float field_of_view;
-	int transform_count;
-	Transform* transforms; //TODO init transforms
-	Skeleton skeleton;
-	Player players[PLAYER_COUNT];
-	Animator animators[PLAYER_COUNT];
-	uint player_colors[PLAYER_COUNT];// = new uint[]{ red, 0xFF008000, blue, purple };
-	Transform blocks[block_count];
-
-	//Play variables
-	int winner;// = 0;
-	bool game_over;// = false;
-	float initial_time;// = 99;
-	float time_remaining;
-	float max_health;
-
-	//physics
-	float gravity;// = 10;
-} GameplayState;
-
-GameplayState gameplay_state = (GameplayState){.player_colors = { red, 0xFF008000, blue, purple }};
-
-void ResetGame()
-{
-	gameplay_state.game_over = false;
-	gameplay_state.time_remaining = gameplay_state.initial_time;
-
-	int transform_count = gameplay_state.skeleton.length * PLAYER_COUNT;
-	gameplay_state.transform_count = transform_count;
-	gameplay_state.transforms = malloc(sizeof(Transform) * transform_count);
-
-	float distance_apart = 3.5f;
-	float leftmost_position = -(PLAYER_COUNT - 1) * distance_apart / 2;
-
-	for (int i = 0; i < PLAYER_COUNT; i++)
-	{
-		int player_root_index = i * gameplay_state.skeleton.length;
-
-
-		for (int bone = 0; bone < gameplay_state.skeleton.length; bone++)
-		{
-			Transform joint = gameplay_state.skeleton.joints[bone];
-			if (joint.parent > -1)
-				joint.parent += player_root_index;
-			gameplay_state.transforms[player_root_index + bone] = joint;
-		}
-
-		Transform entity = gameplay_state.transforms[player_root_index];
-
-		entity.position.x = leftmost_position + i * distance_apart;
-		entity.rotation.y = 1 / 4.0f * Tau;
-
-		gameplay_state.players[i].current_health = gameplay_state.max_health;
-		gameplay_state.players[i].defeated = false;
-		gameplay_state.players[i].entity_ID = i * gameplay_state.skeleton.length;
-		gameplay_state.players[i].stock = 5;
-		gameplay_state.players[i].velocity.y = 0;
-
-		gameplay_state.players[i].defendbox_count = 5;
-		gameplay_state.players[i].defendboxes = malloc(sizeof(Hitbox) * gameplay_state.players[i].defendbox_count);
-		gameplay_state.players[i].defendboxes[0] = (Hitbox) { .transform_index = 6, .radius = .2f, .active = true };
-		gameplay_state.players[i].defendboxes[1] = (Hitbox) { .transform_index = 4, .radius = .2f, .active = true };
-		gameplay_state.players[i].defendboxes[2] = (Hitbox) { .transform_index = 1, .radius = .3f, .active = true };
-		gameplay_state.players[i].defendboxes[3] = (Hitbox) { .transform_index = 2, .radius = .4f, .active = true };
-		gameplay_state.players[i].defendboxes[4] = (Hitbox) { .transform_index = 3, .radius = .2f, .active = true };
-
-		gameplay_state.players[i].attackbox_count = 2;
-		gameplay_state.players[i].attackboxes = malloc(sizeof(Hitbox) * gameplay_state.players[i].attackbox_count);
-		gameplay_state.players[i].attackboxes[0] = (Hitbox) { .transform_index = 14, .radius = .2f };
-		gameplay_state.players[i].attackboxes[1] = (Hitbox) { .transform_index = 15, .radius = .2f };
-
-		for (int o = 0; o < gameplay_state.players[i].attackbox_count; o++)
-		{
-			gameplay_state.players[i].attackboxes[o].transform_index += gameplay_state.skeleton.length * i;
-		}
-
-		for (int o = 0; o < gameplay_state.players[i].defendbox_count; o++)
-		{
-			gameplay_state.players[i].defendboxes[o].transform_index += gameplay_state.skeleton.length * i;
-		}
-
-		gameplay_state.transforms[player_root_index] = entity;
-	}
-
-
-	for (int i = 0; i < PLAYER_COUNT; i++)
-	{
-		gameplay_state.animators[i].current_animation = defined_animations.idle_animation;
-		gameplay_state.animators[i].current_frame = 1;
-	}
-
-	gameplay_state.camera.position = (v3){ 0, 0, -20 };
-}
-
-
-
-void DrawHitbox(v3 center, uint color, float width)
-{
-	float half = width / 2.0f;
-	uint transparent_color = (color ^ black) | 0x5E000000;
-	Blend_Circle(transparent_color, center.x, center.y, half);
-	Draw_Circle(Darker(color), center.x, center.y, half, 2);
-	FillCircle(color, center.x, center.y, 4);
-}
-
 void PrintMesh(Mesh mesh)
 {
 	printf("indices:\n");
@@ -1654,6 +1857,19 @@ void PrintMesh(Mesh mesh)
 	{
 		printf("{ %+f, %+f, %+f }\n", mesh.vertices[i].x, mesh.vertices[i].y, mesh.vertices[i].z);
 	}
+
+	printf("uvs:\n");
+	for (int i = 0; i < mesh.uvs_length; i++)
+	{
+		printf("{ %+f, %+f }\n", mesh.uvs[i].x, mesh.uvs[i].y);
+	}
+
+	printf("uv indices:\n");
+	for (int i = 0; i < mesh.uv_indices_length; i += 3)
+	{
+		printf("{ %d, %d, %d }\n", mesh.uv_indices[i], mesh.uv_indices[i + 1], mesh.uv_indices[i + 2]);
+	}
+
 }
 
 void FillSprites(CharSprite* sprites, int count)
@@ -1673,7 +1889,38 @@ void DrawCharacter(CharSprite sprite, int x, int y)
 		{
 			bool pixel_active = ((*p << col) & 0b10000000) == 0b10000000;
 			if (pixel_active)
-				PutPixel(white, col + x, row + y);
+				PutPixel_ByPosition(white, col + x, row + y);
+		}
+	}
+}
+
+void DrawCharacterScaled(CharSprite sprite, int x, int y, int scale, uint color)
+{
+	char* p = &sprite.row1;
+	for (int row = 0; row < 8; row++, p++)
+	{
+		for (int col = 0; col < 8; col++)
+		{
+			bool pixel_active = ((*p << col) & 0b10000000) == 0b10000000;
+			if (pixel_active)
+				FillRectangle_Blend(color, col*scale + x, row*scale + y, scale, scale);
+		}
+	}
+}
+
+void DrawStringScaled(string s, int x, int y, int scale, uint color)
+{
+	for (int i = 0; i < s.length; i++)
+	{
+		char a = tolower(s.characters[i]);
+		for (int o = 0; o < char_dict_length; o++)
+		{
+			if (a == char_dict[o])
+			{
+				DrawCharacterScaled(font_set[o], x + i * 9*scale, y, scale, color);
+				//todo break and see how much time is saved
+			}
+
 		}
 	}
 }
@@ -1695,17 +1942,17 @@ void DrawString(string s, int x, int y)
 	}
 }
 
+
 Transform DefaultTransform()
 {
 	return (Transform)
 	{
-		-1,
-		v3_zero,
-		v3_zero,
-		v3_one
+		.parent = -1,
+		.position = v3_zero,
+		.rotation = v3_zero,
+		.scale = v3_one
 	};
 }
-
 
 Skeleton LoadTransformHierarchy(char* path)
 {
@@ -1732,451 +1979,6 @@ Skeleton LoadTransformHierarchy(char* path)
 	return skel;
 }
 
-
-//static class DefinedAnimations
-//{
-//	public static List<AnimationCurve> idle_curves = new List<AnimationCurve>
-//	{
-//		new AnimationCurve()
-//		{
-//			transform_index = 1, //core 
-//			property_tag = 1,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 2 },
-//				new KeyFrame {frame = 30, value = 1.93f },
-//				new KeyFrame {frame = 60, value = 2 },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 1, //core
-//			property_tag = 4,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = .3f },
-//				new KeyFrame {frame = 60, value = .3f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 2, //chest
-//			property_tag = 4,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = .0f },
-//				new KeyFrame {frame = 30, value = .3f },
-//				new KeyFrame {frame = 60, value = .0f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 4,
-//			property_tag = 5,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = Tau / 4f },
-//				new KeyFrame {frame = 30, value = Tau / 5f },
-//				new KeyFrame {frame = 60, value = Tau / 4f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 4,
-//			property_tag = 4,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = Tau / 6f },
-//				new KeyFrame {frame = 30, value = Tau / 8f },
-//				new KeyFrame {frame = 60, value = Tau / 6f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 5,
-//			property_tag = 4,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = Tau / 4f },
-//				new KeyFrame {frame = 30, value = Tau / 3f },
-//				new KeyFrame {frame = 60, value = Tau / 4f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 6,
-//			property_tag = 5,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = -Tau / 4f },
-//				new KeyFrame {frame = 30, value = -Tau / 5f },
-//				new KeyFrame {frame = 60, value = -Tau / 4f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 6,
-//			property_tag = 4,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = -Tau / 6f },
-//				new KeyFrame {frame = 30, value = -Tau / 8f },
-//				new KeyFrame {frame = 60, value = -Tau / 6f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 7,
-//			property_tag = 4,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = -Tau / 4f },
-//				new KeyFrame {frame = 30, value = -Tau / 3f },
-//				new KeyFrame {frame = 60, value = -Tau / 4f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 8,
-//			property_tag = 3,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 0f },
-//				new KeyFrame {frame = 30, value = -0.3f },
-//				new KeyFrame {frame = 60, value = 0f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 9,
-//			property_tag = 3,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 0f },
-//				new KeyFrame {frame = 30, value = 0.6f },
-//				new KeyFrame {frame = 60, value = 0f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 11,
-//			property_tag = 3,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 0.3f },
-//				new KeyFrame {frame = 30, value = 0.0f },
-//				new KeyFrame {frame = 60, value = 0.3f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 12,
-//			property_tag = 3,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 0f },
-//				new KeyFrame {frame = 30, value = 0.6f },
-//				new KeyFrame {frame = 60, value = 0f },
-//			},
-//		},
-//	};
-
-
-//	public static List<AnimationCurve> punch_curves = new List<AnimationCurve>
-//	{
-//		new AnimationCurve()
-//		{
-//			transform_index = 1, //core 
-//			property_tag = 1,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 2 },
-//				new KeyFrame {frame = 30, value = 2 },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 1, //core
-//			property_tag = 4,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = .3f },
-//				new KeyFrame {frame = 30, value = .3f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 2, //chest
-//			property_tag = 4,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = .0f },
-//				new KeyFrame {frame = 15, value = -.9f },
-//				new KeyFrame {frame = 30, value = .0f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 4,
-//			property_tag = 5,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = Tau / 4f },
-//				new KeyFrame {frame = 30, value = Tau / 4f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 4,
-//			property_tag = 4,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = Tau / 6f },
-//				new KeyFrame {frame = 15, value = -Tau / 9f },
-//				new KeyFrame {frame = 30, value = Tau / 6f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 5,
-//			property_tag = 4,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = Tau / 4f },
-//				new KeyFrame {frame = 30, value = Tau / 4f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 6,
-//			property_tag = 5,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = -Tau / 4f },
-//				new KeyFrame {frame = 15, value = 0 },
-//				new KeyFrame {frame = 30, value = -Tau / 4f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 6,
-//			property_tag = 4,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = -Tau / 6f },
-//				new KeyFrame {frame = 15, value = -Tau / 4 },
-//				new KeyFrame {frame = 30, value = -Tau / 6f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 7,
-//			property_tag = 4,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = -Tau / 4f },
-//				new KeyFrame {frame = 15, value = 0 },
-//				new KeyFrame {frame = 30, value = -Tau / 4f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 8,
-//			property_tag = 3,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 0f },
-//				new KeyFrame {frame = 30, value = 0f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 9,
-//			property_tag = 3,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 0f },
-//				new KeyFrame {frame = 30, value = 0f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 11,
-//			property_tag = 3,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 0.3f },
-//				new KeyFrame {frame = 30, value = 0.3f },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 12,
-//			property_tag = 3,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 0f },
-//				new KeyFrame {frame = 30, value = 0f },
-//			},
-//		},
-//	};
-//	public static List<AnimationCurve> jump_curves = new List<AnimationCurve>
-//	{
-//		new AnimationCurve()
-//		{
-//			transform_index = 1, //core 
-//			property_tag = 1,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 0 },
-//				new KeyFrame {frame = 27, value = -0.75f },
-//				new KeyFrame {frame = 30, value = -0.5f },
-//				new KeyFrame {frame = 45, value = 0f },
-//				new KeyFrame {frame = 60, value = 0 },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 8,
-//			property_tag = 3,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 0 },
-//				new KeyFrame {frame = 30, value = -0.5f },
-//				new KeyFrame {frame = 40, value = 0 },
-//				new KeyFrame {frame = 60, value = 0 },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 9,
-//			property_tag = 3,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 0 },
-//				new KeyFrame {frame = 30, value = 1f },
-//				new KeyFrame {frame = 40, value = 0 },
-//				new KeyFrame {frame = 60, value = 0 },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 11,
-//			property_tag = 3,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 0 },
-//				new KeyFrame {frame = 30, value = -0.5f },
-//				new KeyFrame {frame = 40, value = 0 },
-//				new KeyFrame {frame = 60, value = 0 },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 12,
-//			property_tag = 3,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 0 },
-//				new KeyFrame {frame = 30, value = 1f },
-//				new KeyFrame {frame = 40, value = 0 },
-//				new KeyFrame {frame = 60, value = 0 },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 4,
-//			property_tag = 5,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 1 / 4f * Tau },
-//				new KeyFrame {frame = 30, value = 1 / 8f * Tau },
-//				new KeyFrame {frame = 40, value = 1 / 4f * Tau },
-//				new KeyFrame {frame = 60, value = 1 / 4f * Tau },
-//			},
-//		},
-//		new AnimationCurve()
-//		{
-//			transform_index = 6,
-//			property_tag = 5,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = -1 / 4f * Tau },
-//				new KeyFrame {frame = 30, value = -1 / 8f * Tau },
-//				new KeyFrame {frame = 40, value = -1 / 4f * Tau },
-//				new KeyFrame {frame = 60, value = -1 / 4f * Tau },
-//			},
-//		},
-//	};
-//
-//	public static Animation idle_animation = new Animation(){ looped = true, curves = idle_curves };
-//	public static Animation punch_animation = new Animation()
-//	{
-//		looped = true,
-//		curves = punch_curves,
-//		attackbox_keys = new int[][]
-//		{
-//		new int[] { 1 },
-//		new int[] { 1, 5, 20 },
-//		},
-//		attackbox_values = new bool[][]
-//		{
-//		new bool[] { false },
-//		new bool[] { false, true, false },
-//		}
-//	};
-//	public static Animation jump_animation = new Animation(){ curves = jump_curves };
-//	public static Animation die_animation = new Animation()
-//	{
-//		curves = new List<AnimationCurve>
-//	{
-//		new AnimationCurve()
-//		{
-//			transform_index = 1, //core 
-//			property_tag = 1,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 2 },
-//				new KeyFrame {frame = 60, value = 0 },
-//			},
-//		},
-//
-//		new AnimationCurve()
-//		{
-//			transform_index = 1, //core 
-//			property_tag = 3,
-//			keyframes = new KeyFrame[]
-//			{
-//				new KeyFrame {frame = 01, value = 0 },
-//				new KeyFrame {frame = 60, value = 1.6f },
-//			},
-//		},
-//	}
-//	};
-//}
-
-
-//public static KeyFrame[] LoadKeyFrames(string path)
-//{
-//	Stream stream = GetAssetStream(path);
-//	using (BinaryReader reader = new BinaryReader(stream))
-//	{
-//		List<KeyFrame> curve = new List<KeyFrame>();
-//		while (reader.BaseStream.Position != reader.BaseStream.Length)
-//		{
-//			var keyframe = new KeyFrame();
-//			keyframe.frame = reader.ReadSingle();
-//			keyframe.value = reader.ReadSingle();
-//			keyframe.left_handle_x = reader.ReadSingle();
-//			keyframe.left_handle_y = reader.ReadSingle();
-//			keyframe.right_handle_x = reader.ReadSingle();
-//			keyframe.right_handle_y = reader.ReadSingle();
-//			curve.Add(keyframe);
-//		}
-//		return curve.ToArray();
-//	}
-//}
-
 void PrintMatrix(m4x4 m)
 {
 	printf("{ %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f }\n",
@@ -2201,6 +2003,68 @@ enum Channels
 	POSX, POSY, POSZ, ROTX, ROTY, ROTZ, SCALEX, SCALEY, SCALEZ
 };
 
+string WrapString(char* message)
+{
+	return (string){.characters = message, .length = strlen(message)};
+}
+
+string title;
+string press_space;
+
+
+
+#define PLAYER_COUNT 4 //currently capped at 4, as control mappings aren't yet flexible enough to handle arbitrary numbers of players
+#define block_count 30
+
+typedef struct
+{
+	//Game World
+	int transform_count;
+	Transform transforms[1000]; //TODO init transforms
+
+
+	Player players[PLAYER_COUNT];
+	uint player_colors[PLAYER_COUNT];// = new uint[]{ red, 0xFF008000, blue, purple };
+
+	//Play variables
+	int winner;// = 0;
+	bool game_over;// = false;
+	float initial_time;// = 99;
+	float time_remaining;
+	float max_health;
+
+	//physics
+	float gravity;// = 10;
+} GameplayState;
+
+GameplayState gameplay_state;
+
+#define PIXELS_PER_UNIT 128
+
+void ResetGame()
+{
+	gameplay_state.game_over = false;
+	gameplay_state.time_remaining = gameplay_state.initial_time;
+
+	gameplay_state.transform_count = PLAYER_COUNT;
+
+	float distance_apart = 3.5f;
+	float leftmost_position = -(PLAYER_COUNT - 1) * distance_apart / 2;
+
+	for (int i = 0; i < PLAYER_COUNT; i++)
+	{
+		gameplay_state.players[i].entity_ID = i;
+		gameplay_state.transforms[gameplay_state.players[i].entity_ID] = DefaultTransform();
+		gameplay_state.transforms[gameplay_state.players[i].entity_ID].position.x = leftmost_position + distance_apart * i;
+		gameplay_state.players[i].current_health = gameplay_state.max_health;
+		gameplay_state.players[i].defeated = false;
+		gameplay_state.players[i].stock = 5;
+		gameplay_state.players[i].velocity.y = 0;
+	}
+}
+
+HitboxAnimation punch;
+
 __declspec(dllexport) void InitEverything()
 {
 	game.TIME_RECALCULATION_INTERVAL = 1.0f;
@@ -2213,6 +2077,13 @@ __declspec(dllexport) void InitEverything()
 	game.view_debug = false;
 	float field_of_view = Tau / 4.0f;
 	camera_to_clip = Perspective(0.1f, 100, field_of_view, WIDTH, HEIGHT);
+
+	//Init HItboxAnimations
+	{
+		FILE* file_pointer = open_file("Assets/idle", "r");
+		read_bytes(&punch,sizeof(HitboxAnimation),1,file_pointer);
+		close_file(file_pointer);
+	}
 
 	//Init Animations
 	{
@@ -2327,6 +2198,12 @@ __declspec(dllexport) void InitEverything()
 		defined_animations.walk_animation.curves[11].keyframes[4] = ((KeyFrame) { 32, 0, 0, 0 });
 	}
 
+	//Init TitleScreen
+	{
+		title = WrapString("Platfighter Z");
+		press_space = WrapString("Press Space");
+	}
+
 	// Init SkinnedMeshDemo
 	{
 		skinned_demo.camera = (Transform){ -1, { 0, 0, -50 }, { 0, 0, 0 }, { 1, 1, 1 } };
@@ -2405,7 +2282,7 @@ __declspec(dllexport) void InitEverything()
 			}
 		}
 
-		skinned_demo.transformed_vertices = malloc(sizeof(v3) * skinned_demo.mesh.vertices_length);
+		skinned_demo.transformed_vertices = malloc(sizeof(Vec3) * skinned_demo.mesh.vertices_length);
 		skinned_demo.transformed_vertices_length = skinned_demo.mesh.vertices_length;
 		skinned_demo.skeleton.joints[0].position.y = -1;
 	}
@@ -2420,10 +2297,10 @@ __declspec(dllexport) void InitEverything()
 		}
 
 		mesh = LoadMesh("Assets/teapot.obj");
-		v3 forward_10 = { 0, 0, 10 };
-		v3 backward_30 = { 0, 0, -30 };
-		v3 zero = { 0, 0, 0 };
-		v3 one = { 1, 1, 1 };
+		Vec3 forward_10 = { 0, 0, 10 };
+		Vec3 backward_30 = { 0, 0, -30 };
+		Vec3 zero = { 0, 0, 0 };
+		Vec3 one = { 1, 1, 1 };
 		cube_transform.position = forward_10;
 		cube_transform.rotation = zero;
 		cube_transform.scale = one;
@@ -2436,40 +2313,13 @@ __declspec(dllexport) void InitEverything()
 	{	
 		gameplay_state.initial_time = 99;
 		gameplay_state.max_health = 10;
-		gameplay_state.skeleton = LoadTransformHierarchy("Assets/avatar");
-		gameplay_state.skeleton.joints[1].position.y = 2;
-		gameplay_state.field_of_view = 3.0f / 8.0f * Tau;
-		gameplay_state.camera = DefaultTransform();
-		gameplay_state.camera.position.z = -20;
 
+		gameplay_state.player_colors[0] = red;
+		gameplay_state.player_colors[1] = 0xFF008000;
+		gameplay_state.player_colors[2] = blue;
+		gameplay_state.player_colors[3] =  purple;
+		
 		ResetGame();
-		for (int i = 0; i < block_count; i++)
-		{
-			gameplay_state.blocks[i] = DefaultTransform();
-			gameplay_state.blocks[i].position.x = (i % 10) - 5;
-		}
-
-		for (int i = 0; i < 10; i++)
-		{
-			gameplay_state.blocks[i].position.y = 4.0f;
-		}
-
-		for (int i = 10; i < 20; i++)
-		{
-			gameplay_state.blocks[i].position.y = -2.0f;
-		}
-
-		for (int i = 20; i < 30; i++)
-		{
-			gameplay_state.blocks[i].position.y = -3.0f;
-		}
-
-		gameplay_state.blocks[17].position.y = -1;
-		gameplay_state.blocks[15].position.y = -1;
-		gameplay_state.blocks[15].position.x -= .25f;
-		gameplay_state.blocks[18].scale.x = 50.0f;
-		gameplay_state.blocks[29].scale.x = 10.0f;
-		gameplay_state.blocks[29].position = (v3){ -10, 1, 0 };
 	}
 
 	//void Init SplashScreen
@@ -2478,6 +2328,10 @@ __declspec(dllexport) void InitEverything()
 		splash.ended = false;
 		splash.time = 0;
 		splash.alpha = 0;
+		splash.x_min = 650;
+		splash.y_min = 125;
+		splash.x_max = WIDTH - splash.x_min;
+		splash.y_max = HEIGHT - splash.y_min;
 
 		//Load SplashScreen Image
 		{
@@ -2492,26 +2346,34 @@ __declspec(dllexport) void InitEverything()
 			close_file(file_pointer);
 		}
 	}
-}
 
-
-string WrapString(char* message)
-{
-	return (string){.characters = message, .length = strlen(message)};
+	//Init Textured Cube demo
+	{
+		cube_mesh = LoadMeshWithUVindices("Assets/cube2.obj");
+	}
 }
 
 __declspec(dllexport) void GameLoop()
 {
-	if (!game.fixed_framerate || (game.time_since_last_frame > game.STANDARD_TIMESTEP))
+	if (!game.fixed_framerate || (game.time_since_last_frame >= game.STANDARD_TIMESTEP))
 	{
 		//Tick
 		{
 			//Update Input Devices
 			{
-				PollKeyboard();
+				PollKeyboard();								
+			}
 
+			//Handle Input
+			{
 				if (KeyDownFresh(Keys_G))
-					game.view_debug = !game.view_debug;				
+					game.view_debug = !game.view_debug;
+				if (KeyDownFresh(Keys_F))
+					game.fixed_framerate = !game.fixed_framerate;
+				if(KeyDownFresh(Keys_Add))
+					game.time_scale++;
+				if(KeyDownFresh(Keys_Subtract))
+					game.time_scale--;
 			}
 
 			//Cycle Through GameStates
@@ -2534,6 +2396,217 @@ __declspec(dllexport) void GameLoop()
 
 			switch (game.current_game_state)
 			{
+				case AnimationEditor:
+				{
+					static float float_frame = 0;
+					static int frame = 0;
+					static bool play = true;
+					static int selected_box;
+					static HitFrame clipboard;
+					#define Translate 0
+					#define Scale 1
+					static int mode = Translate;
+					Vec2* modifier;
+
+					if(mode == Translate)
+						modifier = &(punch.frames[frame].boxes[selected_box].position);
+					else if(mode == Scale)
+						modifier = &punch.frames[frame].boxes[selected_box].size;
+
+					if(KeyDownFresh(Keys_Space))
+						play = !play;
+
+					if(!play)
+					{
+						if(KeyDown(Keys_LCtrl))
+						{
+							if(KeyDownFresh(Keys_B))
+							{
+								punch.frame_count++;
+							}
+
+							if(KeyDownFresh(Keys_M))
+							{
+								if(mode == Translate)
+									mode = Scale;
+								else
+									mode = Translate;
+							}
+
+							if(KeyDownFresh(Keys_R))
+							{
+								punch.frames[frame].hurt_count = 1;
+								punch.frames[frame].hit_count = 0;
+
+								for (int i = 0; i < MAX_HITBOX_COUNT; i++)
+								{								
+									punch.frames[frame].boxes[i] = (Hitbox){ .position = { 0, 0 }, .size = { 1, 1 } };
+								}
+
+							}
+							if(KeyDown(Keys_S)) //save
+							{
+								game.current_game_state = SaveAnimation;
+							}
+
+							if(KeyDown(Keys_C)) //copy frame
+								clipboard = punch.frames[frame];
+
+							if(KeyDown(Keys_V)) //paste frame
+								punch.frames[frame] = clipboard;						
+
+							if(KeyDownFresh(Keys_Up))
+							{
+								if(selected_box < punch.frames[frame].hurt_count)
+									punch.frames[frame].hurt_count++;
+								else
+									punch.frames[frame].hit_count++;
+							}
+							if(KeyDownFresh(Keys_Down))
+							{
+								if(selected_box < punch.frames[frame].hurt_count)
+									punch.frames[frame].hurt_count--;
+								else
+									punch.frames[frame].hit_count--;
+							}
+						}
+						else
+						{								
+							if(KeyDown(Keys_A))
+								(*modifier).x -= game.delta_time;
+							if(KeyDown(Keys_D))
+								(*modifier).x += game.delta_time;
+							if(KeyDown(Keys_W))
+								(*modifier).y += game.delta_time;
+							if(KeyDown(Keys_S))
+								(*modifier).y -= game.delta_time;
+
+							if(KeyDownFresh(Keys_Up) && selected_box < MAX_HITBOX_COUNT - 1)
+								selected_box++;
+							if(KeyDownFresh(Keys_Down) && selected_box > 0)
+								selected_box--;
+
+							if(selected_box > punch.frames[frame].hit_count + punch.frames[frame].hurt_count)
+								selected_box = punch.frames[frame].hit_count + punch.frames[frame].hurt_count;
+
+							if(KeyDownFresh(Keys_Left))
+							{
+								frame--;
+								if(frame < 0)
+									frame = punch.frame_count-1;
+							}
+
+							if(KeyDownFresh(Keys_Right))
+							{
+								frame++;
+								if(frame == punch.frame_count)
+									frame = 0;
+							}
+						}
+					}
+
+
+					Clear();
+					PutPixel_ByPosition(white, WIDTH/2, HEIGHT/2);
+					for (int i = 0; i < punch.frames[frame].hurt_count; i++)
+					{
+						Vec2 position = punch.frames[frame].boxes[i].position;
+						position.x -= punch.frames[frame].boxes[i].size.x / 2.0f;
+						position.y += punch.frames[frame].boxes[i].size.y / 2.0f;
+						position.x *= +PIXELS_PER_UNIT;
+						position.y *= -PIXELS_PER_UNIT;
+						position.x += WIDTH / 2;
+						position.y += HEIGHT / 2;
+						DrawRectangle(blue, position.x, position.y , punch.frames[frame].boxes[i].size.x * PIXELS_PER_UNIT, punch.frames[frame].boxes[i].size.y * PIXELS_PER_UNIT);
+					}
+
+					for (int i = punch.frames[frame].hurt_count; i < punch.frames[frame].hurt_count + punch.frames[frame].hit_count; i++)
+					{
+						Vec2 position = punch.frames[frame].boxes[i].position;
+						position.x -= punch.frames[frame].boxes[i].size.x / 2.0f;
+						position.y += punch.frames[frame].boxes[i].size.y / 2.0f;
+						position.x *= +PIXELS_PER_UNIT;
+						position.y *= -PIXELS_PER_UNIT;
+						position.x += WIDTH / 2;
+						position.y += HEIGHT / 2;
+						DrawRectangle(red, position.x, position.y , punch.frames[frame].boxes[i].size.x * PIXELS_PER_UNIT, punch.frames[frame].boxes[i].size.y * PIXELS_PER_UNIT);
+					}
+
+					FillRectangle(0xFFAAAAAA, 0, HEIGHT - 60, WIDTH, 60);
+					
+					int moop = WIDTH/punch.frame_count;
+					FillRectangle(red, frame*moop+1, HEIGHT - 60, 5, 60);
+					for(int i = 0; i < punch.frame_count; i++)
+					{
+						DrawVerticalSegment(black, i * moop, HEIGHT - 60, HEIGHT);
+
+						char foo[3];
+						sprintf(foo, "%d", i);
+						DrawStringScaled(WrapString(foo), i*moop+6, HEIGHT - 60, 2,white);
+					}
+					
+
+					if(play)
+					{
+						float_frame += game.delta_time * 5;
+						if(float_frame >= punch.frame_count)
+							float_frame = 0;
+
+						frame = (int)float_frame;
+					}
+					else if(selected_box < punch.frames[frame].hurt_count + punch.frames[frame].hit_count)
+					{
+						Vec2 position = punch.frames[frame].boxes[selected_box].position;
+						position.x -= punch.frames[frame].boxes[selected_box].size.x / 2.0f;
+						position.y += punch.frames[frame].boxes[selected_box].size.y / 2.0f;
+						position.x *= +PIXELS_PER_UNIT;
+						position.y *= -PIXELS_PER_UNIT;
+						position.x += WIDTH / 2;
+						position.y += HEIGHT / 2;
+						DrawRectangle(green, position.x-2, position.y-2, punch.frames[frame].boxes[selected_box].size.x * PIXELS_PER_UNIT + 4, punch.frames[frame].boxes[selected_box].size.y * PIXELS_PER_UNIT + 4);
+					}
+					
+				} break;
+				case SaveAnimation:
+				{
+					#define max_name_length 20
+					#define char_sprite_width 9
+
+					static char file_name[max_name_length];
+					static int cursor = 0;
+					for (int i = Keys_A; i < Keys_Z; i++)
+					{
+						if(KeyDownFresh(i) && cursor < max_name_length)
+						{
+							file_name[cursor] = i + 32; //add 32 to make lowercase
+							cursor++;
+						}
+					}
+
+					if(KeyDownFresh(Keys_Backspace))
+					{
+						if(cursor > 0)
+						{
+							cursor--;
+							file_name[cursor] = 0;
+						}
+					}
+
+					FillRectangle(0xFF888888, WIDTH/2-2, HEIGHT/2-2, max_name_length * char_sprite_width + 4, 14);
+					FillRectangle(0xFFAAAAAA, WIDTH/2, HEIGHT/2, max_name_length * char_sprite_width, 10);
+					FillRectangle(0xFF555555, WIDTH/2+cursor*char_sprite_width,HEIGHT/2,2,8);
+					DrawString(WrapString(file_name), WIDTH/2, HEIGHT/2);
+					
+					if(KeyDownFresh(Keys_Enter))
+					{
+						char path[50] = "Assets/";
+						strcat(path,file_name);
+						FILE* file_pointer = open_file(path, "w");
+						write_bytes(&punch, sizeof(HitboxAnimation), 1, file_pointer);
+						close_file(file_pointer);						
+						game.current_game_state = AnimationEditor;
+					}
+				} break;
 				case SplashScreenState:
 				{
 					if (splash.time > 10)
@@ -2560,35 +2633,17 @@ __declspec(dllexport) void GameLoop()
 
 					//DrawSplashScreen
 					{
-						memcpy(pixels, splash.logo.pixels, WIDTH * HEIGHT * 4);
+						#define bytes_per_pixel 4
+						int total_bytes = pixel_count * bytes_per_pixel;
+						#undef bytes_per_pixel
+						memcpy(pixels, splash.logo.pixels, total_bytes);
 
-						int pixel_count = WIDTH * HEIGHT;
-
-						for (int i = 0; i < pixel_count; i += 4)
+						for (int y = splash.y_min; y < splash.y_max; y++)
+						for (int x = splash.x_min; x < splash.x_max; x++)
 						{
+							int i = y * WIDTH + x;
 							if (pixels[i] != black)
-							{
-								uint red_channel = (uint)((pixels[i] & 0xFF0000) * splash.alpha) & 0xFF0000;
-								pixels[i] = black | red_channel;
-							}
-
-							if (pixels[i + 1] != black)
-							{
-								uint red_channel = (uint)((pixels[i + 1] & 0xFF0000) * splash.alpha) & 0xFF0000;
-								pixels[i + 1] = black | red_channel;
-							}
-
-							if (pixels[i + 2] != black)
-							{
-								uint red_channel = (uint)((pixels[i + 2] & 0xFF0000) * splash.alpha) & 0xFF0000;
-								pixels[i + 2] = black | red_channel;
-							}
-
-							if (pixels[i + 3] != black)
-							{
-								uint red_channel = (uint)((pixels[i + 3] & 0xFF0000) * splash.alpha) & 0xFF0000;
-								pixels[i + 3] = black | red_channel;
-							}
+								pixels[i] = (uint)((pixels[i] & 0xFF0000) * splash.alpha) & 0xFF0000;
 						}
 					}
 
@@ -2609,15 +2664,109 @@ __declspec(dllexport) void GameLoop()
 				case TitleScreen:
 				{
 					#define sprite_size 9
+					#define title_scale 15
+					#define press_space_scale 4
+
 					if(KeyDownFresh(Keys_Space))
-						game.current_game_state = Gameplay;
+						game.current_game_state = MainMenu;
 					FillVerticalGradient(cyan,blue);
 					int x = WIDTH / 2;
-					string title = WrapString("Title Here");
-					string press_space = WrapString("Press Space");
-					DrawString(title, x - (title.length * sprite_size / 2), HEIGHT / 2);
-					DrawString(press_space, x - (press_space.length * sprite_size / 2), HEIGHT-sprite_size);
+
+					DrawStringScaled(title, x - (title.length * (sprite_size*title_scale) / 2), HEIGHT / 2 - sprite_size*title_scale/2, title_scale,white);
+
+					static float t = -Pi/2.0f;
+					static bool switched;
+					float alpha = (float)(sin(t) + 1)/2.0f;
+
+					uint space_color = ((uint)(alpha *0xAF) << 24) | 0xFFFFFF;
+					DrawStringScaled(press_space, x - (press_space.length * sprite_size*press_space_scale / 2), HEIGHT-sprite_size*press_space_scale*2,press_space_scale,space_color);
+
+					t+= game.delta_time;
 				} break;
+				case MainMenu:
+				{
+					static int cursor = 0;
+
+					if(KeyDownFresh(Keys_Down) | KeyDownFresh(Keys_S))
+					{
+						cursor++;
+						if(cursor == 3)
+							cursor = 0;
+					}
+
+					if(KeyDownFresh(Keys_Up) | KeyDownFresh(Keys_W))
+					{
+						cursor--;
+						if(cursor == -1)
+							cursor = 2;
+					}
+
+					if(KeyDownFresh(Keys_Enter))
+					{
+						switch(cursor)
+						{
+							case 0:
+								break;
+							case 1:
+								game.current_game_state = CharacterSelect;
+								break;							
+							case 2:
+								break;							
+						}
+					}
+
+					Fill(blue);
+					FillRectangle(red, 0, 0, 400, 50);
+					DrawStringScaled(WrapString("1P Mode"), 9, 9, 4, white);
+
+					FillRectangle(red, 0, 100, 400, 50);
+					DrawStringScaled(WrapString("VS Mode"), 9, 109, 4,white);
+					
+					FillRectangle(red, 0, 200, 400, 50);
+					DrawStringScaled(WrapString("Settings"), 9, 209, 4,white);
+
+					DrawRectangle(yellow, 0, cursor * 100, 400, 50);										
+				} break;
+				case Level1:
+				{
+					static int position_x = 0;
+					static int position_y = 0;
+					int player_width = 60;
+
+					static float delay =0;
+					if(KeyDown(Keys_Right) || KeyDown(Keys_Left))
+					{
+						delay+=game.delta_time;
+						if(delay > .35f)
+						{
+							if(KeyDown(Keys_Left))
+								position_x--;
+							if(KeyDown(Keys_Right))
+								position_x++;														
+							delay = 0;
+						}
+					}
+					else if(KeyDown(Keys_Up) || KeyDown(Keys_Down))
+					{
+						delay+=game.delta_time;
+						if(delay > .35f)
+						{
+							if(KeyDown(Keys_Down))
+								position_y++;
+							if(KeyDown(Keys_Up))
+								position_y--;															
+							delay = 0;
+						}
+					}
+
+					Fill(black);
+					FillRectangle(green, position_x*player_width, position_y*player_width, player_width, player_width);
+				} break;
+				case CharacterSelect:
+				{
+					Fill(blue);
+					DrawStringScaled(WrapString("Character Select"), 0, 0, 4,white);
+				} break;		
 				case SkinnedMesh:
 				{
 					//Input
@@ -2641,17 +2790,6 @@ __declspec(dllexport) void GameLoop()
 						if (KeyDownFresh(Keys_T))
 						{
 							skinned_demo.animation_play = !skinned_demo.animation_play;
-						}
-
-						if (KeyDownFresh(Keys_Q))
-						{
-							skinned_demo.animate_face = !skinned_demo.animate_face;
-						}
-
-						if (KeyDownFresh(Keys_F))
-						{
-							skinned_demo.has_a_face = !skinned_demo.has_a_face;
-							//skinned_demo.BuildGuy();
 						}
 
 						if (KeyDownFresh(Keys_R))
@@ -2701,66 +2839,22 @@ __declspec(dllexport) void GameLoop()
 						{
 							for (int i = 0; i < skinned_demo.mesh.vertices_length; i++)
 							{
-								v3 v_a = Transform_v3(Concatenate(skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone1], skeleton_matrices[skinned_demo.weight_indices[i].bone1]), skinned_demo.mesh.vertices[i]);
-								v3 v_b = Transform_v3(Concatenate(skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone2], skeleton_matrices[skinned_demo.weight_indices[i].bone2]), skinned_demo.mesh.vertices[i]);
-								v3 v_c = Transform_v3(Concatenate(skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone3], skeleton_matrices[skinned_demo.weight_indices[i].bone3]), skinned_demo.mesh.vertices[i]);
-								v3 v_d = Transform_v3(Concatenate(skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone4], skeleton_matrices[skinned_demo.weight_indices[i].bone4]), skinned_demo.mesh.vertices[i]);
+								Vec3 v_a = Transform_v3(Concatenate(skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone1], skeleton_matrices[skinned_demo.weight_indices[i].bone1]), skinned_demo.mesh.vertices[i]);
+								Vec3 v_b = Transform_v3(Concatenate(skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone2], skeleton_matrices[skinned_demo.weight_indices[i].bone2]), skinned_demo.mesh.vertices[i]);
+								Vec3 v_c = Transform_v3(Concatenate(skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone3], skeleton_matrices[skinned_demo.weight_indices[i].bone3]), skinned_demo.mesh.vertices[i]);
+								Vec3 v_d = Transform_v3(Concatenate(skinned_demo.bind_matrices[skinned_demo.weight_indices[i].bone4], skeleton_matrices[skinned_demo.weight_indices[i].bone4]), skinned_demo.mesh.vertices[i]);
 
 								v_a = v3_Scale(v_a, skinned_demo.weights[i].x);
 								v_b = v3_Scale(v_b, skinned_demo.weights[i].y);
 								v_c = v3_Scale(v_c, skinned_demo.weights[i].z);
 								v_d = v3_Scale(v_d, skinned_demo.weights[i].w);
 
-								v3 i_a = v3_Add(v_a, v_b);
-								v3 i_b = v3_Add(v_c, v_d);
+								Vec3 i_a = v3_Add(v_a, v_b);
+								Vec3 i_b = v3_Add(v_c, v_d);
 
 								skinned_demo.transformed_vertices[i] = v3_Add(i_a, i_b);
 							}
 						}
-
-						//	//Apply Facial Morph Targets
-						//	{
-						//		//if (skinned_demo.has_a_face && skinned_demo.animate_face)
-						//		//{
-						//		//    Vector3[] deltas = new Vector3[259];
-						//		//    for (int morph_index = 0; morph_index < skinned_demo.morphs_length; morph_index++)
-						//		//    {
-						//		//        if (skinned_demo.morphs[morph_index] != null)
-						//		//        {
-						//		//            var current_morph = skinned_demo.morphs[morph_index];
-
-						//		//            foreach (var entry in current_morph)
-						//		//            {
-						//		//                int key = entry.Key;
-						//		//                Vector3 point = entry.Value;
-						//		//                int vertex_index = key + skinned_demo.facial_index_offset;
-						//		//                Weight_Index weight_index = skinned_demo.weight_indices[vertex_index];
-						//		//                Vector4 weight = skinned_demo.weights[key];
-
-						//		//                Vector3 v_a = skinned_demo.bind_matrices[weight_index.bone1] * skeleton_matrices[weight_index.bone1] * point;
-						//		//                Vector3 v_b = skinned_demo.bind_matrices[weight_index.bone2] * skeleton_matrices[weight_index.bone2] * point;
-						//		//                Vector3 v_c = skinned_demo.bind_matrices[weight_index.bone3] * skeleton_matrices[weight_index.bone3] * point;
-						//		//                Vector3 v_d = skinned_demo.bind_matrices[weight_index.bone4] * skeleton_matrices[weight_index.bone4] * point;
-
-						//		//                Vector3 skinned_morph = (v_a * weight.x) + (v_b * weight.y) + (v_c * weight.z) + (v_d * weight.w);
-
-						//		//                deltas[key] += (skinned_morph - skinned_demo.transformed_vertices[vertex_index]) * skinned_demo.morph_weights[morph_index];
-						//		//            }
-						//		//        }
-						//		//    }
-
-						//		//    for (int i = 0; i < deltas.Length; i++)
-						//		//    {
-						//		//        int vertex_index = i + skinned_demo.facial_index_offset;
-						//		//        skinned_demo.transformed_vertices[vertex_index] += deltas[i];
-						//		//    }
-						//		//}
-
-						//		//skinned_demo.morph_weights[0] = ((float)Math.Cos(skinned_demo.facial_time * 2) + 1) / 2;
-						//		//skinned_demo.morph_weights[1] = ((float)Math.Sin(skinned_demo.facial_time * 2) + 1) / 2;
-
-						//		//skinned_demo.facial_time += delta_time;
-						//	}
 
 						//Advance Animation Time
 						{
@@ -2784,281 +2878,20 @@ __declspec(dllexport) void GameLoop()
 				{
 					//Update
 					{
-						//Get Debug Input
-						{
-							if (KeyDownFresh(Keys_R))
-								ResetGame();
+						if (KeyDownFresh(Keys_R))
+							ResetGame();
 
-							if (KeyDownFresh(Keys_F))
-								game.fixed_framerate = !game.fixed_framerate;
+						for (int i = 0; i < PLAYER_COUNT; ++i)
+						{
+							Vec3* position = &gameplay_state.transforms[gameplay_state.players[i].entity_ID].position;
+							if(ButtonDown(i, LEFT))
+								position->x -= game.delta_time;
+							if(ButtonDown(i, RIGHT))
+								position->x += game.delta_time;
 						}
 
 						if (!gameplay_state.game_over)
 						{
-							for (int player_index = 0; player_index < PLAYER_COUNT; player_index++)
-							{
-								Transform* playerTransform = &(gameplay_state.transforms[gameplay_state.players[player_index].entity_ID]);
-
-								//Animate Player
-								{
-									//KeyFrame[] first_curve_frames = gameplay_state.animators[player_index].current_animation.curves[0].keyframes;
-									//float ending_frame = first_curve_frames[first_curve_frames.Length - 1].frame;
-
-									//if (!gameplay_state.players[player_index].defeated)
-									//{
-									//	//Set Animation State
-									//	{
-									//		bool moving = false;
-
-									//		if (gameplay_state.animators[player_index].current_animation.curves != DefinedAnimations.punch_curves) //TODO use animation, not just curves
-									//		{
-									//			if (ButtonDown(player_index, Buttons.LEFT))
-									//			{
-									//				(*playerTransform).rotation.y = -1 / 4f * Tau;
-									//				moving = true;
-									//			}
-
-									//			if (ButtonDown(player_index, Buttons.RIGHT))
-									//			{
-									//				(*playerTransform).rotation.y = 1 / 4f * Tau;
-									//				moving = true;
-									//			}
-
-									//			if (moving)
-									//			{
-									//				gameplay_state.animators[player_index].current_animation = DefinedAnimations.walk_animation;
-									//				var rotation = (*playerTransform).rotation;
-									//			}
-									//			else
-									//				gameplay_state.animators[player_index].current_animation = DefinedAnimations.idle_animation;
-
-									//			if (ButtonDown(player_index, Buttons.PUNCH))
-									//			{
-									//				gameplay_state.animators[player_index].current_animation = DefinedAnimations.punch_animation;
-									//				gameplay_state.animators[player_index].current_frame = 1;
-									//			}
-									//		}
-									//		else if (gameplay_state.animators[player_index].current_frame >= ending_frame)
-									//		{
-									//			gameplay_state.animators[player_index].current_animation = DefinedAnimations.idle_animation;
-									//			gameplay_state.animators[player_index].current_frame = 1;
-									//		}
-									//	}
-									//}
-
-									////Play Animation
-									//{
-									//	Animator animator = gameplay_state.animators[player_index];
-									//	if (animator.current_animation.looped && animator.current_frame >= ending_frame)
-									//		animator.current_frame = 1;
-
-
-									//	float frame = gameplay_state.animators[player_index].current_frame;
-
-									//	foreach(AnimationCurve curve in animator.current_animation.curves)
-									//	{
-									//		KeyFrame[] keyframes = curve.keyframes;
-									//		int transform_index = curve.transform_index + player_index * gameplay_state.skeleton.Length;
-
-									//		fixed(Transform * p = &gameplay_state.transforms[transform_index])
-									//		{
-									//			float* f = &(*p).position.x + curve.property_tag;
-
-									//			AnimateProperty(keyframes, frame, f);
-									//		}
-									//	}
-
-									//	for (int attackbox_index = 0; attackbox_index < gameplay_state.players[player_index].attackboxes.Length; attackbox_index++)
-									//	{
-									//		if (animator.current_animation.attackbox_keys != null)
-									//			for (int i = 0; i < animator.current_animation.attackbox_keys[attackbox_index].Length; i++)
-									//			{
-									//				if (frame > animator.current_animation.attackbox_keys[attackbox_index][i])
-									//				{
-									//					gameplay_state.players[player_index].attackboxes[attackbox_index].active = animator.current_animation.attackbox_values[attackbox_index][i];
-									//				}
-									//			}
-									//	}
-
-									//	for (int defendbox_index = 0; defendbox_index < gameplay_state.players[player_index].defendboxes.Length; defendbox_index++)
-									//	{
-									//		if (animator.current_animation.defendbox_keys != null)
-									//			for (int i = 0; i < animator.current_animation.defendbox_keys[defendbox_index].Length; i++)
-									//			{
-									//				if (frame > animator.current_animation.defendbox_keys[defendbox_index][i])
-									//				{
-									//					gameplay_state.players[player_index].defendboxes[defendbox_index].active = animator.current_animation.defendbox_values[defendbox_index][i];
-									//				}
-									//			}
-									//	}
-
-									//	animator.current_frame += TARGET_FRAMERATE * delta_time;
-
-									//	gameplay_state.animators[player_index] = animator;
-									//}
-								}
-
-								//Move Player
-								{
-									float acceleration = 100.0f;
-									float jump_speed = 8;
-									float max_speed = 5;
-									float slide_coefficient = 0;
-									bool no_horizontal_input = false;
-									float ground_fall_velocity = -.01f;
-
-									if (!gameplay_state.players[player_index].defeated)
-									{
-										if (ButtonDown(player_index, RIGHT))
-											gameplay_state.players[player_index].velocity.x += acceleration * game.delta_time;
-										else if (ButtonDown(player_index, LEFT))
-											gameplay_state.players[player_index].velocity.x -= acceleration * game.delta_time;
-										else
-											no_horizontal_input = true;
-									}
-
-									if (gameplay_state.players[player_index].velocity.x > max_speed)
-										gameplay_state.players[player_index].velocity.x = max_speed;
-									else if (gameplay_state.players[player_index].velocity.x < -max_speed)
-										gameplay_state.players[player_index].velocity.x = -max_speed;
-
-									if (gameplay_state.players[player_index].grounded)
-									{
-										gameplay_state.players[player_index].velocity.y = ground_fall_velocity;
-
-										if (no_horizontal_input)
-											gameplay_state.players[player_index].velocity.x *= slide_coefficient;
-
-										if (!gameplay_state.players[player_index].defeated && ButtonDown(player_index, JUMP))
-											gameplay_state.players[player_index].velocity.y = jump_speed;
-									}
-									else
-									{
-										gameplay_state.players[player_index].velocity.y -= gameplay_state.gravity * game.delta_time;
-									}
-
-									float ax_half = gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].scale.x / 2;
-									float ay_half = gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].scale.y / 2;
-
-
-									float old_x = gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].position.x;
-									gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].position.x += gameplay_state.players[player_index].velocity.x * game.delta_time;
-
-									for (int i = 0; i < block_count; i++)
-									{
-										Transform b = gameplay_state.blocks[i];
-										if (Intersect(gameplay_state.transforms[gameplay_state.players[player_index].entity_ID], b))
-										{
-											if (old_x < b.position.x)
-												gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].position.x -= (gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].position.x + (gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].scale.x / 2)) - (b.position.x - (b.scale.x / 2));
-											else if (old_x > b.position.x)
-												gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].position.x += (b.position.x + (b.scale.x / 2)) - (gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].position.x - (gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].scale.x / 2));
-										}
-									}
-
-									float old_y = gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].position.y;
-									gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].position.y += gameplay_state.players[player_index].velocity.y * game.delta_time;
-
-									gameplay_state.players[player_index].grounded = false;
-
-									for (int i = 0; i < block_count; i++)
-									{
-										Transform b = gameplay_state.blocks[i];
-										if (Intersect(gameplay_state.transforms[gameplay_state.players[player_index].entity_ID], b))
-										{
-											if (old_y < b.position.y)
-											{
-												gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].position.y -= (gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].position.y + (gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].scale.y / 2)) - (b.position.y - (b.scale.y / 2));
-												gameplay_state.players[player_index].velocity.y = 0;
-											}
-											else if (old_y > b.position.y)
-											{
-												gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].position.y += (b.position.y + (b.scale.y / 2)) - (gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].position.y - (gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].scale.y / 2));
-												gameplay_state.players[player_index].grounded = true;
-											}
-										}
-									}
-
-									if (v3_Magnitude(gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].position) > 50)
-									{
-										gameplay_state.transforms[gameplay_state.players[player_index].entity_ID].position = (v3)v3_zero;
-										gameplay_state.players[player_index].stock--;
-									}
-								}
-
-
-								//Hurt Player --TODO fix. also make sure only applies the first time on the first frame of an intersection with first defendbox. Is currently be multiple damaging.
-								{
-									//for (int my_attack = 0; my_attack < gameplay_state.players[player_index].attackboxes.Length; my_attack++)
-									//{
-									//	if (gameplay_state.players[player_index].attackboxes[my_attack].active)
-									//		for (int other_player = 0; other_player < gameplay_state.PLAYER_COUNT; other_player++)
-									//		{
-									//			if (other_player == player_index)
-									//				continue;
-									//			for (int your_defend = 0; your_defend < gameplay_state.players[other_player].defendboxes.Length; your_defend++)
-									//			{
-									//				var a = WorldSpaceMatrix(gameplay_state.players[player_index].attackboxes[my_attack].transform_index, gameplay_state.transforms);
-									//				var b = WorldSpaceMatrix(gameplay_state.players[other_player].defendboxes[your_defend].transform_index, gameplay_state.transforms);
-
-									//				Vector3 v = Transform_v3(a, Vector3.Zero);
-									//				Vector3 w = Transform_v3(b, Vector3.Zero);
-
-									//				var dist = Vector3.Distance(v, w);
-									//				bool intersects = (dist <= (gameplay_state.players[other_player].defendboxes[your_defend].radius + gameplay_state.players[player_index].attackboxes[my_attack].radius));
-
-									//				if (intersects)
-									//				{
-									//					gameplay_state.players[other_player].current_health -= 10 * delta_time;
-									//					if (gameplay_state.players[other_player].current_health <= 0)
-									//					{
-									//						gameplay_state.players[other_player].stock--;
-									//						if (gameplay_state.players[other_player].stock > 0)
-									//							gameplay_state.players[other_player].current_health = gameplay_state.max_health;
-									//						else if (!gameplay_state.players[other_player].defeated)
-									//						{
-									//							gameplay_state.players[other_player].defeated = true;
-									//							gameplay_state.animators[other_player].current_animation = DefinedAnimations.die_animation;
-									//							gameplay_state.animators[other_player].current_frame = 1;
-									//						}
-									//					}
-									//				}
-									//			}
-									//		}
-									//}
-								}
-							}
-
-							//Update Camera
-							{
-								////TODO actual frustum check to keep players on screen
-								float min_x = FLT_MAX;
-								float min_y = FLT_MAX;
-
-								float max_x = -FLT_MAX;
-								float max_y = -FLT_MAX;
-
-								for (int i = 0; i < PLAYER_COUNT; i++)
-								{
-									float x = gameplay_state.transforms[gameplay_state.players[i].entity_ID].position.x;
-									float y = gameplay_state.transforms[gameplay_state.players[i].entity_ID].position.y;
-
-									if (x < min_x)
-										min_x = x;
-									if (x > max_x)
-										max_x = x;
-
-									if (y < min_y)
-										min_y = y;
-									if (y > max_y)
-										max_y = y;
-								}
-
-								gameplay_state.camera.position.x = (max_x + min_x) / 2;
-								gameplay_state.camera.position.y = (max_y + min_y) / 2;
-								gameplay_state.camera.position.z = -20 - (max_x - min_x);
-							}
-
 							//Check Match Complete
 							{
 								int remaining_players = 0;
@@ -3081,220 +2914,28 @@ __declspec(dllexport) void GameLoop()
 									gameplay_state.time_remaining = 0;
 
 								gameplay_state.game_over = gameplay_state.winner != 0 || remaining_players == 0 || gameplay_state.time_remaining == 0;
+
+								if(gameplay_state.game_over)
+									game.time_scale = 0;
 							}
 						}
 					}
 
 					//Render
 					{
-						FillVerticalGradient(cyan, 0xFF0044AA);
+						Fill(black);
 
-						//Draw Scene
+
+						for(int i = 0; i < PLAYER_COUNT;i++)
 						{
-							//get camera matrix
-							m4x4 world_to_camera = GetMatrix(InvertTransform(gameplay_state.camera));
-
-							//Draw Blocks
-							{
-								for (int i = 0; i < block_count; i++)
-								{
-									m4x4 local_to_world = WorldSpaceMatrix(i, gameplay_state.blocks);
-									m4x4 camera_to_clip = Perspective(0.1f, 100, gameplay_state.field_of_view, WIDTH, HEIGHT);
-									m4x4 local_to_clip = Concatenate(Concatenate(local_to_world, world_to_camera), camera_to_clip);
-
-									v4 position = { -.5f, .5f, 0, 1 };
-									position = Transform_Vector4(local_to_clip, position);
-
-									if (position.w != 0)
-										position = v4_Divide(position, position.w);
-
-									//place origin at center of screen
-									position.x++;
-									position.y++;
-
-									//scale space to fill screen
-									position.x *= WIDTH / 2;
-									position.y *= HEIGHT / 2;
-
-									v4 position2 = { .5f, -.5f, 0, 1 };
-									position2 = Transform_Vector4(local_to_clip, position2);
-
-									if (position2.w != 0)
-										position2 = v4_Divide(position2, position2.w);
-
-									//place origin at center of screen
-									position2.x++;
-									position2.y++;
-
-									//scale space to fill screen
-									position2.x *= WIDTH / 2;
-									position2.y *= HEIGHT / 2;
-
-									float width = position2.x - position.x;
-									float height = position2.y - position.y;
-
-									FillRectangle(brown, position.x, position.y, width, height);
-								}
-							}
-
-							v3 transformed_positions[gameplay_state.transform_count];
-							#define state gameplay_state
-							#define Matrix4x4 m4x4
-							#define Vector3 v3
-							//Draw Transforms
-							{
-								for (int i = 0; i < state.transform_count; i++)
-								{
-									Matrix4x4 local_to_world = WorldSpaceMatrix(i, state.transforms);
-									Matrix4x4 local_to_camera = Concatenate(local_to_world, world_to_camera);
-
-									v3 position = Transform_v3(local_to_camera, (v3)v3_zero);
-
-									Matrix4x4 camera_to_clip = Perspective(0.1f, 100, state.field_of_view, WIDTH, HEIGHT);
-
-									v4 vec4 =  (v4){ position.x, position.y, position.z, 1 };
-									vec4 = Transform_Vector4(camera_to_clip, vec4);
-
-									position = (v3){ vec4.x, vec4.y, vec4.z };
-
-									if (vec4.w != 0)
-										v3_Divide(position, vec4.w);
-
-									//place origin at center of screen
-									position.x++;
-									position.y++;
-
-									//scale space to fill screen
-									position.x *= WIDTH / 2;
-									position.y *= HEIGHT / 2;
-
-									transformed_positions[i] = position;
-								}
-
-								for (int i = 0; i < gameplay_state.transform_count; i++)
-								{
-									v3 position = transformed_positions[i];
-									v3 parent_position = position;
-
-									if (state.transforms[i].parent != -1)
-										parent_position = transformed_positions[state.transforms[i].parent];
-
-									float d = state.camera.position.z - position.z;
-									float width = 450.0f / (d);
-									float half_width = width / 2.0f;
-
-									DrawLine(state.player_colors[i / state.skeleton.length], position.x, position.y, parent_position.x, parent_position.y);
-									Draw_Circle(state.player_colors[i / state.skeleton.length], position.x, position.y, -half_width, 1);
-								}
-							}
-
-							if (game.view_debug)
-							{
-								//Draw Hitboxes
-								{
-									#define PIXELS_PER_UNIT 32
-									for (int player_index = 0; player_index < PLAYER_COUNT; player_index++)
-									{
-										for (int attackbox_index = 0; attackbox_index < state.players[player_index].attackbox_count; attackbox_index++)
-										{
-											if (state.players[player_index].attackboxes[attackbox_index].active)
-											{
-												v3 center = transformed_positions[state.players[player_index].attackboxes[attackbox_index].transform_index];
-												float width = state.players[player_index].attackboxes[attackbox_index].radius * 2 * PIXELS_PER_UNIT;
-												DrawHitbox(center, red, width);
-											}
-										}
-
-										for (int i = 0; i < state.players[player_index].defendbox_count; i++)
-										{
-											if (state.players[player_index].defendboxes[i].active)
-											{
-												v3 center = transformed_positions[state.players[player_index].defendboxes[i].transform_index];
-												float d = state.camera.position.z - center.z;
-												float width = 30 * (state.players[player_index].defendboxes[i].radius * 2 * PIXELS_PER_UNIT) / (d);
-												DrawHitbox(center, blue, -width);
-											}
-										}
-									}
-								}
-
-								// //Draw Colliders
-								// {
-								// 	for (int i = 0; i < state.blocks.Length; i++)
-								// 	{
-								// 		Matrix4x4 local_to_world = WorldSpaceMatrix(i, state.blocks);
-								// 		Matrix4x4 camera_to_clip = Perspective(0.1f, 100, state.field_of_view, WIDTH, HEIGHT);
-								// 		Matrix4x4 local_to_clip = local_to_world * world_to_camera * camera_to_clip;
-
-								// 		Vector4 position = new Vector4(-.5f, .5f, 0, 1);
-								// 		position = Transform_Vector4(local_to_clip, position);
-
-								// 		if (position.w != 0)
-								// 			position /= position.w;
-
-								// 		//place origin at center of screen
-								// 		position.x++;
-								// 		position.y++;
-
-								// 		//scale space to fill screen
-								// 		position.x *= WIDTH / 2;
-								// 		position.y *= HEIGHT / 2;
-
-								// 		Vector4 position2 = new Vector4(.5f, -.5f, 0, 1);
-								// 		position2 = Transform_Vector4(local_to_clip, position2);
-
-								// 		if (position2.w != 0)
-								// 			position2 /= position2.w;
-
-								// 		//place origin at center of screen
-								// 		position2.x++;
-								// 		position2.y++;
-
-								// 		//scale space to fill screen
-								// 		position2.x *= WIDTH / 2;
-								// 		position2.y *= HEIGHT / 2;
-
-								// 		DrawRectangle(blue, position.x, position.y, position2.x - position.x, position2.y - position.y);
-								// 	}
-
-								// 	for (int i = 0; i < GameplayState.players.Length; i++)
-								// 	{
-								// 		Matrix4x4 local_to_world = WorldSpaceMatrix(GameplayState.players[i].entity_ID, state.transforms);
-								// 		Matrix4x4 camera_to_clip = Perspective(0.1f, 100, state.field_of_view, WIDTH, HEIGHT);
-								// 		Matrix4x4 local_to_clip = local_to_world * world_to_camera * camera_to_clip;
-
-								// 		Vector4 position = new Vector4(-.5f, .5f, 0, 1);
-								// 		position = Transform_Vector4(local_to_clip, position);
-
-								// 		if (position.w != 0)
-								// 			position /= position.w;
-
-								// 		//place origin at center of screen
-								// 		position.x++;
-								// 		position.y++;
-
-								// 		//scale space to fill screen
-								// 		position.x *= WIDTH / 2;
-								// 		position.y *= HEIGHT / 2;
-
-								// 		Vector4 position2 = new Vector4(.5f, -.5f, 0, 1);
-								// 		position2 = Transform_Vector4(local_to_clip, position2);
-
-								// 		if (position2.w != 0)
-								// 			position2 /= position2.w;
-
-								// 		//place origin at center of screen
-								// 		position2.x++;
-								// 		position2.y++;
-
-								// 		//scale space to fill screen
-								// 		position2.x *= WIDTH / 2;
-								// 		position2.y *= HEIGHT / 2;
-
-								// 		DrawRectangle(blue, position.x, position.y, position2.x - position.x, position2.y - position.y);
-								// 	}
-								// }
-							}
+							Vec3 position = gameplay_state.transforms[gameplay_state.players[i].entity_ID].position;
+							position.x -= .5f;
+							position.y -= .5f;
+							position.x *= PIXELS_PER_UNIT;
+							position.y *= -PIXELS_PER_UNIT;
+							position.x += WIDTH / 2;
+							position.y += HEIGHT / 2;
+							FillRectangle(gameplay_state.player_colors[i], position.x, position.y, PIXELS_PER_UNIT, PIXELS_PER_UNIT);
 						}
 
 						//Draw Heads-Up Display (HUD)
@@ -3310,7 +2951,7 @@ __declspec(dllexport) void GameLoop()
 							{
 								//Draw HealthBar
 								{
-									float portion = state.players[player].current_health / state.max_health;
+									float portion = gameplay_state.players[player].current_health / gameplay_state.max_health;
 									int current_width = (int)(portion * max_width);
 									int x_pos = indent_x + available_space * player;
 									int padded_height = health_height - padding;
@@ -3324,9 +2965,9 @@ __declspec(dllexport) void GameLoop()
 
 								//Draw Stocks
 								{
-									for (int stock = 0; stock < state.players[player].stock; stock++)
+									for (int stock = 0; stock < gameplay_state.players[player].stock; stock++)
 									{
-										FillCircle(state.player_colors[player], available_space * player + indent_x + 10 + (stock * (20 + 5)), 40, 10);
+										FillCircle(gameplay_state.player_colors[player], available_space * player + indent_x + 10 + (stock * (20 + 5)), 40, 10);
 										Draw_Circle(black, available_space * player + indent_x + 10 + (stock * (25)), 40, 10, 3.0f);
 									}
 								}
@@ -3337,29 +2978,27 @@ __declspec(dllexport) void GameLoop()
 								int char_sprite_size = 8;
 								char result[40];
 
-								sprintf(result, "%.0f", state.time_remaining);
+								sprintf(result, "%.0f", gameplay_state.time_remaining);
 								string message = WrapString(result);
-								DrawString(message, WIDTH / 2 - char_sprite_size * (message.length - 1), char_sprite_size * 2);
+								DrawStringScaled(message, WIDTH / 2 - char_sprite_size * (message.length - 1) * 2, char_sprite_size, 2,white);
 							}
 
-							if (state.game_over)
+							if (gameplay_state.game_over)
 							{
 								//Draw Game End Message
 								{
 									int offset_x = WIDTH / 2, offset_y = HEIGHT / 2;
 
 									char result[40];
-									if (state.winner == 0)
+									if (gameplay_state.winner == 0)
 										sprintf(result, "TIE!");
 									else
-										sprintf(result, "PLAYER %d WINS!", state.winner);
+										sprintf(result, "PLAYER %d WINS!", gameplay_state.winner);
 									string message = WrapString(result);
 									DrawString(message, offset_x, offset_y);
 								}
 							}
 						}
-
-						Flatten();
 					}
 				} break;
 				case MeshDemo:
@@ -3418,11 +3057,11 @@ __declspec(dllexport) void GameLoop()
 								if (i == remaining_count) //TODO verify no off by one error
 									break;
 								Triangle t = triangles[i];
-								v3 a = v3_Subtract(t.b, t.a);
-								v3 b = v3_Subtract(t.c, t.a);
-								v3 normal = v3_Normalized(CrossProduct(a, b));
+								Vec3 a = v3_Subtract(t.b, t.a);
+								Vec3 b = v3_Subtract(t.c, t.a);
+								Vec3 normal = v3_Normalized(CrossProduct(a, b));
 
-								v3 from_camera_to_triangle = v3_Normalized(v3_Subtract(t.a, mesh_demo_camera.position));
+								Vec3 from_camera_to_triangle = v3_Normalized(v3_Subtract(t.a, mesh_demo_camera.position));
 
 								if (v3_DotProduct(normal, from_camera_to_triangle) > 0)
 								{
@@ -3432,7 +3071,7 @@ __declspec(dllexport) void GameLoop()
 								}
 								else
 								{
-									v3 backward = { 0,0,-1 };
+									Vec3 backward = { 0,0,-1 };
 									float dot = v3_DotProduct(normal, Transform_v3(Rotation(0, light_rotation, 0), backward));
 
 									if (dot < 0)
@@ -3480,22 +3119,135 @@ __declspec(dllexport) void GameLoop()
 				} break;
 				case Particle:
 				{
-					Fill(0xFFFF00FF);
-					for (int i = 0; i < 250; i++)
+					Fill(0xFF000000);
+					for (int i = 0; i < 1000; i++)
 					{
 						float x = (float)rand() / ((float)RAND_MAX) * 1000.0f;
 						float y = (float)rand() / ((float)RAND_MAX) * 1000.0f;
-						FillRectangle(red, x, y, 10, 10);
-						x = (float)rand() / ((float)RAND_MAX) * 1000.0f;
-						y = (float)rand() / ((float)RAND_MAX) * 1000.0f;
-						FillRectangle(red, x, y, 10, 10);
-						x = (float)rand() / ((float)RAND_MAX) * 1000.0f;
-						y = (float)rand() / ((float)RAND_MAX) * 1000.0f;
-						FillRectangle(red, x, y, 10, 10);
-						x = (float)rand() / ((float)RAND_MAX) * 1000.0f;
-						y = (float)rand() / ((float)RAND_MAX) * 1000.0f;
-						FillRectangle(red, x, y, 10, 10);																		
+						FillRectangle(red, x, y, 10, 10);																	
 					}
+				} break;
+				case TextureMappedTriangle:
+				{
+					Bitmap texture;
+					texture.width = 200;
+					texture.height = 200;
+					uint checker_pixels[200*200];
+					texture.pixels = checker_pixels; 
+					uint checker_color = red;
+					static int offset_x = 600;
+					static int offset_y = 300;
+					if(KeyDown(Keys_Left))
+						offset_x--;
+					if(KeyDown(Keys_Right))
+						offset_x++;
+					if(KeyDown(Keys_Down))
+						offset_y++;	
+					if(KeyDown(Keys_Up))
+						offset_y--;						
+					for (int x = 0; x < texture.width; ++x)
+					{				
+						for (int y = 0; y < texture.height; ++y)
+						{
+							texture.pixels[texture.width*y+x] = splash.logo.pixels[splash.logo.width*(y+offset_y)+(x+offset_x)];
+						}
+					}
+
+					Fill(black);
+
+					for (int x = 0; x < texture.width; ++x)
+					{
+						for (int y = 0; y < texture.height; ++y)
+						{
+							pixels[y*WIDTH+x] = texture.pixels[y*texture.width+x];
+						}
+					}
+
+					static float my_x = 0;
+					Vec2 center = {WIDTH/2, HEIGHT/2};
+					float radius = 100;
+					Vec3 av = {-1,-1,0};
+
+					av = Transform_v3(Rotation(0,0,my_x), av);
+					Vec2 a = {center.x + (av.x*50), center.y + (av.y*50)};
+
+					Vec3 bv = {1,-1,0};
+					bv = Transform_v3(Rotation(0,0,my_x), bv);
+					Vec2 b = {center.x + (bv.x*50), center.y + (bv.y*50)};
+
+
+					Vec3 cv = {-1,1,0};
+					cv = Transform_v3(Rotation(0,0,my_x), cv);
+					Vec2 c = {center.x + (cv.x*50), center.y + (cv.y*50)};
+
+					Vec3 dv = {1,1,0};
+					dv = Transform_v3(Rotation(0,0,my_x), dv);
+					Vec2 d = {center.x + (dv.x*50), center.y + (dv.y*50)};
+
+					Vec2 a_uv = {0,0};
+					Vec2 b_uv = {1,0};
+					Vec2 c_uv = {0,1};
+					Vec2 d_uv = {1,1};
+						
+					FillTriangle_Texture(a, b, c, a_uv, b_uv, c_uv, texture);
+					FillTriangle_Texture(c, b, d, c_uv, b_uv, d_uv, texture);
+
+					my_x += game.delta_time;
+				} break;
+				case TextureMappedCube:
+				{
+					Bitmap texture;
+					texture.width = 200;
+					texture.height = 200;
+					uint checker_pixels[200*200];
+					texture.pixels = checker_pixels; 
+					uint checker_color = red;
+					static int offset_x = 600;
+					static int offset_y = 300;
+					if(KeyDown(Keys_Left))
+						offset_x--;
+					if(KeyDown(Keys_Right))
+						offset_x++;
+					if(KeyDown(Keys_Down))
+						offset_y++;	
+					if(KeyDown(Keys_Up))
+						offset_y--;						
+					for (int x = 0; x < texture.width; ++x)
+					{				
+						for (int y = 0; y < texture.height; ++y)
+						{
+							texture.pixels[texture.width*y+x] = splash.logo.pixels[splash.logo.width*(y+offset_y)+(x+offset_x)];
+						}
+					}
+
+					FillVerticalGradient(black,white);
+
+					for (int x = 0; x < texture.width; ++x)
+					{
+						for (int y = 0; y < texture.height; ++y)
+						{
+							pixels[y*WIDTH+x] = texture.pixels[y*texture.width+x];
+						}
+					}
+
+					static float rot_y = 0;
+					static Transform my_transform;
+					Vec3 foo = v3_one;
+					my_transform.scale = foo;
+					Vec3 foo2 = v3_zero;
+					my_transform.position = foo2;
+					my_transform.rotation.x = rot_y;
+					my_transform.rotation.y = rot_y;
+					my_transform.rotation.z = rot_y;
+					Transform camera;
+					Vec3 foo3 = v3_one;
+					camera.scale = foo3;
+					Vec3 backward_30 = { 0, (float)(sin(rot_y) * 3), -30 };
+					camera.position = backward_30;
+					camera.rotation = foo2;
+
+					RenderTexturedMesh(cube_mesh, my_transform, camera, texture);
+					rot_y += game.delta_time;
 				} break;
 				default:
 				{
@@ -3509,13 +3261,17 @@ __declspec(dllexport) void GameLoop()
 				{
 					char moop[100];
 					char boop[100];
+					char schoop[100];
 					sprintf(moop,"FPS: %.2f", game.frames_per_second);
 					sprintf(boop,"delta_time: %.9f", game.delta_time);
+					sprintf(schoop,"time_scale: %.2f", game.time_scale);
 
 					string fps_string = WrapString(moop);
 					string delta_string = WrapString(boop);
+					string time_Scale_string = WrapString(schoop);
 					DrawString(fps_string, 16, 16);
 					DrawString(delta_string, 16, 28);
+					DrawString(time_Scale_string, 16, 40);
 				}
 			}
 
@@ -3542,4 +3298,106 @@ __declspec(dllexport) void GameLoop()
 
 		game.previous_time = clock();
 	}
+}
+
+#define main main
+//Analog joystick dead zone
+const int JOYSTICK_DEAD_ZONE = 8000;
+//Game Controller 1 handler
+SDL_Joystick* gGameController = NULL;
+
+
+int main(int argc, char* argv[]) {
+    SDL_Window *window;                    // Declare a pointer
+
+    if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_JOYSTICK) < 0)
+        return;
+
+    //Check for joysticks
+    if( SDL_NumJoysticks() < 1 )
+    {
+        printf( "Warning: No joysticks connected!\n" );
+    }
+    else
+    {
+        //Load joystick
+        gGameController = SDL_JoystickOpen( 0 );
+        if( gGameController == NULL )
+        {
+            printf( "Warning: Unable to open game controller! SDL Error: %s\n", SDL_GetError() );
+        }
+    }
+
+    // Create an application window with the following settings:
+    window = SDL_CreateWindow(
+        "Window Boom",                  // window title
+        SDL_WINDOWPOS_UNDEFINED,           // initial x position
+        SDL_WINDOWPOS_UNDEFINED,           // initial y position
+        1920,                               // width, in pixels
+        1080,                               // height, in pixels
+        SDL_WINDOW_OPENGL                  // flags - see below
+    );
+
+    // Check that the window was successfully created
+    if (window == NULL) {
+        // In the case that the window could not be made...
+        printf("Could not create window: %s\n", SDL_GetError());
+        return 1;
+    }
+
+    SDL_Surface* surface;
+
+	InitViewport2(1920, 1080);
+	InitEverything();
+	//SDL_SetWindowFullscreen(window,SDL_WINDOW_FULLSCREEN_DESKTOP);
+    surface = SDL_GetWindowSurface(window);
+    pixels = surface->pixels;
+    int is_active = true;
+    int x, y;
+
+    while (is_active) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) 
+        {
+            switch(event.type)
+        	{
+                case SDL_QUIT:
+                {
+                    is_active = false;
+                } break;
+                case SDL_JOYAXISMOTION:
+                {
+                    if( event.jaxis.which == 0 )
+                    {
+                        if( event.jaxis.axis == 0 )
+                        {
+                            x = event.jaxis.value;
+                        }
+                        else if( event.jaxis.axis == 1 )
+                        {
+                            y = event.jaxis.value;
+                        }
+                        printf("{ %d, %d }\n",x,y);
+                    }
+                }
+                case SDL_JOYBUTTONDOWN:
+                {
+                    if(event.jbutton.which==0)
+                    {
+                        if(event.jbutton.button == 1 && event.jbutton.type == SDL_JOYBUTTONDOWN)
+                            printf("yay");
+                    }
+                } break;
+        		default:
+        			break;
+        	}
+        }
+
+        GameLoop();
+        SDL_UpdateWindowSurface(window);
+    }
+
+
+
+    return 0;
 }

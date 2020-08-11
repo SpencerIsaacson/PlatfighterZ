@@ -104,7 +104,7 @@ class Client
 
     void OutputRender()
     {
-        graphics.DrawImage(rendered_image, 0, 0, WIDTH, HEIGHT); //TODO find something faster than this! Perhaps you can access the contents of the GDI drawing surface directly?
+        graphics.DrawImage(rendered_image, 0, 0, WIDTH, HEIGHT); //TODO find something faster than this to blit your renders to the window! Perhaps you can access the contents of the GDI drawing surface directly?
         buffered_graphics.Render();
     }
 

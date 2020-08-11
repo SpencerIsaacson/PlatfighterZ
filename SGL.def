@@ -1,4 +1,4 @@
-LIBRARY SGL.dll
+LIBRARY SGL.exe
 
 EXPORTS
 GameLoop
