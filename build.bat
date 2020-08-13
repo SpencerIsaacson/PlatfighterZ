@@ -1,5 +1,4 @@
-@tcc SourceCode/SGL.c -luser32 SDL2.dll
-@REM "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin\Roslyn\csc.exe" -out:P:\Game.exe -recurse:P:\SourceCode\*.cs -debug -optimize+ -langversion:7.3 -define:Windows -define:DEBUG -nologo -unsafe -platform:x64 -win32icon:Assets\icon.ico
+@/compiler/tcc SourceCode/Game.c -luser32 /Dependencies/SDL2.dll
 
 @if not errorlevel 1 (
 	if not "%~1"=="" (

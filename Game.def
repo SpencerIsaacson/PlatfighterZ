@@ -1,0 +1,6 @@
+LIBRARY Game.exe
+
+EXPORTS
+GameLoop
+InitEverything
+InitViewport

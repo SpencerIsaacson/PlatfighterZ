@@ -1,6 +1,0 @@
-LIBRARY SGL.exe
-
-EXPORTS
-GameLoop
-InitEverything
-InitViewport

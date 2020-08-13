@@ -1,11 +1,8 @@
-Do actual frustum check for players in camera view
-
-Use Verlet integration for platforming instead of Euler.
-
-Fix input issues on limited 60fps
-
-
-This week: finish mesh skinning CHECK, import an animated character CHECK, add the collision detection to the game CHECK, make it so you can animate different characters, get character selection working
+z-buffer
+able to reconnect gamepad without restarting game
+frustum cull geometry
+per-vertex lighting
+clean-up rendering code, start separating out "pipeline" pieces that can be chained together and swapped out
 
 
 
