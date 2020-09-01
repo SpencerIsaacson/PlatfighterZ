@@ -772,7 +772,7 @@ void InitEverything()
 			close_file(file_pointer);
 		}
 
-		mesh = LoadMesh("Assets/untitled.obj");
+		mesh = LoadMesh("Assets/guy.obj");
 		FILE* file_pointer = open_file("Assets/guy_normals", "rb");
 		guy_normals = malloc(mesh.vertices_length*sizeof(Vec3));
 		read_bytes(guy_normals, sizeof(Vec3), mesh.vertices_length, file_pointer);
