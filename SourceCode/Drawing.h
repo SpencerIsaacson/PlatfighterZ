@@ -1055,8 +1055,8 @@ void RenderTriangle(Vec3 a, Vec3 b, Vec3 c, int triangle_index, Shader shader, v
 {
 	int x_min = (int)GetMin3(a.x, b.x, c.x);
 	int y_min = (int)GetMin3(a.y, b.y, c.y);
-	int x_max = (int)(GetMax3(a.x, b.x, c.x));
-	int y_max = (int)(GetMax3(a.y, b.y, c.y));
+	int x_max = (int)GetMax3(a.x, b.x, c.x);
+	int y_max = (int)GetMax3(a.y, b.y, c.y);
 
 	Clamp(&x_min, 0, WIDTH-1);
 	Clamp(&x_max, 0, WIDTH-1);
@@ -1082,9 +1082,11 @@ void RenderTriangle(Vec3 a, Vec3 b, Vec3 c, int triangle_index, Shader shader, v
 				float e_z = Lerp_Float(a.z, b.z, v.y);
 				float f_z = Lerp_Float(e_z, d_z, v.z);
 
-
-				pixels[i] = (f_z >= z_buffer[i]) ? pixels[i] : shader.function(v, triangle_index, shader_state);
-				z_buffer[i] = (f_z >= z_buffer[i]) ? z_buffer[i] : f_z;
+				if(f_z < z_buffer[i])
+				{
+					z_buffer[i] = f_z;
+					pixels[i] = shader.function(v, triangle_index, shader_state);
+				}
 			}
 		}
 	}	

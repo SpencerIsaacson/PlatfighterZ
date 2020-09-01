@@ -772,7 +772,7 @@ void InitEverything()
 			close_file(file_pointer);
 		}
 
-		mesh = LoadMesh("Assets/guy.obj");
+		mesh = LoadMesh("Assets/untitled.obj");
 		FILE* file_pointer = open_file("Assets/guy_normals", "rb");
 		guy_normals = malloc(mesh.vertices_length*sizeof(Vec3));
 		read_bytes(guy_normals, sizeof(Vec3), mesh.vertices_length, file_pointer);
@@ -907,18 +907,14 @@ void GameLoop()
 					if(KeyDown(Keys_Space))
 						object_transform.rotation.y += timing.delta_time *4;
 
-					//light_rotation += timing.delta_time / 3;
+					light_rotation += timing.delta_time / 3;
 					
 					Clear();
 					ClearZBuffer();
 
 					Color skin = 0xFFBB88;
 					Color colors[3] = {red,green,blue};
-					RenderMesh(mesh, object_transform, camera, ShadeSolidColor, &skin);
-					for (int i = 0; i < 6000; ++i)
-					{
-						//RenderTriangle((Vec3){10,10,0},(Vec3){10,30,0},(Vec3){30,30,0}, 0, ShadeWhite, NULL);
-					}
+					RenderMesh(mesh, object_transform, camera, ShadeGouraud, &skin);
 
 				} break;
 				case AnimationEditor:
