@@ -1,38 +1,46 @@
+#define bool char
+#define true 1
+#define false 0
+#define byte unsigned char
+#define uint unsigned int
+
 typedef struct
 {
 	int length;
 	char* characters;
 } string;
 
-typedef struct Vec2
+typedef struct v2
 {
 	float x, y;
-} Vec2;
+} v2;
 
-typedef struct Vec2i
+typedef struct v2i
 {
 	int x, y;
-} Vec2i;
+} v2i;
 
-typedef struct Vec3
+typedef struct v3
 {
 	float x, y, z;
-} Vec3;
+} v3;
 
-typedef struct Vec3i
+typedef struct v3i
 {
 	int x, y, z;
-} Vec3i;
+} v3i;
 
 typedef struct
 {
 	float x, y, z, w;
 } Vec4;
 
+
+
 typedef struct
 {
 	int parent;
-	Vec3
+	v3
 		position,
 		rotation,
 		scale;
@@ -50,14 +58,15 @@ typedef struct
 {
 	int transform_index;
 	char channel_offset;
-	int keyframes_length;
+	int keyframes_count;
 	KeyFrame* keyframes;
 } AnimationCurve;
 
 typedef struct
 {
 	bool looped;
-	int curves_length;
+	int animation_length;
+	int curves_count;
 	AnimationCurve* curves;
 	int** defendbox_keys;
 	bool** defendbox_values;
@@ -80,10 +89,22 @@ typedef struct
 		m41, m42, m43, m44;
 } m4x4;
 
+typedef struct RectangleF
+{
+	float x,y,width,height;
+} RectangleF;
+
+typedef struct PointRectangle{
+	v3 top_left;
+	v3 top_right;
+	v3 bottom_left;
+	v3 bottom_right;
+} PointRectangle;
+
 typedef struct
 {
-	Vec2 position;
-	Vec2 size;
+	v2 position;
+	v2 size;
 } Hitbox;
 
 #define MAX_HITBOX_COUNT 20
@@ -101,19 +122,26 @@ typedef struct {
 
 } HitboxAnimation;
 
-#define Color unsigned int
+typedef unsigned int Color;
+
+typedef struct Vertex
+{
+	v3 position;
+	v3 normal;
+	v2 uv;
+	Color color;
+} Vertex;
+
 typedef struct Triangle
 {
-	Vec3 a, b, c;
-	Color color;
-	float brightness;
-	Vec2 a_uv, b_uv, c_uv;
+	Vertex a, b, c;
 } Triangle;
 
-typedef struct TriangleSmall
+typedef struct TriangleMesh
 {
-	Vec3 a, b, c;
-} TriangleSmall;
+	int triangle_count;
+	Triangle* triangles;
+} TriangleMesh;
 
 typedef struct TriangleIndices
 {
@@ -122,21 +150,36 @@ typedef struct TriangleIndices
 
 typedef struct Mesh
 {
-	int vertices_length;
-	Vec3* vertices;
-	int indices_length;
+	int vertices_count;
+	v3* vertices;
+	int indices_count;
 	int* indices;
-	int uvs_length;
-	Vec2* uvs;
-	int uv_indices_length;
+	int uvs_count;
+	v2* uvs;
+	int uv_indices_count;
 	int* uv_indices;
-	int normals_length;
-	Vec3* normals;
+	int normals_count;
+	v3* normals;
 } Mesh;
+
+typedef struct IndexedMesh
+{
+	int vertices_count;
+	int vertices_offset;
+	int indices_count;
+	int indices_offset;
+	int normals_count;
+	int normals_offset;	
+	int uvs_count;
+	int uvs_offset;
+	int uv_indices_count;
+	int uv_indices_offset;
+	byte data[1];
+} IndexedMesh;
 
 typedef struct
 {
-	int length;
+	int joint_count;
 	Transform* joints;
 } Skeleton;
 
@@ -147,7 +190,7 @@ typedef struct
 	bool defeated;
 	int stock;
 	float current_health;
-	Vec2 velocity;
+	v2 velocity;
 	bool grounded;
 } Player;
 
@@ -157,3 +200,18 @@ typedef struct
 	int width, height;
 	uint* pixels;
 } Bitmap;
+
+typedef Color (*Shader)(v3 barycentric_point, int triangle_index, void* shader_state);
+
+typedef struct Material
+{
+	Shader shader;
+	void* state;
+} Material;
+
+typedef struct Entity
+{
+	Transform transform;
+	IndexedMesh mesh;
+	Material material;
+} Entity;

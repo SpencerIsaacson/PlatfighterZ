@@ -1,8 +1,17 @@
+typedef struct MouseState
+{
+	v2 position;
+	v2 delta;
+	bool leftbutton_down;
+	bool leftbutton_was_down;
+} MouseState;
+
+MouseState mousestate;
 typedef struct PadState
 {
 	bool buttons[10];
-	Vec2 left_stick;
-	Vec2 right_stick;
+	v2 left_stick;
+	v2 right_stick;
 } PadState;
 
 PadState game_pads[4];
@@ -12,6 +21,7 @@ enum Keys
 	Keys_Backspace = 8,
 	Keys_Tab = 9,
 	Keys_Enter = 13,
+	Keys_Escape = 27,
 	Keys_Space = 32,
 	Keys_Left = 37, Keys_Up, Keys_Right, Keys_Down,
 	Keys_Delete = 46,

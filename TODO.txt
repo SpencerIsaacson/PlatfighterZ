@@ -1,10 +1,18 @@
-z-buffer
-able to reconnect gamepad without restarting game
-frustum cull geometry
+make able to reconnect gamepad without restarting game
 per-vertex lighting
 clean-up rendering code, start separating out "pipeline" pieces that can be chained together and swapped out
 
 
 
 known issues:
-fixed-framerate gradually speeds up simulation
+fixed-framerate gradually speeds up simulation (still the case?)
+
+
+
+
+
+
+
+Finished Items: (From now on, completed work items go here rather than being erased)
+frustum cull geometry CHECK! (no near clipping or far clipping yet, or vertex level clipping)
+z-buffer CHECK

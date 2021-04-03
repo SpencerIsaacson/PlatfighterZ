@@ -8,9 +8,10 @@
 
 #define black 0xFF000000
 #define white 0xFFFFFFFF
-
+#define opaque black
 #define brown 0xFFA52A2A
 #define purple 0xFF800080
+#define transparent 0
 
 void Clear()
 {
@@ -28,7 +29,7 @@ Color Darker(Color color)
 #define Z_BUFFER_UNSET 9001
 void ClearZBuffer()
 {
-	for (int i = 0; i < pixel_count; i+=8) //in groups of 8 to hint to the compiler to vectorize/SIMD the loop
+	for (int i = 0; i < pixel_count; i+=8)
 	{
 		z_buffer[i+0] = Z_BUFFER_UNSET;
 		z_buffer[i+1] = Z_BUFFER_UNSET;
@@ -37,23 +38,17 @@ void ClearZBuffer()
 		z_buffer[i+4] = Z_BUFFER_UNSET;
 		z_buffer[i+5] = Z_BUFFER_UNSET;
 		z_buffer[i+6] = Z_BUFFER_UNSET;
-		z_buffer[i+7] = Z_BUFFER_UNSET;							
+		z_buffer[i+7] = Z_BUFFER_UNSET;
 	}
 }
 
 void Fill(uint color)
 {
-	for (int i = 0; i < pixel_count; i+=8)
-	{
-		pixels[i+0] = color;
-		pixels[i+1] = color;
-		pixels[i+2] = color;
-		pixels[i+3] = color;
-		pixels[i+4] = color;
-		pixels[i+5] = color;
-		pixels[i+6] = color;
-		pixels[i+7] = color;								
-	}
+	for (int x = 0; x < WIDTH; x++)
+		pixels[x] = color;
+
+	for (int y = 1; y < HEIGHT; y++)
+		memcpy(&pixels[y*WIDTH], &pixels[(y-1)*WIDTH], 4*WIDTH);
 }
 
 void PutPixel_ByPosition(Color color, int x, int y)
@@ -67,18 +62,6 @@ void PutPixel_ByIndex(Color color, int i)
 	if (i >= 0 && i < pixel_count)
 		pixels[i] = color;
 }
-
-void DrawHorizontalSegment(Color color, int y, int x1, int x2)
-{
-	int pixel_row = y * WIDTH;
-
-	for (int i = pixel_row + x1; i <= pixel_row + x2; i++)
-	{
-		int x = i - pixel_row;
-		PutPixel_ByPosition(color, x, y);
-	}
-}
-
 
 Color LerpColor(Color a, Color b, float t)
 {
@@ -110,58 +93,24 @@ Color LerpColor(Color a, Color b, float t)
 	return l;
 }
 
-void DrawSprite(int _x, int _y, Bitmap sprite)
+void DrawSprite(int x, int y, Bitmap sprite)
 {
-	for (int x = 0; x < sprite.width; ++x)
+	int x_min = x;
+	int y_min = y;
+	int x_max = x + sprite.width;
+	int y_max = y + sprite.height;
+	Clamp(&x_min,0,WIDTH);
+	Clamp(&x_max, x_min, WIDTH);
+	Clamp(&y_min,0,HEIGHT);
+	Clamp(&y_max, y_min, HEIGHT);
+
+	for (int _y = y_min; _y < y_max; _y++)
+	for (int _x = x_min; _x < x_max; _x++)
 	{
-		for (int y = 0; y < sprite.height; ++y)
 		{
-			PutPixel_ByPosition(sprite.pixels[y*sprite.width+x], x+_x, y+_y);
+			pixels[_y*WIDTH+_x] = sprite.pixels[(_y-y)*sprite.width+(_x-x)];
 		}
-	}	
-}
-
-Transform DefaultTransform()
-{
-	return (Transform)
-	{
-		.parent = -1,
-		.position = v3_zero,
-		.rotation = v3_zero,
-		.scale = v3_one
-	};
-}
-
-Vec3 CameraSpaceToClipSpace(Vec3 v)
-{
-	Vec4 v_4 = { v.x, v.y, v.z, 1 };
-	v_4 = Transform_v4(camera_to_clip, v_4); //Projection
-
-	v.x = v_4.x;
-	v.y = v_4.y;
-	v.z = v_4.z;
-
-	if (v_4.w != 0)
-	{
-		v.x /= v_4.w;
-		v.y /= v_4.w;
-		v.z /= v_4.w;
 	}
-
-	return v;
-}
-
-Vec3 ClipSpaceToScreenSpace(Vec3 v)
-{
-	//place origin at center of screen
-	v.x++;
-	v.y++;
-
-	//scale space to fill screen
-	v.x *= WIDTH / 2;
-	v.y *= HEIGHT / 2;
-
-	return v;
 }
 
 void FillVerticalGradient(Color color1, Color color2)
@@ -188,6 +137,21 @@ void FillHorizontalGradient(Color color1, Color color2)
 	for (int y = 1; y < HEIGHT; y++)
 		memcpy(&pixels[y*WIDTH], &pixels[(y-1)*WIDTH], 4*WIDTH);
 
+}
+
+Noise()
+{
+	srand(10);
+	for(int i = 0; i < pixel_count; i++)
+	{
+		byte foo =(byte)((rand()/(double)RAND_MAX) * UCHAR_MAX);;
+		Color random_color;
+		byte* p = (byte*)&random_color;
+		p[0] = foo;
+		p[1] = foo;
+		p[2] = foo;
+		pixels[i] = LerpColor(pixels[i], random_color,.04f);
+	}
 }
 
 Color BlendColor(Color s, Color d)
@@ -224,6 +188,7 @@ Color BlendColor(Color s, Color d)
 	return result;
 }
 
+//TODO handle invalid file paths
 Mesh LoadMeshWithUVindices(char* path)
 {
 	FILE* fp = fopen(path, "r");
@@ -259,25 +224,27 @@ Mesh LoadMeshWithUVindices(char* path)
 	rewind(fp);
 
 	Mesh return_mesh;
-	Vec3* vertices = malloc(sizeof(Vec3) * vertex_count);
-	Vec2* uvs = malloc(sizeof(Vec2) * uv_count);
+	v3* vertices = malloc(sizeof(v3) * vertex_count);
+	v2* uvs = malloc(sizeof(v2) * uv_count);
 	int* indices = malloc(sizeof(int) * index_count);
 	int* uv_indices = malloc(sizeof(int) * index_count);
 
 	return_mesh.vertices = vertices;
-	return_mesh.vertices_length = vertex_count;
+	return_mesh.vertices_count = vertex_count;
 	return_mesh.indices = indices;
-	return_mesh.indices_length = index_count;
+	return_mesh.indices_count = index_count;
 	return_mesh.uvs = uvs;
-	return_mesh.uvs_length = uv_count;
+	return_mesh.uvs_count = uv_count;
 	return_mesh.uv_indices = uv_indices;
-	return_mesh.uv_indices_length = index_count;
+	return_mesh.uv_indices_count = index_count;
+	return_mesh.normals_count = 0;
+	return_mesh.normals = NULL;
 
 	int vertex = 0;
 	int vertex_index = 0;
 	int uv = 0;
 	int uv_index = 0;
-
+	
 	while (true)
 	{
 		char str[500];
@@ -298,7 +265,7 @@ Mesh LoadMeshWithUVindices(char* path)
 				float y = (float)strtod(token, &ptr);
 				token = strtok(NULL, " ");
 				float z = (float)strtod(token, &ptr);
-				Vec3 v = { x, y, z };
+				v3 v = { x, y, z };
 				return_mesh.vertices[vertex++] = v;
 			} break;
 			case 'u': //TODO replace with vt
@@ -307,7 +274,7 @@ Mesh LoadMeshWithUVindices(char* path)
 				float u = (float)strtod(token, &ptr);
 				token = strtok(NULL, " ");
 				float v = (float)strtod(token, &ptr);
-				Vec2 v2 = { u, v };
+				v2 v2 = { u, v };
 				return_mesh.uvs[uv++] = v2;
 			} break;			
 			case 'f':
@@ -385,19 +352,19 @@ Mesh LoadMesh(char* path)
 	rewind(fp);
 
 	Mesh return_mesh;
-	Vec3* vertices = malloc(sizeof(Vec3) * vertex_count);
-	Vec2* uvs = malloc(sizeof(Vec2) * uv_count);
+	v3* vertices = malloc(sizeof(v3) * vertex_count);
+	//v2* uvs = malloc(sizeof(v2) * uv_count);
 	int* indices = malloc(sizeof(int) * index_count);
-	int* uv_indices = malloc(sizeof(int) * index_count);
+	//int* uv_indices = malloc(sizeof(int) * index_count);
 
 	return_mesh.vertices = vertices;
-	return_mesh.vertices_length = vertex_count;
+	return_mesh.vertices_count = vertex_count;
 	return_mesh.indices = indices;
-	return_mesh.indices_length = index_count;
-	return_mesh.uvs = uvs;
-	return_mesh.uvs_length = uv_count;
-	return_mesh.uv_indices = uv_indices;
-	return_mesh.uv_indices_length = index_count;
+	return_mesh.indices_count = index_count;
+	return_mesh.uvs = NULL;
+	return_mesh.uvs_count = 0;
+	return_mesh.uv_indices = NULL;
+	return_mesh.uv_indices_count = 0;
 
 	int vertex = 0;
 	int vertex_index = 0;
@@ -424,7 +391,7 @@ Mesh LoadMesh(char* path)
 				float y = (float)strtod(token, &ptr);
 				token = strtok(NULL, " ");
 				float z = (float)strtod(token, &ptr);
-				Vec3 v = { x, y, z };
+				v3 v = { x, y, z };
 				return_mesh.vertices[vertex++] = v;
 			} break;
 			case 'u': //TODO replace with vt
@@ -433,7 +400,7 @@ Mesh LoadMesh(char* path)
 				float u = (float)strtod(token, &ptr);
 				token = strtok(NULL, " ");
 				float v = (float)strtod(token, &ptr);
-				Vec2 v2 = { u, v };
+				v2 v2 = { u, v };
 				return_mesh.uvs[uv++] = v2;
 			} break;			
 			case 'f':
@@ -463,6 +430,31 @@ Mesh LoadMesh(char* path)
 void DrawHorizontal(Color color, int y)
 {
 	for (int i = y * WIDTH; i < y * WIDTH + WIDTH; i++)
+		PutPixel_ByIndex(color, i);
+}
+
+void DrawHorizontalSegment(Color color, int y, int x1, int x2)
+{
+	int pixel_row = y * WIDTH;
+
+	for (int i = pixel_row + x1; i <= pixel_row + x2; i++)
+	{
+		int x = i - pixel_row;
+		PutPixel_ByPosition(color, x, y);
+	}
+}
+
+void DrawVertical(uint color, int x)
+{
+	for (int i = x; i < pixel_count - WIDTH - x; i += WIDTH)
+	{
+		pixels[i] = color;
+	}
+}
+
+void DrawVerticalSegment(uint color, int x, int y1, int y2)
+{
+	for (int i = x + (y1 * WIDTH); i <= x + (y2 * WIDTH); i += WIDTH)
 		PutPixel_ByIndex(color, i);
 }
 
@@ -515,11 +507,11 @@ void DrawRectangle(Color color, float x, float y, float width, float height)
 	DrawLine(color, x, y + height, x + width, y + height);
 }
 
-void Flatten()
+void FillAlphaChannel()
 {
 	for (int i = 0; i < pixel_count; i++)
 	{
-		pixels[i] |= black;
+		pixels[i] |= opaque;
 	}
 }
 
@@ -548,40 +540,36 @@ void DrawVertical_Blend(uint color, int x)
 	}
 }
 
-void DrawVertical(uint color, int x)
-{
-	for (int i = x; i < pixel_count - WIDTH - x; i += WIDTH)
-	{
-		pixels[i] = color;
-	}
-}
 
 void DrawGrid_ScreenSpace(int unit_size)
 {
 	for (int x = 0; x < WIDTH; x += unit_size)
 	{
-		DrawVertical(green, x);
+		DrawVertical(white, x);
 	}
 
 	for (int y = 0; y < HEIGHT; y += unit_size)
 	{
-		DrawHorizontal(green, y);
+		DrawHorizontal(white, y);
 	}
-}
-
-void DrawVerticalSegment(uint color, int x, int y1, int y2)
-{
-	for (int i = x + (y1 * WIDTH); i <= x + (y2 * WIDTH); i += WIDTH)
-		PutPixel_ByIndex(color, i);
 }
 
 void FillRectangle(uint color, float x, float y, float width, float height)
 {
-	for (float _x = 0; _x <= width; _x++)
+	int x_min = (int)x;
+	int y_min = (int)y;
+	int x_max = (int)(x+(int)width);
+	int y_max = (int)(y+(int)height);
+	Clamp(&x_min,0,WIDTH);
+	Clamp(&x_max, x_min, WIDTH);
+	Clamp(&y_min,0,HEIGHT);
+	Clamp(&y_max, y_min, HEIGHT);
+
+	for (int _x = x_min; _x < x_max; _x++)
 	{
-		for (float _y = 0; _y <= height; _y++)
+		for (int _y = y_min; _y < y_max; _y++)
 		{
-			PutPixel_ByPosition(color, (int)(_x + x), (int)(_y + y));
+			pixels[_y*WIDTH+_x] = color;
 		}
 	}
 }
@@ -632,6 +620,29 @@ void FillCircle(uint color, float x, float y, float radius)
 	}
 }
 
+void FillEllipse(uint color, float x, float y, float width, float height) //TODO fill ellipse
+{
+	float radius = width/2.0f;
+	int x_min = (int)roundf(x);
+	int x_max = (int)roundf(x + width);
+	int y_min = (int)roundf(y);
+	int y_max = (int)roundf(y + height);
+
+	for (int _x = x_min; _x <= x_max; _x++)
+	{
+		for (int _y = y_min; _y <= y_max; _y++)
+		{
+			float dx = _x - x;
+			float dy = _y - y;
+
+			bool distance_less_than_radius = dx * dx + dy * dy <= radius * radius;
+
+			if (distance_less_than_radius)
+				PutPixel_ByPosition(color, _x, _y);
+		}
+	}
+}
+
 void Blend_Circle(uint color, float x, float y, float radius)
 {
 	int x_min = (int)roundf(x - radius);
@@ -659,7 +670,137 @@ void Blend_Circle(uint color, float x, float y, float radius)
 	}
 }
 
-void FillFlatBottom(Color color, int bottom, int left, int right, int top, int middle)
+v3 ToBarycentricSpace(float v_x, float v_y, v2 a, v2 b, v2 c)
+{
+	float b1, b2, b3;
+	float denom = (a.y - c.y) * (b.x - c.x) + (b.y - c.y) * (c.x - a.x);
+
+	b1 = ((v_y - c.y) * (b.x - c.x) + (b.y - c.y) * (c.x - v_x)) / denom;
+	b2 = ((v_y - a.y) * (c.x - a.x) + (c.y - a.y) * (a.x - v_x)) / denom;
+	b3 = ((v_y - b.y) * (a.x - b.x) + (a.y - b.y) * (b.x - v_x)) / denom;
+
+	v3 result = { b1, b2, b3 };
+	return result;
+}
+
+v2 FromBaryCentricSpace(float b1, float b2, float b3, v2 a, v2 b, v2 c)
+{
+	float v_x, v_y;
+
+	v_x = b1*a.x + b2*b.x + b3*c.x;
+	v_y = b1*a.y + b2*b.y + b3*c.y;
+	v2 result = {v_x, v_y};
+	return result;
+}
+
+void FillTriangle_Texture(v2 a, v2 b, v2 c, v2 a_uv, v2 b_uv, v2 c_uv, Bitmap texture)
+{
+	int x_min = (int)GetMin3(a.x, b.x, c.x);
+	int y_min = (int)GetMin3(a.y, b.y, c.y);
+	int x_max = (int)roundf(GetMax3(a.x, b.x, c.x));
+	int y_max = (int)roundf(GetMax3(a.y, b.y, c.y));
+
+
+	for (int _x = x_min; _x <= x_max; _x++)
+	{
+		for (int _y = y_min; _y <= y_max; _y++)
+		{
+			v3 v = ToBarycentricSpace(_x, _y, a, b, c);
+			bool in_triangle = !(v.x < 0 || v.y < 0 || v.z < 0);
+			if (in_triangle)
+			{
+				v2 v_uv = FromBaryCentricSpace(v.x, v.y, v.z, a_uv, b_uv, c_uv);
+				
+				while(v_uv.y > 1)
+					v_uv.y--;
+
+				while(v_uv.x > 1)
+					v_uv.x--;
+
+				v_uv.x*=texture.width-1;
+				v_uv.y*=texture.height-1;
+
+				int texture_index = (int)v_uv.y*texture.width+(int)v_uv.x;
+				
+				Clamp(&texture_index, 0, texture.width*texture.height - 1);				
+				Color color_from_texture = texture.pixels[texture_index];
+				PutPixel_ByPosition(color_from_texture, _x, _y);
+			}
+		}
+	}
+}
+
+void FillSprites(CharSprite* sprites, int count)
+{
+	for (int i = 0; i < count; i++)
+	{
+		font_set[i] = sprites[i];
+	}
+}
+
+void DrawCharacter(CharSprite sprite, int x, int y)
+{
+	char* p = sprite.rows;
+	for (int row = 0; row < 8; row++, p++)
+	{
+		for (int col = 0; col < 8; col++)
+		{
+			bool pixel_active = ((*p << col) & 0b10000000) == 0b10000000;
+			if (pixel_active)
+				PutPixel_ByPosition(white, col + x, row + y);
+		}
+	}
+}
+
+void DrawCharacterScaled(CharSprite sprite, int x, int y, int scale, uint color)
+{
+	char* p = sprite.rows;
+	for (int row = 0; row < 8; row++, p++)
+	{
+		for (int col = 0; col < 8; col++)
+		{
+			bool pixel_active = ((*p << col) & 0b10000000) == 0b10000000;
+			if (pixel_active)
+				FillRectangle_Blend(color, col*scale + x, row*scale + y, scale, scale);
+		}
+	}
+}
+
+void DrawStringScaled(string s, int x, int y, int scale, uint color)
+{
+	for (int i = 0; i < s.length; i++)
+	{
+		char a = tolower(s.characters[i]);
+		for (int o = 0; o < char_dict_count; o++)
+		{
+			if (a == char_dict[o])
+			{
+				DrawCharacterScaled(font_set[o], x + i * 9*scale, y, scale, color);
+				//todo break and see how much time is saved
+			}
+
+		}
+	}
+}
+
+void DrawString(string s, int x, int y)
+{
+	for (int i = 0; i < s.length; i++)
+	{
+		char a = tolower(s.characters[i]);
+		for (int o = 0; o < char_dict_count; o++)
+		{
+			if (a == char_dict[o])
+			{
+				DrawCharacter(font_set[o], x + i * 9, y);
+				//todo break and see how much time is saved
+			}
+
+		}
+	}
+}
+
+void FillFlatBottom(uint color, int bottom, int left, int right, int top, int middle)
 {
 	float dy = bottom - top;
 
@@ -677,7 +818,7 @@ void FillFlatBottom(Color color, int bottom, int left, int right, int top, int m
 	}
 }
 
-void FillFlatTop(Color color, int top, int left, int right, int bottom, int middle)
+void FillFlatTop(uint color, int top, int left, int right, int bottom, int middle)
 {
 	float dy = bottom - top;
 
@@ -694,7 +835,7 @@ void FillFlatTop(Color color, int top, int left, int right, int bottom, int midd
 	}
 }
 
-void FillTriangle(Color color, int x1, int y1, int x2, int y2, int x3, int y3)
+void FillTriangle(uint color, int x1, int y1, int x2, int y2, int x3, int y3)
 {
 	if (y1 == y2 && y2 == y3)
 		return;
@@ -745,237 +886,54 @@ void FillTriangle(Color color, int x1, int y1, int x2, int y2, int x3, int y3)
 	}
 }
 
-Vec3 ToBarycentricSpace(float v_x, float v_y, Vec2 a, Vec2 b, Vec2 c)
-{
-	float b1, b2, b3;
-	float denom = (a.y - c.y) * (b.x - c.x) + (b.y - c.y) * (c.x - a.x);
 
-	b1 = ((v_y - c.y) * (b.x - c.x) + (b.y - c.y) * (c.x - v_x)) / denom;
-	b2 = ((v_y - a.y) * (c.x - a.x) + (c.y - a.y) * (a.x - v_x)) / denom;
-	b3 = ((v_y - b.y) * (a.x - b.x) + (a.y - b.y) * (b.x - v_x)) / denom;
+#define workspace_size 100000
 
-	Vec3 result = { b1, b2, b3 };
-	return result;
-}
-
-Vec2 FromBaryCentricSpace(float b1, float b2, float b3, Vec2 a, Vec2 b, Vec2 c)
-{
-	float v_x, v_y;
-
-	v_x = b1*a.x + b2*b.x + b3*c.x;
-	v_y = b1*a.y + b2*b.y + b3*c.y;
-	Vec2 result = {v_x, v_y};
-	return result;
-}
-
-void FillTriangle_VertexColors(Vec3 a, Vec3 b, Vec3 c, Color a_color, Color b_color, Color c_color)
-{
-	int x_min = (int)GetMin3(a.x, b.x, c.x);
-	int y_min = (int)GetMin3(a.y, b.y, c.y);
-	int x_max = (int)roundf(GetMax3(a.x, b.x, c.x));
-	int y_max = (int)roundf(GetMax3(a.y, b.y, c.y));
-
-	Vec2 a2 = {a.x,a.y};
-	Vec2 b2 = {b.x,b.y};
-	Vec2 c2 = {c.x,c.y};
-
-	for (int _x = x_min; _x <= x_max; _x++)
-	{
-		for (int _y = y_min; _y <= y_max; _y++)
-		{
-			Vec3 v = ToBarycentricSpace(_x, _y, a2, b2, c2);
-			bool in_triangle = !(v.x < 0 || v.y < 0 || v.z < 0);
-			if (in_triangle)
-			{
-				Color d_color = LerpColor(c_color, a_color, v.x);
-				Color e_color = LerpColor(a_color, b_color, v.y);
-				Color f_color = LerpColor(e_color, d_color, v.z);
-				int i = _y*WIDTH+_x;
-
-				//TODO get correct z_buffer value
-				float d_z = Lerp_Float(c.z, a.z, v.x);
-				float e_z = Lerp_Float(a.z, b.z, v.y);
-				float f_z = Lerp_Float(e_z, d_z, v.z);
-
-				if (_x >= 0 && _x < WIDTH && _y >= 0 && _y < HEIGHT && f_z < z_buffer[i])
-				{
-					z_buffer[i] = f_z;
-					pixels[i] = f_color;
-				}
-			}
-		}
-	}
-}
-
-void FillTriangle_Texture(Vec2 a, Vec2 b, Vec2 c, Vec2 a_uv, Vec2 b_uv, Vec2 c_uv, Bitmap texture)
-{
-	int x_min = (int)GetMin3(a.x, b.x, c.x);
-	int y_min = (int)GetMin3(a.y, b.y, c.y);
-	int x_max = (int)roundf(GetMax3(a.x, b.x, c.x));
-	int y_max = (int)roundf(GetMax3(a.y, b.y, c.y));
-
-
-	for (int _x = x_min; _x <= x_max; _x++)
-	{
-		for (int _y = y_min; _y <= y_max; _y++)
-		{
-			Vec3 v = ToBarycentricSpace(_x, _y, a, b, c);
-			bool in_triangle = !(v.x < 0 || v.y < 0 || v.z < 0);
-			if (in_triangle)
-			{
-				Vec2 v_uv = FromBaryCentricSpace(v.x, v.y, v.z, a_uv, b_uv, c_uv);
-				
-				while(v_uv.y > 1)
-					v_uv.y--;
-
-				while(v_uv.x > 1)
-					v_uv.x--;
-
-				v_uv.x*=texture.width-1;
-				v_uv.y*=texture.height-1;
-
-				int texture_index = (int)v_uv.y*texture.width+(int)v_uv.x;
-				
-				Clamp(&texture_index, 0, texture.width*texture.height - 1);				
-				Color color_from_texture = texture.pixels[texture_index];
-				PutPixel_ByPosition(color_from_texture, _x, _y);
-			}
-		}
-	}
-}
-
-void FillSprites(CharSprite* sprites, int count)
-{
-	for (int i = 0; i < count; i++)
-	{
-		font_set[i] = sprites[i];
-	}
-}
-
-void DrawCharacter(CharSprite sprite, int x, int y)
-{
-	char* p = &sprite.row1;
-	for (int row = 0; row < 8; row++, p++)
-	{
-		for (int col = 0; col < 8; col++)
-		{
-			bool pixel_active = ((*p << col) & 0b10000000) == 0b10000000;
-			if (pixel_active)
-				PutPixel_ByPosition(white, col + x, row + y);
-		}
-	}
-}
-
-void DrawCharacterScaled(CharSprite sprite, int x, int y, int scale, uint color)
-{
-	char* p = &sprite.row1;
-	for (int row = 0; row < 8; row++, p++)
-	{
-		for (int col = 0; col < 8; col++)
-		{
-			bool pixel_active = ((*p << col) & 0b10000000) == 0b10000000;
-			if (pixel_active)
-				FillRectangle_Blend(color, col*scale + x, row*scale + y, scale, scale);
-		}
-	}
-}
-
-void DrawStringScaled(string s, int x, int y, int scale, uint color)
-{
-	for (int i = 0; i < s.length; i++)
-	{
-		char a = tolower(s.characters[i]);
-		for (int o = 0; o < char_dict_length; o++)
-		{
-			if (a == char_dict[o])
-			{
-				DrawCharacterScaled(font_set[o], x + i * 9*scale, y, scale, color);
-				//todo break and see how much time is saved
-			}
-
-		}
-	}
-}
-
-void DrawString(string s, int x, int y)
-{
-	for (int i = 0; i < s.length; i++)
-	{
-		char a = tolower(s.characters[i]);
-		for (int o = 0; o < char_dict_length; o++)
-		{
-			if (a == char_dict[o])
-			{
-				DrawCharacter(font_set[o], x + i * 9, y);
-				//todo break and see how much time is saved
-			}
-
-		}
-	}
-}
-
-
-#define workspace_size 50000
-
-Vec3 vertex_workspace[workspace_size];
+v3 vertex_workspace[workspace_size];
 int index_workspace[workspace_size];
-Vec2 uv_workspace[workspace_size];
-Vec3 normals_workspace[workspace_size];
+v2 uv_workspace[workspace_size];
+int uv_index_workspace[workspace_size];
+v3 normals_workspace[workspace_size];
 byte brightness[workspace_size];
 byte lighting[workspace_size];
 
-typedef struct Shader
-{
-	Color (*function)();
-} Shader;
 
-Shader ShadeSolidColor;
-Shader ShadeVertexColors;
-Shader ShadePolyColors;
-Shader ShadeTexturedUnlit;
-Shader ShadeGouraud;
-Shader ShadeWhite;
-Color (*ShadeMagoo)();
-Color ReturnWhite(Vec3 v, int triangle_index, void* dont_use)
+
+
+Color ShadeWhite(v3 v, int triangle_index, void* dont_use)
 {
 	return 0xFFFFFFFF;
 }
 
-Color ReturnTextureValue(Vec3 v, int triangle_index, Bitmap* texture_pointer)
+Color ShadeTexturedUnlit(v3 v, int triangle_index, void* texture_pointer)
 {
-	Bitmap texture = *texture_pointer;
+	Bitmap texture = *((Bitmap*)texture_pointer);
 	int i = triangle_index*3;
-	Vec2 a_uv = uv_workspace[index_workspace[i+0]];
-	Vec2 b_uv = uv_workspace[index_workspace[i+1]];
-	Vec2 c_uv = uv_workspace[index_workspace[i+2]];
 
+	v2 a_uv = uv_workspace[uv_index_workspace[i+0]];
+	v2 b_uv = uv_workspace[uv_index_workspace[i+1]];
+	v2 c_uv = uv_workspace[uv_index_workspace[i+2]];
 
-	Vec2 v_uv = FromBaryCentricSpace(v.x, v.y, v.z, a_uv, b_uv, c_uv);
+	v2 v_uv = FromBaryCentricSpace(v.x, v.y, v.z, a_uv, b_uv, c_uv);
 
-	while(v_uv.y > 1)
-		v_uv.y--;
-
-	while(v_uv.x > 1)
-		v_uv.x--;
-
+	v_uv.y = 1-v_uv.y;
 	v_uv.x *= texture.width-1;
 	v_uv.y *= texture.height-1;
-
+	
 	int texture_index = (int)v_uv.y*texture.width+(int)v_uv.x;
 
-	Clamp(&texture_index, 0, texture.width*texture.height - 1);				
-	Color color_from_texture = texture.pixels[texture_index];
-	return color_from_texture;
+	Clamp(&texture_index, 0, texture.width*texture.height - 1);
+	return texture.pixels[texture_index];
 }
 
-Color ReturnColor(Vec3 v, int triangle_index, Color* color)
+Color ShadeSolidColor(v3 v, int triangle_index, void* color)
 {
-	return *color;
+	return *((Color*)color);
 }
 
-Color ReturnColor2(Vec3 v, int triangle_index, Color* color)
+Color ShadeColorFlatShaded(v3 v, int triangle_index, void* color)
 {
-	Color c = *color;
+	Color c = *((Color*)color);
 	byte* p = (byte*)&c;
 	p[0] = brightness[triangle_index] * p[0] / 255;
 	p[1] = brightness[triangle_index] * p[1] / 255;
@@ -983,25 +941,25 @@ Color ReturnColor2(Vec3 v, int triangle_index, Color* color)
 	return c;
 }
 
-Color VertexColor(Vec3 v, int triangle_index, Color* bo)
+Color ShadeVertexColors(v3 v, int triangle_index, void* colors)
 {
 	Color result;
 	byte* r_p = (byte*)(&result);
-    byte* a_p = (byte*)(&bo[0]);
-    byte* b_p = (byte*)(&bo[1]);
-    byte* c_p = (byte*)(&bo[2]);
+    byte* a_p = (byte*)(&(((Color*)colors)[0]));
+    byte* b_p = (byte*)(&(((Color*)colors)[1]));
+    byte* c_p = (byte*)(&(((Color*)colors)[2]));
 	r_p[0] = a_p[0]*v.x+b_p[0]*v.y+c_p[0]*v.z;
 	r_p[1] = a_p[1]*v.x+b_p[1]*v.y+c_p[1]*v.z;
 	r_p[2] = a_p[2]*v.x+b_p[2]*v.y+c_p[2]*v.z;
 	return result;
 }
 
-Color PolyColor(Vec3 v, int triangle_index, Color* poly_colors)
+Color ShadePolyColors(v3 v, int triangle_index, void* poly_colors)
 {
-	return poly_colors[triangle_index]; //todo fix code to account for triangles being sorted and swapped (that may need to happen in the render function rather than here)
+	return ((Color*)poly_colors)[triangle_index]; //todo fix code to account for triangles being sorted and swapped (that may need to happen in the render function rather than here)
 }
 
-Color Gouraud(Vec3 bary, int triangle_index, Color* color)
+Color ShadeColorGouraud(v3 bary, int triangle_index, void* color)
 {
 	int i = triangle_index*3;
 
@@ -1009,7 +967,7 @@ Color Gouraud(Vec3 bary, int triangle_index, Color* color)
 	byte b_l = lighting[index_workspace[i+1]];
 	byte c_l = lighting[index_workspace[i+2]];
 
-	Color a = *color, b = *color, c = *color;
+	Color a = *((Color*)color), b = *((Color*)color), c = *((Color*)color);
 
 	byte* p = (byte*)&a;
 	p[0] = (a_l) * p[0] / 255;
@@ -1036,22 +994,98 @@ Color Gouraud(Vec3 bary, int triangle_index, Color* color)
 	return result;
 }
 
-
-void InitShaders()
+Color ShadeTexturedGouraud(v3 v, int triangle_index, void* texture_pointer)
 {
-	ShadeSolidColor.function = &ReturnColor2;
-	ShadeVertexColors.function = &VertexColor;
-	ShadePolyColors.function = &PolyColor;
-	ShadeGouraud.function = &Gouraud;
-	ShadeTexturedUnlit.function = &ReturnTextureValue;
-	ShadeWhite.function = &ReturnWhite;
+	Color result = ShadeTexturedUnlit(v, triangle_index, texture_pointer);
+	result = ShadeColorGouraud(v, triangle_index, &result);
+	return result;
+}
+
+Color ShadeTexturedFlatShaded(v3 v, int triangle_index, void* texture_pointer)
+{
+	Color result = ShadeTexturedUnlit(v, triangle_index, texture_pointer);
+	result = ShadeColorFlatShaded(v, triangle_index, &result);
+	return result;
 }
 
 float light_rotation = 0;
-Triangle triangle_workspace[50000];
 
 
-void RenderTriangle(Vec3 a, Vec3 b, Vec3 c, int triangle_index, Shader shader, void* shader_state)
+Color ShadeTexturedNormalMapped(v3 v, int triangle_index, void* shader_state)
+{
+	typedef struct FooStruct
+	{
+		Bitmap color_map;
+		Bitmap normal_map;
+		v3 rotation;
+	} FooStruct;
+
+	FooStruct* foos = (FooStruct*)shader_state;
+
+
+
+	Bitmap* texture_maps = (Bitmap*)shader_state;
+	Bitmap color_map = foos -> color_map;
+	Bitmap normal_map = foos -> normal_map;
+	v3 rotation  = foos -> rotation;
+
+	int i = triangle_index*3;
+
+	v2 a_uv = uv_workspace[uv_index_workspace[i+0]];
+	v2 b_uv = uv_workspace[uv_index_workspace[i+1]];
+	v2 c_uv = uv_workspace[uv_index_workspace[i+2]];
+
+	v2 v_uv = FromBaryCentricSpace(v.x, v.y, v.z, a_uv, b_uv, c_uv);
+	v2 v_uv_color = v_uv;
+	v2 v_uv_normal = v_uv;
+	v_uv_normal.y = 1-v_uv.y;
+	v_uv_normal.x *= normal_map.width-1;
+	v_uv_normal.y *= normal_map.height-1;
+	
+	int texture_index = (int)v_uv_normal.y*normal_map.width+(int)v_uv_normal.x;
+
+	Clamp(&texture_index, 0, normal_map.width*normal_map.height - 1);
+	Color normal_color = normal_map.pixels[texture_index];
+
+	byte* color_channels = (byte*)&normal_color;
+
+	v3 normal;
+	normal.x = color_channels[2] / 128.0f - 1;
+	normal.y = color_channels[1] / 128.0f - 1;
+	normal.z = color_channels[0] / 128.0f - 1;
+
+
+	v3 backward = { 0,0,-1 };
+	v3 light_vector = Transform_v3(Rotation(0, light_rotation, 0), backward);
+
+	float dot = v3_DotProduct(normal, light_vector); //TODO account for transform hierarchies and local space
+
+	if (dot < 0)
+	dot = 0;
+	byte lighting;
+	if (!isnan(dot))//TODO - remove, just a temporary fix
+	{
+		lighting = (byte)(dot * 255);
+	}
+	else
+		lighting = 0;
+
+	v_uv_color.y = 1-v_uv.y;
+	v_uv_color.x *= color_map.width-1;
+	v_uv_color.y *= color_map.height-1;
+	
+	texture_index = (int)v_uv_color.y*color_map.width+(int)v_uv_color.x;
+
+	Clamp(&texture_index, 0, color_map.width*color_map.height - 1);
+	Color color = color_map.pixels[texture_index];
+	color_channels = (byte*)&color;
+	color_channels[0] = lighting * color_channels[0] / 255;
+	color_channels[1] = lighting * color_channels[1] / 255;
+	color_channels[2] = lighting * color_channels[2] / 255;
+	return color;	
+}
+
+void RenderTriangle(v3 a, v3 b, v3 c, int triangle_index, Shader shader, void* shader_state)
 {
 	int x_min = (int)GetMin3(a.x, b.x, c.x);
 	int y_min = (int)GetMin3(a.y, b.y, c.y);
@@ -1063,45 +1097,269 @@ void RenderTriangle(Vec3 a, Vec3 b, Vec3 c, int triangle_index, Shader shader, v
 	Clamp(&y_min, 0, HEIGHT-1);
 	Clamp(&y_max, 0, HEIGHT-1);
 
-	Vec2 a2 = (Vec2){a.x,a.y};
-	Vec2 b2 = (Vec2){b.x,b.y};
-	Vec2 c2 = (Vec2){c.x,c.y};
+	v2 a2 = (v2){a.x,a.y};
+	v2 b2 = (v2){b.x,b.y};
+	v2 c2 = (v2){c.x,c.y};
 
 	for (int _x = x_min; _x <= x_max; _x++)
 	{
 		for (int _y = y_min; _y <= y_max; _y++)
 		{
-			Vec3 v = ToBarycentricSpace(_x, _y, a2,b2,c2);
+			v3 v = ToBarycentricSpace(_x, _y, a2,b2,c2);
 			bool in_triangle = !(v.x < 0 || v.y < 0 || v.z < 0);
 			if(in_triangle)
 			{
 				int i = _y * WIDTH + _x;
 
-				//TODO get correct z_buffer value
-				float d_z = Lerp_Float(c.z, a.z, v.x);
-				float e_z = Lerp_Float(a.z, b.z, v.y);
-				float f_z = Lerp_Float(e_z, d_z, v.z);
+				//get interpolated z value of current pixel
+			    float depth = a.z * v.x + b.z * v.y + c.z * v.z;
 
-				if(f_z < z_buffer[i])
+				if(depth <= z_buffer[i])
 				{
-					z_buffer[i] = f_z;
-					pixels[i] = shader.function(v, triangle_index, shader_state);
+					pixels[i] = shader(v, triangle_index, shader_state);
+					z_buffer[i] = depth;
 				}
 			}
 		}
 	}	
 }
 
+
+typedef Color (*Shader2)(v3 barycentric_point, Triangle t, void* shader_state);
+
+Color Shade2SolidColor(v3 v, Triangle t, void* dont_use)
+{
+	return blue;
+}
+
+Color Shade2VertexColors(v3 v, Triangle t, void* dont_use)
+{
+	Color result;
+	byte* r_p = (byte*)(&result);
+    byte* a_p = (byte*)(&(t.a.color));
+    byte* b_p = (byte*)(&(t.b.color));
+    byte* c_p = (byte*)(&(t.c.color));
+	r_p[0] = a_p[0]*v.x+b_p[0]*v.y+c_p[0]*v.z;
+	r_p[1] = a_p[1]*v.x+b_p[1]*v.y+c_p[1]*v.z;
+	r_p[2] = a_p[2]*v.x+b_p[2]*v.y+c_p[2]*v.z;
+	return result;
+}
+
+Color Shade2TexturedUnlit(v3 v, Triangle t, void* texture_pointer)
+{
+	if(t.a.color != transparent)
+	{
+		if(t.b.color | t.c.color != transparent )
+			return Shade2VertexColors(v,t, NULL);
+		return t.a.color;
+	}
+
+	Bitmap texture = *((Bitmap*)texture_pointer);
+
+	v2 v_uv = FromBaryCentricSpace(v.x, v.y, v.z, t.a.uv, t.b.uv, t.c.uv);
+
+	v_uv.y = 1-v_uv.y;
+	v_uv.x *= texture.width-1;
+	v_uv.y *= texture.height-1;
+	
+	int texture_index = (int)v_uv.y*texture.width+(int)v_uv.x;
+
+	Clamp(&texture_index, 0, texture.width*texture.height - 1);
+	return texture.pixels[texture_index];
+}
+
+void RenderVertexTriangle(Triangle t, Shader2 shader, void* shader_state)
+{
+	int x_min = (int)GetMin3(t.a.position.x, t.b.position.x, t.c.position.x);
+	int y_min = (int)GetMin3(t.a.position.y, t.b.position.y, t.c.position.y);
+	int x_max = (int)GetMax3(t.a.position.x, t.b.position.x, t.c.position.x);
+	int y_max = (int)GetMax3(t.a.position.y, t.b.position.y, t.c.position.y);
+
+	Clamp(&x_min, 0, WIDTH-1);
+	Clamp(&x_max, 0, WIDTH-1);
+	Clamp(&y_min, 0, HEIGHT-1);
+	Clamp(&y_max, 0, HEIGHT-1);
+
+	v2 a2 = (v2){t.a.position.x,t.a.position.y};
+	v2 b2 = (v2){t.b.position.x,t.b.position.y};
+	v2 c2 = (v2){t.c.position.x,t.c.position.y};
+
+	for (int _x = x_min; _x <= x_max; _x++)
+	{
+		for (int _y = y_min; _y <= y_max; _y++)
+		{
+			v3 v = ToBarycentricSpace(_x, _y, a2,b2,c2);
+			bool in_triangle = !(v.x < 0 || v.y < 0 || v.z < 0);
+			if(in_triangle)
+			{
+				int i = _y * WIDTH + _x;
+
+				//get interpolated z value of current pixel
+			    float depth = t.a.position.z * v.x + t.b.position.z * v.y + t.c.position.z * v.z;
+
+				if(depth <= z_buffer[i])
+				{
+					if(z_buffer[i] == Z_BUFFER_UNSET)
+						pixels[i] = shader(v, t, shader_state);
+					else
+						pixels[i] = yellow;
+					
+					z_buffer[i] = depth;
+				}
+			}
+		}
+	}	
+}
+
+Mesh AppendMesh(Mesh a, Mesh b)
+{	
+	Mesh c;
+	c.normals_count = 0;
+	c.uvs_count = a.uvs_count+b.uvs_count;
+	c.uv_indices_count = a.uv_indices_count+b.uv_indices_count;
+ 	c.vertices_count = a.vertices_count+b.vertices_count;
+    c.indices_count = a.indices_count+b.indices_count;
+    
+	c.vertices = malloc(c.vertices_count*sizeof(v3));
+    c.indices = malloc(c.indices_count*sizeof(int));
+    c.uvs = malloc(c.uvs_count*sizeof(v2));
+    c.uv_indices = malloc(c.uv_indices_count*sizeof(int));
+    for (int i = 0; i < a.vertices_count; ++i)
+    	c.vertices[i] = a.vertices[i];
+
+    for (int i = 0; i < b.vertices_count; ++i)
+    	c.vertices[i+a.vertices_count] = b.vertices[i];
+
+    for (int i = 0; i < a.indices_count; ++i)
+    	c.indices[i] = a.indices[i];
+
+    for (int i = 0; i < b.indices_count; ++i)
+    	c.indices[i+a.indices_count] = b.indices[i] + a.vertices_count;
+
+
+	for (int i = 0; i < a.uvs_count; ++i)
+		c.uvs[i] = a.uvs[i];
+
+    for (int i = 0; i < b.uvs_count; ++i)
+    	c.uvs[i+a.uvs_count] = b.uvs[i];
+
+
+	for (int i = 0; i < a.uv_indices_count; ++i)
+		c.uv_indices[i] = a.uv_indices[i];
+
+    for (int i = 0; i < b.uv_indices_count; ++i)
+    	c.uv_indices[i+a.uv_indices_count] = b.uv_indices[i]+ a.uvs_count;
+
+    return c;
+}
+
+void RecalculateNormals(Mesh* mesh)
+{
+	if(false)//if((*mesh).normals_count > 0)
+	{
+		if((*mesh).normals_count != (*mesh).vertices_count)
+		{
+			(*mesh).normals_count = (*mesh).vertices_count;
+			(*mesh).normals = realloc((*mesh).normals, (*mesh).normals_count*sizeof(v3));
+		}
+	}
+	else
+	{
+		(*mesh).normals_count = (*mesh).vertices_count;
+		(*mesh).normals = malloc((*mesh).normals_count*sizeof(v3));
+	}
+
+	TriangleIndices* triangles = (TriangleIndices*)(*mesh).indices;
+	int triangle_count = (*mesh).indices_count/3;
+
+	for (int i = 0; i < triangle_count; i++)
+	{
+		TriangleIndices t = triangles[i];
+		v3 a = v3_Subtract((*mesh).vertices[t.b], (*mesh).vertices[t.a]);
+		v3 b = v3_Subtract((*mesh).vertices[t.c], (*mesh).vertices[t.a]);
+		v3 normal = v3_Normalized(v3_CrossProduct(a, b));
+
+		(*mesh).normals[t.a] = v3_Add((*mesh).normals[t.a], normal);
+		(*mesh).normals[t.b] = v3_Add((*mesh).normals[t.b], normal);
+		(*mesh).normals[t.c] = v3_Add((*mesh).normals[t.c], normal);
+	}
+
+	for (int i = 0; i < (*mesh).normals_count; ++i)
+		(*mesh).normals[i] = v3_Normalized((*mesh).normals[i]);
+}
+
+void DrawUVMap(Mesh mesh, float scale)
+{
+	for (int i = 0; i < mesh.uv_indices_count; i += 3)
+	{
+		v2 a = mesh.uvs[mesh.uv_indices[i+0]];
+		v2 b = mesh.uvs[mesh.uv_indices[i+1]];
+		v2 c = mesh.uvs[mesh.uv_indices[i+2]];
+
+		a.x *= scale;
+		a.y *= -scale;
+		
+		b.x *= scale;
+		b.y *= -scale;
+		
+		c.x *= scale;
+		c.y *= -scale;
+		
+		a.y += scale;
+		b.y += scale;
+		c.y += scale;
+
+		DrawLine(green, a.x, a.y, b.x, b.y);
+		DrawLine(green, b.x, b.y, c.x, c.y);
+		DrawLine(green, a.x, a.y, c.x, c.y);
+	}
+
+	for (int i = 0; i < mesh.uvs_count; ++i)
+	{
+		v2 uv = mesh.uvs[i];
+		uv.x *= scale;
+		uv.y *= -scale;
+		uv.y += scale;
+		FillRectangle(blue,uv.x-2,uv.y-2,4,4);
+	}
+
+}
+
+
+bool perform_backface_culling = true;
+bool perform_clipping = true;
+bool orthographic = false;
+
+Triangle render_workspace[workspace_size];
+
 void RenderMesh(Mesh mesh, Transform object_transform, Transform camera, Shader shader, void* shader_state) //canonical
 {
-	int triangle_count = mesh.indices_length / 3;
-
-	memcpy(vertex_workspace, mesh.vertices, mesh.vertices_length*sizeof(Vec3));
-	memcpy(index_workspace, mesh.indices, mesh.indices_length*sizeof(int));
-	memcpy(uv_workspace, mesh.uvs, mesh.uvs_length*sizeof(Vec2));
-	memcpy(normals_workspace, mesh.normals, mesh.normals_length*sizeof(Vec3));
-
+	int triangle_count = mesh.indices_count / 3;
 	TriangleIndices* triangle_workspace = (TriangleIndices*)index_workspace;
+	TriangleIndices* uv_triangle_workspace = (TriangleIndices*)uv_index_workspace;
+	
+	//Fill Triangle Data
+	{
+		// for (int i = 0; i < triangle_count; ++i)
+		// {
+		// 	Triangle t;
+		// 	t.a.position = mesh.vertices[mesh.indices[i*3]];
+		// 	t.b.position = mesh.vertices[mesh.indices[i*3+1]];
+		// 	t.c.position = mesh.vertices[mesh.indices[i*3+2]];
+		// 	t.a.uv
+		// 	render_workspace[i] = t;
+		// }
+	}
+
+	//Get Working Copy Of Mesh Data
+	{
+		memcpy(vertex_workspace, mesh.vertices, mesh.vertices_count*sizeof(v3));
+		memcpy(index_workspace, mesh.indices, mesh.indices_count*sizeof(int));
+		memcpy(uv_workspace, mesh.uvs, mesh.uvs_count*sizeof(v2));
+		memcpy(uv_index_workspace, mesh.uv_indices, mesh.uv_indices_count*sizeof(int));
+		memcpy(normals_workspace, mesh.normals, mesh.normals_count*sizeof(v3));
+		memset(lighting,0,workspace_size);
+	}
 
 	//get object transform matrix
 	m4x4 object_to_world = GetMatrix(object_transform);
@@ -1110,8 +1368,8 @@ void RenderMesh(Mesh mesh, Transform object_transform, Transform camera, Shader 
 	//TODO simplify getting camera matrix
 	Transform camera_position = DefaultTransform();
 	Transform camera_rotation = DefaultTransform();
-	camera_position.position = NegateVector(camera.position);
-	camera_rotation.rotation = NegateVector(camera.rotation);
+	camera_position.position = v3_NegateVector(camera.position);
+	camera_rotation.rotation = v3_NegateVector(camera.rotation);
 	m4x4 move = GetMatrix(camera_position);
 	m4x4 rotation = GetMatrix(camera_rotation);
 	m4x4 world_to_camera = Concatenate(move, rotation);
@@ -1120,71 +1378,59 @@ void RenderMesh(Mesh mesh, Transform object_transform, Transform camera, Shader 
 
 	//To Camera Space
 	{
-		for (int i = 0; i < mesh.vertices_length; i++)
+		for (int i = 0; i < mesh.vertices_count; i++)
 			vertex_workspace[i] = Transform_v3(object_to_camera, vertex_workspace[i]);
 	}
 
-	//Cull Backfaces
+	if(perform_backface_culling)
 	{
-		for (int i = 0; i < triangle_count;)
+		//Cull Backfaces
 		{
-			TriangleIndices t = triangle_workspace[i];
-			Vec3 a = v3_Subtract(vertex_workspace[t.b], vertex_workspace[t.a]);
-			Vec3 b = v3_Subtract(vertex_workspace[t.c], vertex_workspace[t.a]);
-			Vec3 normal = v3_Normalized(CrossProduct(a, b));
-			Vec3 eye = v3_zero;
-			Vec3 from_camera_to_triangle = (v3_Subtract(vertex_workspace[t.a], eye));
-
-			if (v3_DotProduct(normal, from_camera_to_triangle) > 0)
-				triangle_workspace[i] = triangle_workspace[--triangle_count];
-			else
+			for (int i = 0; i < triangle_count;)
 			{
-				Vec3 backward = { 0,0,-1 };
+				TriangleIndices t = triangle_workspace[i];
+				v3 a = v3_Subtract(vertex_workspace[t.b], vertex_workspace[t.a]);
+				v3 b = v3_Subtract(vertex_workspace[t.c], vertex_workspace[t.a]);
+				v3 normal = v3_Normalized(v3_CrossProduct(a, b));
+				v3 eye = v3_zero;
+				v3 from_camera_to_triangle = (v3_Subtract(vertex_workspace[t.a], eye));
 
-				float dot = v3_DotProduct(normal, Transform_v3(Rotation(0, light_rotation, 0), backward));
-
-				if (dot < 0)
-					dot = 0;
-
-				if (!isnan(dot))//TODO - remove, just a temporary fix
-					brightness[i] = (unsigned char)(dot * 255);
+				if (v3_DotProduct(normal, from_camera_to_triangle) > 0)
+				{
+					triangle_workspace[i] = triangle_workspace[--triangle_count];
+					uv_triangle_workspace[i] = uv_triangle_workspace[triangle_count];
+				}
 				else
-					brightness[i] = 0;
-				i++;					
+				{
+					v3 backward = { 0,0,-1 };
+					v3 light_vector = Transform_v3(Rotation(0, light_rotation, 0), backward);
+					float dot = v3_DotProduct(Transform_v3(Rotation(object_transform.rotation.x,object_transform.rotation.y,object_transform.rotation.z), normal), light_vector); //TODO account for transform hierarchies and local space
+
+					if (dot < 0)
+						dot = 0;
+
+					if (!isnan(dot))//TODO - remove, just a temporary fix
+						brightness[i] = (unsigned char)(dot * 255);
+					else
+						brightness[i] = 0;
+					i++;					
+				}
 			}
-		}
-	}
-
-	//Perform Lighting
-	{
-		for (int i = 0; i < mesh.normals_length; ++i)
-		{
-				Vec3 backward = { 0,0,-1 };
-
-				float dot = v3_DotProduct(normals_workspace[i], Transform_v3(Rotation(0, light_rotation, 0), backward));
-
-				if (dot < 0)
-					dot = 0;
-
-				if (!isnan(dot))//TODO - remove, just a temporary fix
-					lighting[i] = (byte)(dot * 255);
-				else
-					lighting[i] = 0;
 		}
 	}
 
 	//To Clip Space
 	{
-		static float near_plane = 1.0f;
+		static float near_plane = 4.0f;
 		static float far_plane = 5000;
 		static float field_of_view = Tau / 6.0f;
 
 		float aspect_ratio = HEIGHT / (float) WIDTH;
 		float zoom = (float)(1 / tan(field_of_view / 2));
 
-		for (int i = 0; i < mesh.vertices_length; i++)
+		for (int i = 0; i < mesh.vertices_count; i++)
 		{
-			Vec3 v = vertex_workspace[i];
+			v3 v = vertex_workspace[i];
 			v.x /= v.z;
 			v.y /= v.z;
 
@@ -1211,6 +1457,7 @@ void RenderMesh(Mesh mesh, Transform object_transform, Transform camera, Shader 
 			if(is_left_clipped || is_right_clipped || is_top_clipped || is_bottom_clipped || is_near_clipped ||is_far_clipped)
 			{
 				triangle_workspace[i] = triangle_workspace[--triangle_count];
+				uv_triangle_workspace[i] = uv_triangle_workspace[triangle_count];
 				brightness[i] = brightness[triangle_count];
 			}
 			else
@@ -1220,9 +1467,217 @@ void RenderMesh(Mesh mesh, Transform object_transform, Transform camera, Shader 
 		//TODO actually cut triangles that are partially clipped, rather than removing triangles that are wholly outside the clip box
 	}
 
+	//Perform Lighting
+	{
+		//TODO make lighting respect camera orientation
+		for (int i = 0; i < mesh.normals_count; ++i)
+		{
+				v3 backward = { 0,0,-1 };
+				v3 light_vector = Transform_v3(Rotation(0, light_rotation, 0), backward);
+				
+				float dot = v3_DotProduct(Transform_v3(Rotation(object_transform.rotation.x,object_transform.rotation.y,object_transform.rotation.z), normals_workspace[i]), light_vector); //TODO account for transform hierarchies and local space
+
+				if (dot < 0)
+					dot = 0;
+
+				if (!isnan(dot))//TODO - remove, just a temporary fix
+				{
+					lighting[i] = (byte)(dot * 255);
+				}
+				else
+					lighting[i] = 0;
+		}
+	}
+
 	//To Screen Space
 	{
-		for (int i = 0; i < mesh.vertices_length; i++)
+		for (int i = 0; i < mesh.vertices_count; i++)
+		{
+			//place origin at center of screen
+			vertex_workspace[i].x++;
+			vertex_workspace[i].y++;
+
+			//scale space to fill screen
+			vertex_workspace[i].x *= WIDTH / 2;
+			vertex_workspace[i].y *= HEIGHT / 2;
+		}
+	}
+
+	//Rasterize
+	{
+		for (int i = 0; i < triangle_count; ++i)
+		{
+			TriangleIndices t = triangle_workspace[i];
+			RenderTriangle(vertex_workspace[t.a], vertex_workspace[t.b], vertex_workspace[t.c], i, shader, shader_state);
+			//FillTriangle(red, vertex_workspace[t.a].x, vertex_workspace[t.a].y, vertex_workspace[t.b].x, vertex_workspace[t.b].y, vertex_workspace[t.c].x, vertex_workspace[t.c].y);	
+		}
+	}
+}
+
+
+void RenderMeshFromMatrix(Mesh mesh, m4x4 object_to_world, Transform camera, Shader shader, void* shader_state) //canonical
+{
+	int triangle_count = mesh.indices_count / 3;
+	TriangleIndices* triangle_workspace = (TriangleIndices*)index_workspace;
+	TriangleIndices* uv_triangle_workspace = (TriangleIndices*)uv_index_workspace;
+	
+	//Fill Triangle Data
+	{
+		// for (int i = 0; i < triangle_count; ++i)
+		// {
+		// 	Triangle t;
+		// 	t.a.position = mesh.vertices[mesh.indices[i*3]];
+		// 	t.b.position = mesh.vertices[mesh.indices[i*3+1]];
+		// 	t.c.position = mesh.vertices[mesh.indices[i*3+2]];
+		// 	t.a.uv
+		// 	render_workspace[i] = t;
+		// }
+	}
+	//Get Working Copy Of Mesh Data
+	{
+		memcpy(vertex_workspace, mesh.vertices, mesh.vertices_count*sizeof(v3));
+		memcpy(index_workspace, mesh.indices, mesh.indices_count*sizeof(int));
+		memcpy(uv_workspace, mesh.uvs, mesh.uvs_count*sizeof(v2));
+		memcpy(uv_index_workspace, mesh.uv_indices, mesh.uv_indices_count*sizeof(int));
+		memcpy(normals_workspace, mesh.normals, mesh.normals_count*sizeof(v3));
+		memset(lighting,0,workspace_size);
+	}
+
+	//get camera matrix
+	//TODO simplify getting camera matrix
+	Transform camera_position = DefaultTransform();
+	Transform camera_rotation = DefaultTransform();
+	camera_position.position = v3_NegateVector(camera.position);
+	camera_rotation.rotation = v3_NegateVector(camera.rotation);
+	m4x4 move = GetMatrix(camera_position);
+	m4x4 rotation = GetMatrix(camera_rotation);
+	m4x4 world_to_camera = Concatenate(move, rotation);
+
+	m4x4 object_to_camera = Concatenate(object_to_world, world_to_camera);
+
+	//To Camera Space
+	{
+		for (int i = 0; i < mesh.vertices_count; i++)
+			vertex_workspace[i] = Transform_v3(object_to_camera, vertex_workspace[i]);
+	}
+
+	//Cull Backfaces
+	{
+		for (int i = 0; i < triangle_count;)
+		{
+			TriangleIndices t = triangle_workspace[i];
+			v3 a = v3_Subtract(vertex_workspace[t.b], vertex_workspace[t.a]);
+			v3 b = v3_Subtract(vertex_workspace[t.c], vertex_workspace[t.a]);
+			v3 normal = v3_Normalized(v3_CrossProduct(a, b));
+			v3 eye = v3_zero;
+			v3 from_camera_to_triangle = (v3_Subtract(vertex_workspace[t.a], eye));
+
+			if (v3_DotProduct(normal, from_camera_to_triangle) > 0)
+			{
+				triangle_workspace[i] = triangle_workspace[--triangle_count];
+				uv_triangle_workspace[i] = uv_triangle_workspace[triangle_count];
+			}
+			else
+			{
+				v3 backward = { 0,0,-1 };
+				v3 light_vector = Transform_v3(Rotation(0, light_rotation, 0), backward);
+				float dot = v3_DotProduct(normal, light_vector); //TODO account for transform hierarchies and local space
+
+				if (dot < 0)
+					dot = 0;
+
+				if (!isnan(dot))//TODO - remove, just a temporary fix
+					brightness[i] = (unsigned char)(dot * 255);
+				else
+					brightness[i] = 0;
+				i++;					
+			}
+		}
+	}
+
+	//To Clip Space
+	{
+		//TODO replace with projection matrix so you can swap projections at run time (I need an orthographic projection, for instance)
+		static float near_plane = 1.0f;
+		static float far_plane = 5000;
+		static float field_of_view = Tau / 6.0f;
+
+		float aspect_ratio = HEIGHT / (float) WIDTH;
+		float zoom = (float)(1 / tan(field_of_view / 2));
+
+		for (int i = 0; i < mesh.vertices_count; i++)
+		{
+			if(orthographic){
+				vertex_workspace[i] = Transform_v3(camera_to_clip, vertex_workspace[i]);
+			}
+			else //TODO set up a proper perspective projection matrix function so you can still use the camera_to_clip matrix.
+			{
+				v3 v = vertex_workspace[i];
+				v.x /= v.z;
+				v.y /= v.z;
+
+				v.x *= aspect_ratio * zoom;
+				v.y *= -zoom;
+				v.z = 2 * ((v.z - near_plane) / (far_plane - near_plane)) - 1; 
+				vertex_workspace[i] = v;
+			}
+		}
+	}
+
+	if(perform_clipping)
+	{	
+		//Perform Clipping
+		{
+			for (int i = 0; i < triangle_count;)
+			{
+				TriangleIndices t = triangle_workspace[i];
+
+				bool is_left_clipped = vertex_workspace[t.a].x < -1 && vertex_workspace[t.b].x < -1 && vertex_workspace[t.c].x < -1;
+				bool is_right_clipped = vertex_workspace[t.a].x > 1 && vertex_workspace[t.b].x > 1 && vertex_workspace[t.c].x > 1;
+				bool is_bottom_clipped = vertex_workspace[t.a].y < -1 && vertex_workspace[t.b].y < -1 && vertex_workspace[t.c].y < -1;
+				bool is_top_clipped = vertex_workspace[t.a].y > 1 && vertex_workspace[t.b].y > 1 && vertex_workspace[t.c].y > 1;					
+				bool is_near_clipped = vertex_workspace[t.a].z < -1 && vertex_workspace[t.b].z < -1 && vertex_workspace[t.c].z < -1;
+				bool is_far_clipped = vertex_workspace[t.a].z  > 1 && vertex_workspace[t.b].z > 1 && vertex_workspace[t.c].z > 1;
+
+				if(is_left_clipped || is_right_clipped || is_top_clipped || is_bottom_clipped || is_near_clipped ||is_far_clipped)
+				{
+					triangle_workspace[i] = triangle_workspace[--triangle_count];
+					uv_triangle_workspace[i] = uv_triangle_workspace[triangle_count];
+					brightness[i] = brightness[triangle_count];
+				}
+				else
+					i++;
+			}
+
+			//TODO actually cut triangles that are partially clipped, rather than removing triangles that are wholly outside the clip box
+		}
+	}
+
+	//Perform Lighting
+	{
+		//TODO make lighting respect camera orientation
+		for (int i = 0; i < mesh.normals_count; ++i)
+		{
+				v3 backward = { 0,0,-1 };
+				v3 light_vector = Transform_v3(Rotation(0, light_rotation, 0), backward);
+				
+				float dot = v3_DotProduct(Transform_v3(Rotation(object_to_world.m11,object_to_world.m21,object_to_world.m31), normals_workspace[i]), light_vector); //TODO account for transform hierarchies and local space
+
+				if (dot < 0)
+					dot = 0;
+
+				if (!isnan(dot))//TODO - remove, just a temporary fix
+				{
+					lighting[i] = (byte)(dot * 255);
+				}
+				else
+					lighting[i] = 0;
+		}
+	}
+
+	//To Screen Space
+	{
+		for (int i = 0; i < mesh.vertices_count; i++)
 		{
 			//place origin at center of screen
 			vertex_workspace[i].x++;
@@ -1244,165 +1699,126 @@ void RenderMesh(Mesh mesh, Transform object_transform, Transform camera, Shader 
 	}
 }
 
-void RenderTexturedMesh(Mesh mesh, Transform object_transform, Transform camera, Bitmap texture)
+
+void RenderHitbox(RectangleF rect, Transform object_transform, Transform camera, Color color)
 {
-	//if (mesh.indices?.Length > 0) //TODO?
+	m4x4 object_to_world = GetMatrix(object_transform);
+
+	//get camera matrix
+	//TODO simplify getting camera matrix
+	Transform camera_position = DefaultTransform();
+	Transform camera_rotation = DefaultTransform();
+	camera_position.position = v3_NegateVector(camera.position);
+	camera_rotation.rotation = v3_NegateVector(camera.rotation);
+	m4x4 move = GetMatrix(camera_position);
+	m4x4 rotation = GetMatrix(camera_rotation);
+	m4x4 world_to_camera = Concatenate(move, rotation);
+
+	m4x4 object_to_camera = Concatenate(object_to_world, world_to_camera);
+
+	PointRectangle point_rect;
+	v3* p = &point_rect;
+
+	//To Camera Space
 	{
-		size_t triangle_count = mesh.indices_length / 3;
+		float half_width = rect.width/2;
+		float half_height = rect.height/2;
+		point_rect.top_left = Transform_v3(object_to_camera, (v3){ rect.x-half_width, rect.y+half_height, 0 });
+		point_rect.top_right = Transform_v3(object_to_camera, (v3){ rect.x+half_width, rect.y+half_height, 0 });
+		point_rect.bottom_left = Transform_v3(object_to_camera, (v3){ rect.x-half_width, rect.y-half_height, 0 });
+		point_rect.bottom_right = Transform_v3(object_to_camera, (v3){ rect.x+half_width, rect.y-half_height, 0 });
+	}
 
-		//fill triangle list
+	//To Clip Space
+	{
+		//TODO replace with projection matrix so you can swap projections at run time (I need an orthographic projection, for instance)
+		static float near_plane = 1.0f;
+		static float far_plane = 5000;
+		static float field_of_view = Tau / 6.0f;
+
+		float aspect_ratio = HEIGHT / (float) WIDTH;
+		float zoom = (float)(1 / tan(field_of_view / 2));
+
+		for (int i = 0; i < 4; i++)
 		{
-			int i;
-			for (i = 0; i < triangle_count; i++)
-			{
-				triangle_workspace[i].a = mesh.vertices[mesh.indices[i * 3 + 0]];
-				triangle_workspace[i].b = mesh.vertices[mesh.indices[i * 3 + 1]];
-				triangle_workspace[i].c = mesh.vertices[mesh.indices[i * 3 + 2]];
-				triangle_workspace[i].a_uv = mesh.uvs[mesh.uv_indices[i * 3 + 0]];
-				triangle_workspace[i].b_uv = mesh.uvs[mesh.uv_indices[i * 3 + 1]];
-				triangle_workspace[i].c_uv = mesh.uvs[mesh.uv_indices[i * 3 + 2]];
-			}
-		}
+			v3 v = p[i];
+			v.x /= v.z;
+			v.y /= v.z;
 
-		//transform points
-		{
-			//get object transform matrix
-			m4x4 object_to_world =  GetMatrix(object_transform);
-
-			//get camera matrix
-			m4x4 world_to_camera = GetMatrix(InvertTransform(camera));
-
-			m4x4 object_to_camera = Concatenate(object_to_world, world_to_camera);
-
-			for (int i = 0; i < triangle_count; i++)
-			{
-				Triangle t = triangle_workspace[i];
-
-				//To Camera Space
-				{
-					t.a = Transform_v3(object_to_camera, t.a);
-					t.b = Transform_v3(object_to_camera, t.b);
-					t.c = Transform_v3(object_to_camera, t.c);
-				}
-
-				triangle_workspace[i] = t;
-			}
-
-			//cull backfaces and perform lighting
-			{
-				size_t remaining_count = triangle_count;
-				for (int i = 0; i < triangle_count; i++)
-				{
-				label:
-					if (i == remaining_count) //TODO verify no off by one error
-						break;
-					Triangle t = triangle_workspace[i];
-					Vec3 a = v3_Subtract(t.b, t.a);
-					Vec3 b = v3_Subtract(t.c, t.a);
-					Vec3 normal = v3_Normalized(CrossProduct(a, b));
-
-					Vec3 from_camera_to_triangle = v3_Normalized(v3_Subtract(t.a, camera.position));
-
-					if (v3_DotProduct(normal, from_camera_to_triangle) > 0)
-					{
-						SwapTriangles(triangle_workspace, i, remaining_count - 1);
-						remaining_count--;
-						goto label;//TODO replace with while
-					}
-					else
-					{
-						Vec3 backward = { 0,0,-1 };
-						float dot = v3_DotProduct(normal, Transform_v3(Rotation(0, light_rotation, 0), backward));
-
-						if (dot < 0)
-							dot = 0;
-
-						if (!isnan(dot))//TODO - remove, just a temporary fix
-						{
-							t.brightness = (byte)(dot * 255);
-							triangle_workspace[i] = t;
-						}
-
-						float light = t.brightness / 255.0f;
-
-						uint r = ((t.color & red) ^ black) >> 16;
-						uint g = ((t.color & green) ^ black) >> 8;
-						uint b = (t.color & blue) ^ black;
-
-						r = (uint)(r * light);
-						g = (uint)(g * light);
-						b = (uint)(b * light);
-
-						t.color = r << 16 | g << 8 | b | black;
-						triangle_workspace[i] = t;
-					}
-				}
-
-				triangle_count = remaining_count;
-			}
-
-			for (int i = 0; i < triangle_count; i++)
-			{
-				Triangle t = triangle_workspace[i];
-				t.a = CameraSpaceToClipSpace(t.a);
-				t.b = CameraSpaceToClipSpace(t.b);
-				t.c = CameraSpaceToClipSpace(t.c);
-				triangle_workspace[i] = t;
-			}
-
-			//Perform Clipping
-			{
-				for (int i = 0; i < triangle_count; i++)
-				{
-					my_label:
-					if (i == triangle_count)
-						break;					
-					Triangle t = triangle_workspace[i];
-					bool is_left_clipped = t.a.x < -1 && t.b.x < -1 && t.c.x < -1;
-					bool is_right_clipped = t.a.x > 1 && t.b.x > 1 && t.c.x > 1;
-					bool is_bottom_clipped = t.a.y < -1 && t.b.y < -1 && t.c.y < -1;
-					bool is_top_clipped = t.a.y > 1 && t.b.y > 1 && t.c.y > 1;					
-					bool is_near_clipped = t.a.z < -1 && t.b.z < -1 && t.c.z < -1;
-					bool is_far_clipped = t.a.z  > 1 && t.b.z > 1 && t.c.z > 1;
-
-					if(is_left_clipped || is_right_clipped || is_top_clipped || is_bottom_clipped)
-					{
-						triangle_workspace[i] = triangle_workspace[triangle_count-1];
-						triangle_count--;
-						goto my_label;
-					}
-				}
-
-				//TODO actually cut triangles that are partially clipped, rather than removing triangles that are wholly outside the clip box
-				//TODO near and far clipping (for some reason the clip coordinates are "wrong")
-			}
-
-			for (int i = 0; i < triangle_count; i++)
-			{
-				Triangle t = triangle_workspace[i];
-				t.a = ClipSpaceToScreenSpace(t.a);
-				t.b = ClipSpaceToScreenSpace(t.b);
-				t.c = ClipSpaceToScreenSpace(t.c);
-				triangle_workspace[i] = t;
-			}				
-		}
-
-		//sort triangles by depth painter's algorithm YAY!
-		{
-			SortByDepth(triangle_workspace, triangle_count);
-		}
-
-		//rasterize
-		{
-			for (int i = 0; i < triangle_count; i++)
-			{
-				Triangle t = triangle_workspace[i];
-				Vec2 a = { t.a.x, t.a.y };
-				Vec2 b = { t.b.x, t.b.y };
-				Vec2 c = { t.c.x, t.c.y };
-
-				FillTriangle_Texture(a, b, c, t.a_uv, t.b_uv, t.c_uv, texture);
-			}
+			v.x *= aspect_ratio * zoom;
+			v.y *= -zoom;
+			v.z = 2 * ((v.z - near_plane) / (far_plane - near_plane)) - 1; 
+			p[i] = v;
 		}
 	}
+
+	//To Screen Space
+	{
+		for (int i = 0; i < 4; i++)
+		{
+			//place origin at center of screen
+			p[i].x++;
+			p[i].y++;
+
+			//scale space to fill screen
+			p[i].x *= WIDTH / 2;
+			p[i].y *= HEIGHT / 2;
+		}
+	}
+
+	//Rasterize
+	{
+		DrawLine(color, p[0].x, p[0].y, p[1].x, p[1].y);
+
+		DrawLine(color, p[0].x, p[0].y, p[2].x, p[2].y);
+		DrawLine(color, p[2].x, p[2].y, p[3].x, p[3].y);
+		DrawLine(color, p[1].x, p[1].y, p[3].x, p[3].y);
+		float radius = 15;
+		radius = 100/v3_Distance(object_transform.position, camera.position);
+		Color darker = Darker(color);
+		FillCircle(darker, p[0].x, p[0].y, radius);
+		FillCircle(darker, p[1].x, p[1].y, radius);
+		FillCircle(darker, p[2].x, p[2].y, radius);
+		FillCircle(darker, p[3].x, p[3].y, radius);
+	}	
+}
+
+void WavyScreen(float t)
+{
+	Color* copy = malloc(WIDTH*HEIGHT*4);
+
+	memcpy(copy,pixels,WIDTH*HEIGHT*4);
+	for (int y = 0; y < HEIGHT; ++y)
+	{
+		int shift_x = (int)((sin(t + y/90.0f)+1)*20);
+
+		
+		for(int x = 0; x < WIDTH; x++)
+		{
+			int shift_y = shift_x;
+			
+			if(shift_x < -x)
+				shift_x = -x;
+
+			if(shift_y < -y)
+				shift_y = -y;
+
+			Color temp = pixels[y*WIDTH+x];
+			pixels[y*WIDTH+x] = copy[((y+shift_y)%HEIGHT)*WIDTH+((x+shift_x)%WIDTH)];
+		}
+	}
+
+	for (int i = 0; i < pixel_count; ++i)
+	{
+		PutPixel_ByIndex(LerpColor(pixels[i],blue,.5f), i);
+	}
+
+	free(copy);
+
+	int border_size = 40;
+	FillRectangle(black, WIDTH-border_size,0,border_size,HEIGHT);
+	FillRectangle(black, 0,0,border_size,HEIGHT);
+
+	FillRectangle(black,0,0,WIDTH,border_size);
+	FillRectangle(black,0,HEIGHT-border_size,WIDTH,border_size);
 }
