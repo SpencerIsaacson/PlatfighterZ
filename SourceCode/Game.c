@@ -1984,7 +1984,7 @@ void GameLoop()
 				} break;
 				case CurveEditor:
 				{
-					Fill(0x999999);
+					Clear();
 					static bool init = false;
 
 					static int frame;
@@ -2020,225 +2020,187 @@ void GameLoop()
 						init = true;				
 					}
 
-					//Draw KeyframeCurve
-					{
-						for (int i = 0; i < my_curve.keyframes_count-1; ++i)
-						{
-							float x = my_curve.keyframes[i].frame;
-							x *= 16;
-							x += WIDTH / 2;
-							float y = my_curve.keyframes[i].value;
-							y *= -32;
-							y += HEIGHT / 2;
+					my_curve.keyframes[0].right_handle_x += mousestate.delta.x / 100;
+					my_curve.keyframes[0].right_handle_y -= mousestate.delta.y / 100;
 
-											
-							float x2 = my_curve.keyframes[i+1].frame;
-							x2 *= 16;
-							x2 += WIDTH / 2;
-							float y2 = my_curve.keyframes[i+1].value;
-							y2 *= -32;
-							y2 += HEIGHT / 2;
-
-							DrawLine(0x555555, (int)x, (int)y,(int)x2,(int)y2);
-
-							KeyFrame a = my_curve.keyframes[i];
-							KeyFrame b = my_curve.keyframes[i+1];
-							float duration = b.frame - a.frame;
-							#define sample_count 40
-							v2 samples[sample_count];
-							float step = duration / (sample_count-1);
-							for(int i = 0; i < sample_count-1; i++)
-							{
-								samples[i].x = a.frame+i*step;
-								samples[i].y = Sample(a,b,a.frame+i*step);
-							}
-
-							samples[sample_count-1].x = b.frame;
-							samples[sample_count-1].y = b.value;
-
-							for (int i = 0; i < sample_count-1; ++i)
-							{
-
-								float x = samples[i].x;
-								x *= 16;
-								x += WIDTH / 2;
-								float y = samples[i].y;
-								y *= -32;
-								y += HEIGHT / 2;		
-
-								float x2 = samples[i+1].x;
-								x2 *= 16;
-								x2 += WIDTH / 2;
-								float y2 = samples[i+1].y;
-								y2 *= -32;
-								y2 += HEIGHT / 2;						
-								DrawLine(white, (int)x, (int)y,(int)x2,(int)y2);
-							}
-						}
-					}
-
-					//Draw Curve Handles
-					{
-						for (int i = 0; i < my_curve.keyframes_count; ++i)
-						{
-							float x1 = my_curve.keyframes[i].frame;
-							x1 *= 16;
-							x1 += WIDTH / 2;
-							float y1 = my_curve.keyframes[i].value;
-							y1 *= -32;
-							y1 += HEIGHT / 2;
-
-
-							float x2 = my_curve.keyframes[i].frame + my_curve.keyframes[i].left_handle_x;
-							x2 *= 16;
-							x2 += WIDTH / 2;
-							float y2 = my_curve.keyframes[i].value + my_curve.keyframes[i].left_handle_y;
-							y2 *= -32;
-							y2 += HEIGHT / 2;
-
-							float x3 = my_curve.keyframes[i].frame + my_curve.keyframes[i].right_handle_x;
-							x3 *= 16;
-							x3 += WIDTH / 2;
-							float y3 = my_curve.keyframes[i].value + my_curve.keyframes[i].right_handle_y;
-							y3 *= -32;
-							y3 += HEIGHT / 2;
-
-							DrawLine(yellow,x1,y1,x2,y2);
-							DrawLine(yellow,x1,y1,x3,y3);
-							FillCircle(red, (int)x1, (int)y1, 7);
-							FillCircle(green,(int)x3,(int)y3,5);
-							FillCircle(blue,(int)x2,(int)y2,5);
-						}
-					}
-
-					//Test Bezier
-					{	
-						static float t = 0;
-						static float t2 = 0;
-						static bool show_guides = false;
-						static bool show_outline = true;
-
-						if(KeyDownFresh(Keys_M))
-							show_guides = !show_guides;
-						if(KeyDownFresh(Keys_N))
-							show_outline = !show_outline;			
-
-						char* message = "t2";
-						Slider(message, 0, 1, 512, 32, 150, &t2);
-						
-						float c1_y;
-						char* message2 = "c1.y";
-						Slider(message2, 100, 400, 512, 64, 150, &c1_y);
-
-						char* message3 = "right_handle_x";
-						char* message4 = "right_handle_y val";
-						Slider(message3, 0, 5, 512, 96, 150, &my_curve.keyframes[0].right_handle_x);
-						Slider(message4, -1, 1, 512, 128, 150, &my_curve.keyframes[0].right_handle_y);
-
-						v2 a,b,c,d,e,f,g,h,i,j;
-						a = (v2){100,c1_y};
-						d = (v2){400,400};
-						b = Lerp_v2(Lerp_v2(a,d,t2),(v2){200,200},(c1_y-100)/300);		
-						c = Lerp_v2(Lerp_v2(a,d,1-t2),(v2){300,200},(c1_y-100)/300);
-						e = Lerp_v2(a,b,t);
-						f = Lerp_v2(b,c,t);
-						g = Lerp_v2(c,d,t);
-						h = Lerp_v2(e,f,t);
-						i = Lerp_v2(f,g,t);
-						j = Lerp_v2(h,i,t);
-
-
-
-
-
-
-
-						float duration = d.x - a.x;
-						v2 samples[sample_count];
-						float step = duration / (sample_count-1);
-						KeyFrame frameA,frameB;
-						frameA = (KeyFrame){a.x,a.y,0,0,b.x-a.x,b.y-a.y};
-						frameB = (KeyFrame){d.x,d.y,c.x-d.x,c.y-d.y,0,0};
-						for(int i = 0; i < sample_count; i++)
-						{
-							samples[i].x = a.x+i*step;
-							samples[i].y = Sample(frameA,frameB,a.x+i*step);
-							//samples[i] = Sample2_v2(a,b, c,d,a.x+i*step);
-						}
-
-						for (int i = 0; i < sample_count-1; ++i)
-						{
-
-							float x = samples[i].x;
-							float y = samples[i].y;
-							float x2 = samples[i+1].x;
-							float y2 = samples[i+1].y;					
-							DrawLine(white, (int)x, (int)y,(int)x2,(int)y2);
-							FillCircle(white,x,y,5);
-							FillCircle(white,x2,y2,5);
-						}		
-
-
-
-						if(show_guides)
-						{						
-							FillCircle(red,e.x,e.y,5);
-							FillCircle(red,f.x,f.y,5);
-							FillCircle(red,g.x,g.y,5);
-							FillCircle(green,h.x,h.y,5);
-							FillCircle(green,i.x,i.y,5);
-							FillCircle(black,j.x, j.y, 3);
-
-							DrawLine(yellow,e.x,e.y,f.x,f.y);
-							DrawLine(yellow,f.x,f.y,g.x,g.y);
-
-							DrawLine(purple,h.x,h.y,i.x,i.y);
-						}
-						if(show_outline)
-						{
-							DrawLine(0xcccccc,a.x,a.y,b.x,b.y);
-							DrawLine(0xcccccc,b.x,b.y,c.x,c.y);
-							DrawLine(0xcccccc,c.x,c.y,d.x,d.y);
-							FillCircle(blue,a.x,a.y,5);
-							FillCircle(blue,b.x,b.y,5);
-							FillCircle(blue,c.x,c.y,5);
-							FillCircle(blue,d.x,d.y,5);
-						}
-
-						if(t < 1)
-							t += timing.delta_time / 10.0f;
-						else t = 1;									
-					}
-
-					//FillVerticalGradient(white, black);
+					FillVerticalGradient(white, black);
 
 					//Draw Graph Editor
 					{
-						FillRectangle(red,WIDTH/2,0,WIDTH/2,HEIGHT/2);
+						static float x_scale_float = 32;
+						static float y_scale_float = 32;
+						
+						int graph_editor_x_scale = (int)x_scale_float;
+						int graph_editor_y_scale = (int)y_scale_float;
+
+						//x_scale_float += timing.delta_time*15;
+
+						if(KeyDown(Keys_LAlt))
+						{
+							x_scale_float += mousestate.scroll_amount *5;
+						}
+
+						if(KeyDown(Keys_LShift))
+						{
+							y_scale_float += mousestate.scroll_amount *5;
+						}
+
+						FillRectangle(black,WIDTH/2,0,WIDTH/2,HEIGHT-60);
+						
+						//Draw Grid
+						{	
+
+							FillRectangle(0xFF555555,WIDTH/2,HEIGHT/2-3,WIDTH/2,6);
+							FillRectangle(0xFF555555,WIDTH/2-3,0,6,HEIGHT-60);
+							
+							//Vertical
+							for (int i = 0; i < 33; ++i)
+							{
+								DrawLine(0xFF888888, WIDTH / 2 + i * graph_editor_x_scale, 0, WIDTH / 2 + i * graph_editor_x_scale,HEIGHT-60);
+								char message[50];
+								sprintf(message, "%d", i+1);
+								DrawString(WrapString(message), WIDTH/2+(i*graph_editor_x_scale+3), HEIGHT/2+3);
+							}
+
+							//Horizontal
+							for (int i = 0; i < 33; ++i)
+							{
+								DrawLine(0xFF888888, WIDTH / 2, HEIGHT/2 + i*graph_editor_y_scale, WIDTH,HEIGHT/2+i*graph_editor_y_scale);
+								DrawLine(0xFF888888, WIDTH / 2, HEIGHT/2 - i*graph_editor_y_scale, WIDTH,HEIGHT/2 - i*graph_editor_y_scale);
+								char message[50];
+								sprintf(message, "%d", i);
+								DrawString(WrapString(message), WIDTH/2+5, HEIGHT/2-(i*graph_editor_y_scale+9));
+							}
+						}
+
+						//Draw KeyframeCurve
+						{
+							for (int i = 0; i < my_curve.keyframes_count-1; ++i)
+							{
+								float x = my_curve.keyframes[i].frame;
+								x *= graph_editor_x_scale;
+								x += WIDTH / 2;
+								float y = my_curve.keyframes[i].value;
+								y *= -graph_editor_y_scale;
+								y += HEIGHT / 2;
+
+												
+								float x2 = my_curve.keyframes[i+1].frame;
+								x2 *= graph_editor_x_scale;
+								x2 += WIDTH / 2;
+								float y2 = my_curve.keyframes[i+1].value;
+								y2 *= -graph_editor_y_scale;
+								y2 += HEIGHT / 2;
+
+								DrawLine(0x555555, (int)x, (int)y,(int)x2,(int)y2);
+
+								KeyFrame a = my_curve.keyframes[i];
+								KeyFrame b = my_curve.keyframes[i+1];
+								float duration = b.frame - a.frame;
+								#define sample_count 40
+								v2 samples[sample_count];
+								float step = duration / (sample_count-1);
+								for(int i = 0; i < sample_count-1; i++)
+								{
+									samples[i].x = a.frame+i*step;
+									samples[i].y = Sample(a,b,a.frame+i*step);
+								}
+
+								samples[sample_count-1].x = b.frame;
+								samples[sample_count-1].y = b.value;
+
+								for (int i = 0; i < sample_count-1; ++i)
+								{
+
+									float x = samples[i].x;
+									x *= graph_editor_x_scale;
+									x += WIDTH / 2;
+									float y = samples[i].y;
+									y *= -graph_editor_y_scale;
+									y += HEIGHT / 2;		
+
+									float x2 = samples[i+1].x;
+									x2 *= graph_editor_x_scale;
+									x2 += WIDTH / 2;
+									float y2 = samples[i+1].y;
+									y2 *= -graph_editor_y_scale;
+									y2 += HEIGHT / 2;						
+									DrawLine(white, (int)x, (int)y,(int)x2,(int)y2);
+								}
+							}
+						}
+
+						//Draw Curve Handles
+						{
+							for (int i = 0; i < my_curve.keyframes_count; ++i)
+							{
+								float x1 = my_curve.keyframes[i].frame;
+								x1 *= graph_editor_x_scale;
+								x1 += WIDTH / 2;
+								float y1 = my_curve.keyframes[i].value;
+								y1 *= -graph_editor_y_scale;
+								y1 += HEIGHT / 2;
+
+
+								float x2 = my_curve.keyframes[i].frame + my_curve.keyframes[i].left_handle_x;
+								x2 *= graph_editor_x_scale;
+								x2 += WIDTH / 2;
+								float y2 = my_curve.keyframes[i].value + my_curve.keyframes[i].left_handle_y;
+								y2 *= -graph_editor_y_scale;
+								y2 += HEIGHT / 2;
+
+								float x3 = my_curve.keyframes[i].frame + my_curve.keyframes[i].right_handle_x;
+								x3 *= graph_editor_x_scale;
+								x3 += WIDTH / 2;
+								float y3 = my_curve.keyframes[i].value + my_curve.keyframes[i].right_handle_y;
+								y3 *= -graph_editor_y_scale;
+								y3 += HEIGHT / 2;
+
+								DrawLine(yellow,x1,y1,x2,y2);
+								DrawLine(yellow,x1,y1,x3,y3);
+								FillCircle(red, (int)x1, (int)y1, 7);
+								FillCircle(green,(int)x3,(int)y3,5);
+								FillCircle(blue,(int)x2,(int)y2,5);
+							}
+						}
+
+						FillRectangle(red,WIDTH/2+75,0,2,HEIGHT-60);
 					}
 
 					//Draw CharacterPane
 					{
 						//FillRectangle(green,0,0,WIDTH/2,HEIGHT-65);
 						RenderMesh(conan_mesh, object_transform, camera, ShadeTexturedGouraud, &conan_texture);
+
+
+						//Draw Orientation Indicator
+						{
+							DrawLine(red, 75, HEIGHT-135, 105, HEIGHT-125);
+							DrawLine(green, 75, HEIGHT-135, 75, HEIGHT-175);
+							DrawLine(blue, 75, HEIGHT-135, 45, HEIGHT-125);
+
+
+							DrawCharacterScaled(font_set[23], 108, HEIGHT-125, 1, red);
+							DrawCharacterScaled(font_set[24], 72, HEIGHT-188, 1, green);
+							DrawCharacterScaled(font_set[25], 35, HEIGHT-125, 1, blue);
+						}
 					}
 
 
 					//Draw Timeline
 					{
-
-						int animation_frame_count = 31;
+						int animation_frame_count = 32;
 						int timeline_height = 60;
 						FillRectangle(0xFFAAAAAA, 0, HEIGHT - timeline_height, WIDTH, timeline_height);
 						int timeline_frame_width = WIDTH/animation_frame_count;
 						FillRectangle(red, frame*timeline_frame_width+1, HEIGHT - timeline_height, 5, timeline_height);
 						for(int i = 0; i < animation_frame_count; i++)
 						{
-							DrawVerticalSegment(black, i * timeline_frame_width, HEIGHT - timeline_frame_width, HEIGHT);
+							DrawVerticalSegment(black, i * timeline_frame_width, HEIGHT - timeline_height, HEIGHT);
 
 							char frame_number_string[3];
-							sprintf(frame_number_string, "%d", i);
-							DrawStringScaled(WrapString(frame_number_string), i*timeline_frame_width+6, HEIGHT - timeline_height, 2,white);
+							sprintf(frame_number_string, "%d", i+1);
+							DrawStringScaled(WrapString(frame_number_string), i*timeline_frame_width+6, HEIGHT - 10, 1,white);
 						}
 					}
 
@@ -3690,7 +3652,11 @@ int main(int argc, char* argv[])
                 	SDL_MouseMotionEvent mouse_event = event.motion;
             		mousestate.position = (v2){mouse_event.x,mouse_event.y};
             		mousestate.delta = (v2){mouse_event.xrel,mouse_event.yrel};
-                } break;                
+                } break;    
+                case SDL_MOUSEWHEEL:
+                {
+            		mousestate.scroll_amount = event.wheel.y;
+                } break;    
                 case SDL_MOUSEBUTTONDOWN:
                 {
                 	SDL_MouseButtonEvent mouse_event = event.button;
@@ -3717,6 +3683,7 @@ int main(int argc, char* argv[])
         GameLoop();
         mousestate.delta = (v2){0,0};
 		mousestate.leftbutton_was_down = mousestate.leftbutton_down;
+		mousestate.scroll_amount = 0;
     }
 
     return 0;

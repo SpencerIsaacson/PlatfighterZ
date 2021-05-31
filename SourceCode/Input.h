@@ -4,6 +4,7 @@ typedef struct MouseState
 	v2 delta;
 	bool leftbutton_down;
 	bool leftbutton_was_down;
+	float scroll_amount;
 } MouseState;
 
 MouseState mousestate;
@@ -30,7 +31,10 @@ enum Keys
 	Keys_Subtract = 109,
 	Keys_NumPad0 = 96, Keys_NumPad1, Keys_NumPad2, Keys_NumPad3, Keys_NumPad4, Keys_NumPad5, Keys_NumPad6, Keys_NumPad7, Keys_NumPad8, Keys_NumPad9,
 	Keys_F4 = 115,
+	Keys_LShift = 160,
 	Keys_LCtrl = 162,
+	Keys_LAlt = 164,
+
 };
 
 enum Buttons
