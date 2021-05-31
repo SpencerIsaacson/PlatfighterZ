@@ -390,6 +390,14 @@ Mesh GetMeshFromArena(int mesh_address)
 }
 
 
+enum FighterList
+{
+	BigfistMcPunchydude,
+	Jeffrey,
+	DrMeroink,
+	Maestro
+};
+
 Bitmap guy_texture;
 Bitmap conan_texture;
 Bitmap conan_normals;
@@ -397,6 +405,11 @@ Bitmap face_texture;
 Bitmap block_texture;
 Bitmap cube2normals_texture;
 Bitmap bigfist_mcpunchydude_texture;
+Bitmap bigfist_mcpunchydude_icon;
+Bitmap jeffrey_icon;
+Bitmap dr_meroink_icon;
+Bitmap maestro_icon;
+Bitmap character_icons[4];
 
 typedef struct
 {
@@ -717,7 +730,7 @@ void InitEverything()
 	timing.STANDARD_TIMESTEP = 1 / timing.TARGET_FRAMERATE;
 	timing.time_scale = 1.0f;
 	timing.fixed_framerate = false;
-	current_game_state = Credits;
+	current_game_state = CharacterSelect;
 	view_debug = false;
 	float field_of_view = Tau / 6.0f;
 	camera_to_clip = Perspective(.1f, 100, field_of_view, WIDTH, HEIGHT);
@@ -1340,7 +1353,66 @@ void InitEverything()
 				bigfist_mcpunchydude_texture.pixels = pixels;	
 				close_file(file_pointer);					
 				
-			}						
+			}	
+
+
+			//Load Character Icons
+			{
+				{
+					file_pointer = open_file("Assets/bigfist_mcpunchydude_icon.texture", "rb");
+					width = 100, height = 100;
+					uint* pixels = malloc(sizeof(uint) * width * height);
+
+					read_bytes(pixels, 4, width * height, file_pointer);
+					bigfist_mcpunchydude_icon.width = width;
+					bigfist_mcpunchydude_icon.height = height;
+					bigfist_mcpunchydude_icon.pixels = pixels;	
+					close_file(file_pointer);	
+				}
+
+				{
+					file_pointer = open_file("Assets/jeffrey_icon.texture", "rb");
+					width = 100, height = 100;
+					uint* pixels = malloc(sizeof(uint) * width * height);
+
+					read_bytes(pixels, 4, width * height, file_pointer);
+					jeffrey_icon.width = width;
+					jeffrey_icon.height = height;
+					jeffrey_icon.pixels = pixels;	
+					close_file(file_pointer);	
+				}
+
+				{
+					file_pointer = open_file("Assets/maestro_icon.texture", "rb");
+					width = 100, height = 100;
+					uint* pixels = malloc(sizeof(uint) * width * height);
+
+					read_bytes(pixels, 4, width * height, file_pointer);
+					maestro_icon.width = width;
+					maestro_icon.height = height;
+					maestro_icon.pixels = pixels;	
+					close_file(file_pointer);	
+				}
+
+				{
+
+					file_pointer = open_file("Assets/dr_meroink_icon.texture", "rb");
+					width = 100, height = 100;
+					uint* pixels = malloc(sizeof(uint) * width * height);
+
+					read_bytes(pixels, 4, width * height, file_pointer);
+					dr_meroink_icon.width = width;
+					dr_meroink_icon.height = height;
+					dr_meroink_icon.pixels = pixels;	
+					close_file(file_pointer);
+				}
+
+
+				character_icons[BigfistMcPunchydude] = bigfist_mcpunchydude_icon;
+				character_icons[Jeffrey] = jeffrey_icon;
+				character_icons[DrMeroink] = dr_meroink_icon;
+				character_icons[Maestro] = maestro_icon;				
+			}				
 		}
 	}
 
@@ -1353,7 +1425,7 @@ void InitEverything()
 		skinned_demo.skeleton.joints[4].position.z = -.2f;
 		skinned_demo.skeleton.joints[6].position.z = -.2f;
 		skinned_demo.animation_length = 32;
-		skinned_demo.has_a_face = true;
+		skinned_demo.has_a_face = false;
 		if (skinned_demo.has_a_face)
 		{
 			//load face
@@ -2963,7 +3035,89 @@ void GameLoop()
 				} break;
 				case CharacterSelect:
 				{
-					Fill(blue);
+					static int selected_fighter[PLAYER_COUNT];
+					static bool fighters_have_been_selected = false;
+					static Transform player_transforms[PLAYER_COUNT];
+					static bool init = false;
+					if(!init)
+					{
+						init = true;
+						for (int i = 0; i < PLAYER_COUNT; ++i)
+						{
+							player_transforms[i]  = DefaultTransform();
+							player_transforms[i].rotation.y = Tau/2;
+							player_transforms[i].position.x = i * 8-12;							
+						}
+					}
+
+					if(!fighters_have_been_selected)
+					{
+						for (int i = 0; i < PLAYER_COUNT; ++i)
+						{
+							if(ButtonDownFresh(i, RIGHT))
+								selected_fighter[i]++;
+							if(ButtonDownFresh(i, LEFT))
+								selected_fighter[i]--;
+		
+							if(selected_fighter[i] < 0)
+								selected_fighter[i] += 4;
+							selected_fighter[i] %= 4;
+						}
+					}
+					else
+					{
+						for (int i = 0; i < PLAYER_COUNT; ++i)
+						{
+							float speed = timing.delta_time*10;
+							if(ButtonDown(i, RIGHT))
+								player_transforms[i].position.x += speed;
+							if(ButtonDown(i, LEFT))
+								player_transforms[i].position.x -= speed;
+						}
+					}
+
+					if(KeyDownFresh(Keys_Space))
+						fighters_have_been_selected = !fighters_have_been_selected;
+					FillVerticalGradient(0xAAAAAA, black);
+					char* fighter_names[4] = {"Bigfist Mcpunchydude", "Jeffrey", "Dr. Meroink", "Maestro"};
+					int rect_width = 200;
+					int cursor_width = 50;
+					for (int i = 0; i < PLAYER_COUNT; ++i)
+					{
+						
+						int x = i * rect_width + WIDTH/2-rect_width*4/2;
+						int y = 150;
+						FillRectangle(0x660033, x, y, rect_width, rect_width);
+						DrawSprite(x, y, character_icons[i]);
+						DrawRectangle(black, x, y, rect_width, rect_width);
+						DrawStringScaled(WrapString(fighter_names[i]),x, y+rect_width-85, 1, black);
+					}
+
+					for (int i = 0; i < PLAYER_COUNT; ++i)
+					{
+						int left_most = WIDTH/2-(PLAYER_COUNT*rect_width/2);
+						int x = left_most + selected_fighter[i] * rect_width+((rect_width-cursor_width)*(i%2));
+						int y = 150 + ( (i>1) ? (rect_width-cursor_width) : 0);
+						FillRectangle(gameplay_state.player_colors[i], x, y, cursor_width, cursor_width);
+						char player_tag[3];
+						sprintf(player_tag, "%dP",i+1);
+						DrawStringScaled(WrapString(player_tag),x, y, 3, black);
+					}
+
+					Mesh meshes[4] = {bigfist_mcpunchydude_mesh, guy_mesh, conan_mesh, cube_mesh};
+					Bitmap textures[4] = {bigfist_mcpunchydude_texture, guy_texture, conan_texture, conan_texture};
+
+					Transform camera = DefaultTransform();
+					camera.position.z =  -40;
+					camera.position.y =  10;
+
+					ClearZBuffer();
+					
+					for (int i = 0; i < PLAYER_COUNT; ++i)
+					{
+						RenderMesh(meshes[selected_fighter[i]], player_transforms[i], camera, ShadeTexturedGouraud, &textures[selected_fighter[i]]);
+					}
+
 					DrawStringScaled(WrapString("Character Select"), 0, 0, 4,white);
 				} break;		
 				case SkinnedMesh:
@@ -3728,7 +3882,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    window = SDL_CreateWindow("Window Go Boom", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 800, 0);
+    window = SDL_CreateWindow("Window Go Boom", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1920, 1080, 0);
 
     if (window == NULL) {
         printf("Could not create window: %s\n", SDL_GetError());
@@ -3737,7 +3891,7 @@ int main(int argc, char* argv[])
 
     SDL_Surface* surface;
 
-	InitViewport(1280, 800);//TODO make the game more resolution agnostic
+	InitViewport(1920, 1080);//TODO make the game more resolution agnostic
 	InitEverything();
 	//SDL_SetWindowFullscreen(window,SDL_WINDOW_FULLSCREEN_DESKTOP);
     surface = SDL_GetWindowSurface(window);
