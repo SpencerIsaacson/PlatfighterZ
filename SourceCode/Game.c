@@ -41,10 +41,11 @@ typedef enum GameStates
 	Gameplay,
 	ParticleState, 
 	PeruseScreenCaptures,
-	MorphTargetsDemo
+	MorphTargetsDemo,
+	Credits
 } GameStates;
 
-#define state_count 14
+#define state_count 15
 
 typedef struct Timing
 {
@@ -716,7 +717,7 @@ void InitEverything()
 	timing.STANDARD_TIMESTEP = 1 / timing.TARGET_FRAMERATE;
 	timing.time_scale = 1.0f;
 	timing.fixed_framerate = false;
-	current_game_state = CurveEditor;
+	current_game_state = Credits;
 	view_debug = false;
 	float field_of_view = Tau / 6.0f;
 	camera_to_clip = Perspective(.1f, 100, field_of_view, WIDTH, HEIGHT);
@@ -1436,28 +1437,50 @@ void InitEverything()
 		ResetGame();
 	}
 
-	//void Init SplashScreen
+	//Init SplashScreen
 	{
 		splash.started = false;
 		splash.ended = false;
 		splash.time = 0;
 		splash.alpha = 0;
-		splash.x_min = 550;
-		splash.y_min = 125;
-		splash.x_max = WIDTH - splash.x_min;
-		splash.y_max = HEIGHT - splash.y_min;
+
 
 		//Load SplashScreen Image
 		{
 			FILE* file_pointer = open_file("Assets/viking_studios_logo", "r");
-			int width = 1920, height = 1080;
-			uint* pixels = malloc(sizeof(uint) * width * height);
-			read_bytes(pixels, 4, width * height, file_pointer);
-			splash.logo.width = width;
-			splash.logo.height = height;
+			int source_width = 1920, source_height = 1080;
+			uint* pixels = malloc(sizeof(uint) * source_width * source_height);
+			read_bytes(pixels, 4, source_width * source_height, file_pointer);
+			splash.logo.width = source_width;
+			splash.logo.height = source_height;
 			splash.logo.pixels = pixels;
 
 			close_file(file_pointer);
+
+			splash.logo.width = WIDTH;
+			splash.logo.height = HEIGHT;
+
+			Color* splashcopy = malloc(source_width*source_height*4);
+			memcpy(splashcopy, splash.logo.pixels, source_width*source_height*4);
+
+			
+			for (int y = 0; y < HEIGHT; y++)
+			for (int x = 0; x < WIDTH; x++)
+			{
+				float dest_scaled_x = x/(float)WIDTH;
+				int source_x = (int)(dest_scaled_x*source_width);
+
+				float dest_scaled_y = y/(float)HEIGHT;
+				int source_y = (int)(dest_scaled_y*source_height);				
+				splash.logo.pixels[y*WIDTH+x] = splashcopy[source_y*source_width+source_x];
+			}
+			free(splashcopy);
+			splashcopy = NULL;
+
+			splash.x_min = (int)(550/(float)source_width*WIDTH);
+			splash.y_min = (int)(125/(float)source_height*HEIGHT);
+			splash.x_max = WIDTH - splash.x_min;
+			splash.y_max = HEIGHT - splash.y_min;			
 		}
 	}
 }
@@ -2829,7 +2852,8 @@ void GameLoop()
 							RenderMesh(mesh, player, camera, ShadeTexturedGouraud, &face_texture);
 
 							RenderMesh(cube_mesh, enemy, camera,ShadeTexturedFlatShaded, &conan_texture);
-
+							Color flag_color = red;
+							RenderMesh(cube_mesh, enemy, camera,ShadeSolidColor,&flag_color);
 							static float theta = 0;
 
 
@@ -3516,6 +3540,113 @@ void GameLoop()
 						RenderMesh(to_render, object_transform, camera, ShadeTexturedGouraud, &face_texture);
 					}
 				} break;
+				case Credits:
+				{
+					Clear();
+					static float y = 1000;
+					char* credits = "!The End\n!Code:\tSpencer Isaacson\nArt:\tSpencer Hunt\nVoices:\tBoth\n\n\n!The Beginning\n!";
+					string credits_string = WrapString(credits);
+
+					int column_number  = 0;
+					int row_number = 0;
+					bool is_title = false;
+					bool right_justified = false;
+					static int chars_long = 0;
+					for (int i = 0; i < credits_string.length; ++i)
+					{
+						switch(credits_string.characters[i])
+						{
+							case '!':
+							{
+								is_title = !is_title;
+								if(!is_title)
+								{
+									row_number += 4;
+									column_number = 5;									
+								}
+								else
+								{
+									char c = credits_string.characters[i];
+									int char_index = i;
+									while(c!='\n')
+									{
+										c= credits_string.characters[char_index++];
+									}
+
+									chars_long = char_index-(i+2);									
+								}
+							} break;
+							case '\n':
+							{
+								column_number = (is_title) ? 0 : 5;
+								row_number += 2;
+								right_justified = false;
+							} break;
+							case '\t':
+							{
+								right_justified = true;
+								column_number = 25;
+							} break;
+							default:
+							{
+								int scale = (is_title) ? 7 : 3;
+
+								int characters_long= 0;
+								int x = 0;
+
+								if(is_title)
+								{
+									char c = credits_string.characters[i];
+									int char_index = i;
+									while(c!='\n')
+									{
+										c= credits_string.characters[char_index++];
+									}
+
+									characters_long = char_index-(i+1);
+									int text_width = characters_long*9*scale;
+									x = WIDTH/2-text_width+(chars_long*9*scale/2);
+								}
+								else if(right_justified)
+								{
+										char c = credits_string.characters[i];
+										int char_index = i;
+										while(c != '\n')
+										{
+											c= credits_string.characters[char_index++];
+										}
+
+										characters_long = char_index-(i+1);
+										int text_width = characters_long*9*scale;
+										x = WIDTH-text_width-100;
+								}
+								else
+									x = column_number * 9 * scale;
+								//Draw Next Character
+								{
+									char a = tolower(credits_string.characters[i]);
+									for (int o = 0; o < char_dict_count; o++)
+									{
+										if (a == char_dict[o])
+										{
+											DrawCharacterScaled(font_set[o], x, (int)y + (row_number*9*scale), scale, white);
+										}
+
+									}
+								}
+
+								column_number++;							
+							} break;
+						}
+					}
+
+					int end_y = -625;
+					if(y > end_y)
+						y -= timing.delta_time*50;
+					else
+						y = end_y;
+
+				} break;
 				default:
 				{
 					current_game_state = SplashScreenState;
@@ -3597,7 +3728,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    window = SDL_CreateWindow("Window Go Boom", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1920, 1080, 0);
+    window = SDL_CreateWindow("Window Go Boom", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 800, 0);
 
     if (window == NULL) {
         printf("Could not create window: %s\n", SDL_GetError());
@@ -3606,7 +3737,7 @@ int main(int argc, char* argv[])
 
     SDL_Surface* surface;
 
-	InitViewport(1920, 1080);//TODO make the game more resolution agnostic
+	InitViewport(1280, 800);//TODO make the game more resolution agnostic
 	InitEverything();
 	//SDL_SetWindowFullscreen(window,SDL_WINDOW_FULLSCREEN_DESKTOP);
     surface = SDL_GetWindowSurface(window);

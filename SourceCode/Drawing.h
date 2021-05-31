@@ -521,7 +521,11 @@ void FillRectangle_Blend(Color color, int x, int y, int width, int height)
 	{
 		for (int _y = 0; _y < height; _y++)
 		{
-			PutPixel_ByPosition(BlendColor(color, pixels[(y + _y) * WIDTH + (x + _x)]), _x + x, _y + y);
+			if ((x + _x) >= 0 && (x + _x) < WIDTH && (y + _y) >= 0 && (y + _y) < HEIGHT)
+			{
+				int index = (y + _y) * WIDTH + (x + _x);
+				pixels[index] = BlendColor(color, pixels[index]);
+			}
 		}
 	}
 }
