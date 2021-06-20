@@ -13,6 +13,9 @@
 #define purple 0xFF800080
 #define transparent 0
 
+#define gray 0xFF666666
+#define grey gray
+
 void Clear()
 {
 	memset(pixels, 0, pixel_count * sizeof(uint));
@@ -562,8 +565,8 @@ void FillRectangle(uint color, float x, float y, float width, float height)
 {
 	int x_min = (int)x;
 	int y_min = (int)y;
-	int x_max = (int)(x+(int)width);
-	int y_max = (int)(y+(int)height);
+	int x_max = (int)(x+width);
+	int y_max = (int)(y+height);
 	Clamp(&x_min,0,WIDTH);
 	Clamp(&x_max, x_min, WIDTH);
 	Clamp(&y_min,0,HEIGHT);
@@ -624,13 +627,12 @@ void FillCircle(uint color, float x, float y, float radius)
 	}
 }
 
-void FillEllipse(uint color, float x, float y, float width, float height) //TODO fill ellipse
+void FillEllipse(uint color, float x, float y, float radius_x, float radius_y)
 {
-	float radius = width/2.0f;
-	int x_min = (int)roundf(x);
-	int x_max = (int)roundf(x + width);
-	int y_min = (int)roundf(y);
-	int y_max = (int)roundf(y + height);
+	int x_min = (int)roundf(x - radius_x);
+	int x_max = (int)roundf(x + radius_x);
+	int y_min = (int)roundf(y - radius_y);
+	int y_max = (int)roundf(y + radius_y);
 
 	for (int _x = x_min; _x <= x_max; _x++)
 	{
@@ -639,9 +641,9 @@ void FillEllipse(uint color, float x, float y, float width, float height) //TODO
 			float dx = _x - x;
 			float dy = _y - y;
 
-			bool distance_less_than_radius = dx * dx + dy * dy <= radius * radius;
+			bool distance_less_than_radii = dx * dx * radius_y * radius_y + dy * dy * radius_x * radius_x <= radius_x * radius_x * radius_y * radius_y;
 
-			if (distance_less_than_radius)
+			if (distance_less_than_radii)
 				PutPixel_ByPosition(color, _x, _y);
 		}
 	}
@@ -695,43 +697,6 @@ v2 FromBaryCentricSpace(float b1, float b2, float b3, v2 a, v2 b, v2 c)
 	v_y = b1*a.y + b2*b.y + b3*c.y;
 	v2 result = {v_x, v_y};
 	return result;
-}
-
-void FillTriangle_Texture(v2 a, v2 b, v2 c, v2 a_uv, v2 b_uv, v2 c_uv, Bitmap texture)
-{
-	int x_min = (int)GetMin3(a.x, b.x, c.x);
-	int y_min = (int)GetMin3(a.y, b.y, c.y);
-	int x_max = (int)roundf(GetMax3(a.x, b.x, c.x));
-	int y_max = (int)roundf(GetMax3(a.y, b.y, c.y));
-
-
-	for (int _x = x_min; _x <= x_max; _x++)
-	{
-		for (int _y = y_min; _y <= y_max; _y++)
-		{
-			v3 v = ToBarycentricSpace(_x, _y, a, b, c);
-			bool in_triangle = !(v.x < 0 || v.y < 0 || v.z < 0);
-			if (in_triangle)
-			{
-				v2 v_uv = FromBaryCentricSpace(v.x, v.y, v.z, a_uv, b_uv, c_uv);
-				
-				while(v_uv.y > 1)
-					v_uv.y--;
-
-				while(v_uv.x > 1)
-					v_uv.x--;
-
-				v_uv.x*=texture.width-1;
-				v_uv.y*=texture.height-1;
-
-				int texture_index = (int)v_uv.y*texture.width+(int)v_uv.x;
-				
-				Clamp(&texture_index, 0, texture.width*texture.height - 1);				
-				Color color_from_texture = texture.pixels[texture_index];
-				PutPixel_ByPosition(color_from_texture, _x, _y);
-			}
-		}
-	}
 }
 
 void FillSprites(CharSprite* sprites, int count)
@@ -971,6 +936,14 @@ Color ShadeColorGouraud(v3 bary, int triangle_index, void* color)
 	byte b_l = lighting[index_workspace[i+1]];
 	byte c_l = lighting[index_workspace[i+2]];
 
+	int ambient = 100;
+	if(a_l < ambient)
+		a_l = ambient;
+	if(b_l < ambient)
+		b_l = ambient;	
+	if(c_l < ambient)
+		c_l = ambient;
+
 	Color a = *((Color*)color), b = *((Color*)color), c = *((Color*)color);
 
 	byte* p = (byte*)&a;
@@ -1003,6 +976,49 @@ Color ShadeTexturedGouraud(v3 v, int triangle_index, void* texture_pointer)
 	Color result = ShadeTexturedUnlit(v, triangle_index, texture_pointer);
 	result = ShadeColorGouraud(v, triangle_index, &result);
 	return result;
+}
+
+Color ShadeTexturedGouraudColorMasked(v3 v, int triangle_index, void* material)
+{
+
+	typedef struct
+	{
+		Color tint;
+		Bitmap color;
+		Bitmap mask;
+	} Material;
+
+	Material mat = *((Material*)material);
+
+	int i = triangle_index*3;
+
+	v2 a_uv = uv_workspace[uv_index_workspace[i+0]];
+	v2 b_uv = uv_workspace[uv_index_workspace[i+1]];
+	v2 c_uv = uv_workspace[uv_index_workspace[i+2]];
+
+	v2 v_uv = FromBaryCentricSpace(v.x, v.y, v.z, a_uv, b_uv, c_uv);
+
+	v_uv.y = 1-v_uv.y;
+	v_uv.x *= mat.mask.width-1;
+	v_uv.y *= mat.mask.height-1;
+	
+	int texture_index = (int)v_uv.y*mat.mask.width+(int)v_uv.x;
+
+	Clamp(&texture_index, 0, mat.mask.width*mat.mask.height - 1);
+	
+	Color result = black;
+	if(mat.mask.pixels[texture_index] == white)
+		result = mat.tint;
+	else
+		result = ShadeTexturedUnlit(v, triangle_index, &mat.color);
+
+	result = ShadeColorGouraud(v, triangle_index, &result);
+	return result;
+}
+
+Color ShadeSkinWeights(v3 v, int triangle_index, void* material)
+{
+	return white;
 }
 
 Color ShadeTexturedFlatShaded(v3 v, int triangle_index, void* texture_pointer)
@@ -1121,93 +1137,6 @@ void RenderTriangle(v3 a, v3 b, v3 c, int triangle_index, Shader shader, void* s
 				if(depth <= z_buffer[i])
 				{
 					pixels[i] = shader(v, triangle_index, shader_state);
-					z_buffer[i] = depth;
-				}
-			}
-		}
-	}	
-}
-
-
-typedef Color (*Shader2)(v3 barycentric_point, Triangle t, void* shader_state);
-
-Color Shade2SolidColor(v3 v, Triangle t, void* dont_use)
-{
-	return blue;
-}
-
-Color Shade2VertexColors(v3 v, Triangle t, void* dont_use)
-{
-	Color result;
-	byte* r_p = (byte*)(&result);
-    byte* a_p = (byte*)(&(t.a.color));
-    byte* b_p = (byte*)(&(t.b.color));
-    byte* c_p = (byte*)(&(t.c.color));
-	r_p[0] = a_p[0]*v.x+b_p[0]*v.y+c_p[0]*v.z;
-	r_p[1] = a_p[1]*v.x+b_p[1]*v.y+c_p[1]*v.z;
-	r_p[2] = a_p[2]*v.x+b_p[2]*v.y+c_p[2]*v.z;
-	return result;
-}
-
-Color Shade2TexturedUnlit(v3 v, Triangle t, void* texture_pointer)
-{
-	if(t.a.color != transparent)
-	{
-		if(t.b.color | t.c.color != transparent )
-			return Shade2VertexColors(v,t, NULL);
-		return t.a.color;
-	}
-
-	Bitmap texture = *((Bitmap*)texture_pointer);
-
-	v2 v_uv = FromBaryCentricSpace(v.x, v.y, v.z, t.a.uv, t.b.uv, t.c.uv);
-
-	v_uv.y = 1-v_uv.y;
-	v_uv.x *= texture.width-1;
-	v_uv.y *= texture.height-1;
-	
-	int texture_index = (int)v_uv.y*texture.width+(int)v_uv.x;
-
-	Clamp(&texture_index, 0, texture.width*texture.height - 1);
-	return texture.pixels[texture_index];
-}
-
-void RenderVertexTriangle(Triangle t, Shader2 shader, void* shader_state)
-{
-	int x_min = (int)GetMin3(t.a.position.x, t.b.position.x, t.c.position.x);
-	int y_min = (int)GetMin3(t.a.position.y, t.b.position.y, t.c.position.y);
-	int x_max = (int)GetMax3(t.a.position.x, t.b.position.x, t.c.position.x);
-	int y_max = (int)GetMax3(t.a.position.y, t.b.position.y, t.c.position.y);
-
-	Clamp(&x_min, 0, WIDTH-1);
-	Clamp(&x_max, 0, WIDTH-1);
-	Clamp(&y_min, 0, HEIGHT-1);
-	Clamp(&y_max, 0, HEIGHT-1);
-
-	v2 a2 = (v2){t.a.position.x,t.a.position.y};
-	v2 b2 = (v2){t.b.position.x,t.b.position.y};
-	v2 c2 = (v2){t.c.position.x,t.c.position.y};
-
-	for (int _x = x_min; _x <= x_max; _x++)
-	{
-		for (int _y = y_min; _y <= y_max; _y++)
-		{
-			v3 v = ToBarycentricSpace(_x, _y, a2,b2,c2);
-			bool in_triangle = !(v.x < 0 || v.y < 0 || v.z < 0);
-			if(in_triangle)
-			{
-				int i = _y * WIDTH + _x;
-
-				//get interpolated z value of current pixel
-			    float depth = t.a.position.z * v.x + t.b.position.z * v.y + t.c.position.z * v.z;
-
-				if(depth <= z_buffer[i])
-				{
-					if(z_buffer[i] == Z_BUFFER_UNSET)
-						pixels[i] = shader(v, t, shader_state);
-					else
-						pixels[i] = yellow;
-					
 					z_buffer[i] = depth;
 				}
 			}
@@ -1335,6 +1264,25 @@ bool perform_clipping = true;
 bool orthographic = false;
 
 Triangle render_workspace[workspace_size];
+
+m4x4 ObjectToClipMatrix(Transform object_transform, Transform camera)
+{
+		//get object transform matrix
+		m4x4 object_to_world = GetMatrix(object_transform);
+
+		//get camera matrix
+		//TODO simplify getting camera matrix
+		Transform camera_position = DefaultTransform();
+		Transform camera_rotation = DefaultTransform();
+		camera_position.position = v3_NegateVector(camera.position);
+		camera_rotation.rotation = v3_NegateVector(camera.rotation);
+		m4x4 move = GetMatrix(camera_position);
+		m4x4 rotation = GetMatrix(camera_rotation);
+		m4x4 world_to_camera = Concatenate(move, rotation);
+
+		m4x4 object_to_camera = Concatenate(object_to_world, world_to_camera);
+		m4x4 object_to_clip = Concatenate(object_to_camera, camera_to_clip);	
+}
 
 void RenderMesh(Mesh mesh, Transform object_transform, Transform camera, Shader shader, void* shader_state) //canonical
 {
@@ -1513,7 +1461,6 @@ void RenderMesh(Mesh mesh, Transform object_transform, Transform camera, Shader 
 		{
 			TriangleIndices t = triangle_workspace[i];
 			RenderTriangle(vertex_workspace[t.a], vertex_workspace[t.b], vertex_workspace[t.c], i, shader, shader_state);
-			//FillTriangle(red, vertex_workspace[t.a].x, vertex_workspace[t.a].y, vertex_workspace[t.b].x, vertex_workspace[t.b].y, vertex_workspace[t.c].x, vertex_workspace[t.c].y);	
 		}
 	}
 }
@@ -1721,7 +1668,7 @@ void RenderHitbox(RectangleF rect, Transform object_transform, Transform camera,
 	m4x4 object_to_camera = Concatenate(object_to_world, world_to_camera);
 
 	PointRectangle point_rect;
-	v3* p = &point_rect;
+	v3* p = (v3*)&point_rect;
 
 	//To Camera Space
 	{
@@ -1770,6 +1717,7 @@ void RenderHitbox(RectangleF rect, Transform object_transform, Transform camera,
 		}
 	}
 
+	v3 center = v3_Divide(v3_Add(point_rect.top_left, point_rect.bottom_right), 2);
 	//Rasterize
 	{
 		DrawLine(color, p[0].x, p[0].y, p[1].x, p[1].y);
@@ -1777,13 +1725,14 @@ void RenderHitbox(RectangleF rect, Transform object_transform, Transform camera,
 		DrawLine(color, p[0].x, p[0].y, p[2].x, p[2].y);
 		DrawLine(color, p[2].x, p[2].y, p[3].x, p[3].y);
 		DrawLine(color, p[1].x, p[1].y, p[3].x, p[3].y);
-		float radius = 15;
-		radius = 100/v3_Distance(object_transform.position, camera.position);
+		float radius = 3;
+		//radius = 100/v3_Distance(object_transform.position, camera.position);
 		Color darker = Darker(color);
 		FillCircle(darker, p[0].x, p[0].y, radius);
 		FillCircle(darker, p[1].x, p[1].y, radius);
 		FillCircle(darker, p[2].x, p[2].y, radius);
 		FillCircle(darker, p[3].x, p[3].y, radius);
+		Draw_Circle(darker, center.x, center.y, 4.5f, 2);
 	}	
 }
 

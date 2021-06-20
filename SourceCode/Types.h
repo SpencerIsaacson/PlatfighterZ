@@ -54,24 +54,67 @@ typedef struct
 		right_handle_x, right_handle_y;
 } KeyFrame;
 
+typedef struct RectangleF
+{
+	float x,y,width,height;
+} RectangleF;
+
+typedef struct PointRectangle
+{
+	v3 top_left;
+	v3 top_right;
+	v3 bottom_left;
+	v3 bottom_right;
+} PointRectangle;
+
+typedef struct
+{
+	v2 position;
+	v2 size;
+} Hitbox;
+
+typedef enum
+{
+	Inactive,
+	Attack,
+	Defend,
+} HitboxState;
+
+typedef struct 
+{
+	int state_frame_count;
+	int keys[5];
+	int values[5];
+} HitboxStateAnimation;
+
 typedef struct
 {
 	int transform_index;
 	char channel_offset;
 	int keyframes_count;
-	KeyFrame* keyframes;
+	KeyFrame keyframes[10];
 } AnimationCurve;
 
+
+#define curves_per_box 4
+
+typedef	struct 
+{
+	HitboxState state;
+	RectangleF rect;
+	int animation_length;
+	AnimationCurve curves[curves_per_box];
+	HitboxStateAnimation hitstate_anim;
+} HitboxAnimation;
+
+#define hitbox_count 10
 typedef struct
 {
 	bool looped;
 	int animation_length;
 	int curves_count;
-	AnimationCurve* curves;
-	int** defendbox_keys;
-	bool** defendbox_values;
-	int** attackbox_keys;
-	bool** attackbox_values;
+	AnimationCurve curves[20];
+	HitboxAnimation hitframes[hitbox_count];
 } Animation;
 
 typedef struct
@@ -89,24 +132,6 @@ typedef struct
 		m41, m42, m43, m44;
 } m4x4;
 
-typedef struct RectangleF
-{
-	float x,y,width,height;
-} RectangleF;
-
-typedef struct PointRectangle{
-	v3 top_left;
-	v3 top_right;
-	v3 bottom_left;
-	v3 bottom_right;
-} PointRectangle;
-
-typedef struct
-{
-	v2 position;
-	v2 size;
-} Hitbox;
-
 #define MAX_HITBOX_COUNT 20
 typedef struct 
 {
@@ -120,7 +145,7 @@ typedef struct {
 	int frame_count;
 	HitFrame frames[MAX_HITBOX_FRAMES];
 
-} HitboxAnimation;
+} HitboxAnimationOld;
 
 typedef unsigned int Color;
 
@@ -186,12 +211,14 @@ typedef struct
 typedef struct
 {
 	int entity_ID;
+	Transform transform;
 	int selected_character;
 	bool defeated;
 	int stock;
 	float current_health;
 	v2 velocity;
 	bool grounded;
+	bool was_grounded;
 } Player;
 
 
@@ -215,3 +242,12 @@ typedef struct Entity
 	IndexedMesh mesh;
 	Material material;
 } Entity;
+
+typedef struct
+{
+	string name;
+	Bitmap icon;
+	Mesh mesh;
+	Bitmap texture;
+	Bitmap color_mask;
+} Fighter;
