@@ -45,6 +45,7 @@ typedef enum GameStates
 	SkinningViewer,
 	SpriteEditor,
 	RenderBenchmark,
+	PaintStrokeTest,
 	state_count
 } GameStates;
 
@@ -759,7 +760,7 @@ void InitEverything()
 	timing.STANDARD_TIMESTEP = 1 / timing.TARGET_FRAMERATE;
 	timing.time_scale = 1.0f;
 	timing.fixed_framerate = false;
-	current_game_state = RenderBenchmark;
+	current_game_state = PaintStrokeTest;
 	view_debug = false;
 	float field_of_view = Tau / 6.0f;
 	camera_to_clip = Perspective(.1f, 100, field_of_view, WIDTH, HEIGHT);
@@ -2781,8 +2782,8 @@ void GameLoop()
 		                        		&& v2_Magnitude(gameplay_state.players[b].velocity) <.25f 
 		                        		&& v3_Distance(gameplay_state.players[a].transform.position,gameplay_state.players[b].transform.position)<0.85f)
 		                        	{
-		                        		//gameplay_state.players[a].velocity.x = 0.3f;
-		                        		//gameplay_state.players[b].velocity.x = -0.3f;
+		                        		gameplay_state.players[a].velocity.x = 0.3f;
+		                        		gameplay_state.players[b].velocity.x = -0.3f;
 		                        	}
 		                        }
 		                    }
@@ -3255,10 +3256,6 @@ void GameLoop()
 									DrawString(message, offset_x, offset_y);
 								}
 							}
-
-							char my_message[50];
-							sprintf(my_message, "frame: %f", animator[0].current_frame);
-							DrawString(WrapString(my_message),17,78);
 						}
 					}
 				} break;
@@ -3824,7 +3821,7 @@ void GameLoop()
 					ClearZBuffer();
 					Color foo = red;
 					int triangle_count = 6982;
-					static Transform transform = (Transform){-1,0,0,0,0,0,0,1,1,1};
+					static Transform transform = {-1,0,0,0,0,0,0,1,1,1};
 					transform.position.y = -8;
 					Transform camera = DefaultTransform();
 					camera.position.z = -75;
@@ -3838,7 +3835,107 @@ void GameLoop()
 					//EndTiming();
 					//printf(" to render %d triangle(s)\n",triangle_count*4);
 				} break;
+				case PaintStrokeTest:
+				{
+					Clear();
+					FillAlphaChannel();
+					static float t = 0;
+					static bool init = false;
+					static float* p = &camera_to_clip;
+					static bool baz  = false;
+					if(!init)
+					{
+						init = true;
+						camera_to_clip = (m4x4)m4x4_identity;
+						v2 center = {bigfist_mcpunchydude_icon.width/2,bigfist_mcpunchydude_icon.height/2};
 
+						for (int y = 0; y < bigfist_mcpunchydude_icon.height; ++y)
+						for (int x = 0; x < bigfist_mcpunchydude_icon.width; ++x)
+						{
+
+							int alpha = 0;
+							alpha = (int)(sin((float)x/100.0f)*15);
+
+							alpha <<= 24;
+							bigfist_mcpunchydude_icon.pixels[y*bigfist_mcpunchydude_icon.width+x] ^= 0xFF000000;
+							bigfist_mcpunchydude_icon.pixels[y*bigfist_mcpunchydude_icon.width+x] |= alpha;
+						}
+					}
+					Transform object_transform = DefaultTransform();
+					//object_transform.position.x = 10;
+					object_transform.rotation.y = t;
+
+					t+= timing.delta_time;
+					Transform camera = DefaultTransform();
+					camera.position.z = -10;
+					camera.position.y = 1;
+					m4x4 to_clip = ObjectToClipMatrix(DefaultTransform(),camera);
+
+
+					//get object transform matrix
+					m4x4 object_to_world = GetMatrix(object_transform);
+					//printf("object_to_world:\n");
+					//PrintMatrix(object_to_world);
+					//get camera matrix
+					//TODO simplify getting camera matrix
+					Transform camera_position = DefaultTransform();
+					Transform camera_rotation = DefaultTransform();
+					camera_position.position = v3_NegateVector(camera.position);
+					camera_rotation.rotation = v3_NegateVector(camera.rotation);
+					m4x4 move = GetMatrix(camera_position);
+					m4x4 rotation = GetMatrix(camera_rotation);
+					//printf("world_to_camera:\n");
+					m4x4 world_to_camera = Concatenate(move, rotation);
+					//PrintMatrix(world_to_camera);
+					m4x4 object_to_camera = Concatenate(object_to_world, world_to_camera);
+					//printf("object_to_camera:\n");
+					//PrintMatrix(object_to_camera);
+					
+					m4x4 object_to_clip = Concatenate(object_to_camera, camera_to_clip);	
+					//printf("camera_to_clip:\n");
+					//PrintMatrix(camera_to_clip);
+					//printf("object_to_clip:\n");
+					//PrintMatrix(object_to_clip);
+					
+					camera_to_clip = Perspective(1.5f, 100, Tau/6, WIDTH, HEIGHT);
+					if(KeyDownFresh(Keys_A))
+						p--;
+					if(KeyDownFresh(Keys_D))
+					{
+						printf("foo");
+						if(p < &camera_to_clip.m44){
+							p++;
+							baz = false;
+						}
+						else
+							baz = true;
+						printf("bar");
+					}
+					if(baz)
+						FillRectangle(blue, 0,0,100,100);
+					if(KeyDown(Keys_Left))
+						(*p) -= timing.delta_time*2;
+					if(KeyDown(Keys_Right))
+						(*p) += timing.delta_time*2;
+					for (int i = 0; i < guy_mesh.vertices_count; ++i)
+					{
+						v3 a = guy_mesh.vertices[i];
+						Vec4 v = (Vec4){a.x,a.y,a.z,1};
+						v = Transform_v4(object_to_clip, v);
+						v.x /= v.w;
+						v.y /= v.w;
+						v.x++;
+						v.y++;
+						FillRectangle(red, v.x*WIDTH/2-2,v.y*HEIGHT/2-2,4,4);
+						BlendSprite(v.x*WIDTH/2-bigfist_mcpunchydude_icon.width/2,v.y*HEIGHT/2-bigfist_mcpunchydude_icon.width/2,bigfist_mcpunchydude_icon);
+					}
+
+				Clear();
+				Color vertexcolors[3] = {red, green, blue};
+				RenderTriangle((v3){200,220,0},(v3){400,20,0},(v3){600,220,0}, 0, ShadeVertexColors,vertexcolors);
+
+				RenderTriangle((v3){200,430,0},(v3){400,230,0},(v3){600,430,0}, 0, ShadeVertexColors,vertexcolors);
+				} break;
 				default:
 				{
 					current_game_state = SplashScreenState;

@@ -116,6 +116,8 @@ void DrawSprite(int x, int y, Bitmap sprite)
 	}
 }
 
+
+
 void FillVerticalGradient(Color color1, Color color2)
 {
 	for (int y = 0; y < HEIGHT; y++)
@@ -189,6 +191,27 @@ Color BlendColor(Color s, Color d)
 
 	uint result = rA | rR | rG | rB;
 	return result;
+}
+
+void BlendSprite(int x, int y, Bitmap sprite)
+{
+	int x_min = x;
+	int y_min = y;
+	int x_max = x + sprite.width;
+	int y_max = y + sprite.height;
+	Clamp(&x_min,0,WIDTH);
+	Clamp(&x_max, x_min, WIDTH);
+	Clamp(&y_min,0,HEIGHT);
+	Clamp(&y_max, y_min, HEIGHT);
+
+	for (int _y = y_min; _y < y_max; _y++)
+	for (int _x = x_min; _x < x_max; _x++)
+	{
+		{
+			
+			pixels[_y*WIDTH+_x] = BlendColor(sprite.pixels[(_y-y)*sprite.width+(_x-x)], pixels[_y*WIDTH+_x]);
+		}
+	}
 }
 
 //TODO handle invalid file paths
