@@ -46,6 +46,9 @@ typedef enum GameStates
 	SpriteEditor,
 	RenderBenchmark,
 	PaintStrokeTest,
+	IKMarionnette,
+	HairTest,
+	VertexTriangleTest,
 	state_count
 } GameStates;
 
@@ -760,7 +763,7 @@ void InitEverything()
 	timing.STANDARD_TIMESTEP = 1 / timing.TARGET_FRAMERATE;
 	timing.time_scale = 1.0f;
 	timing.fixed_framerate = false;
-	current_game_state = PaintStrokeTest;
+	current_game_state = VertexTriangleTest;
 	view_debug = false;
 	float field_of_view = Tau / 6.0f;
 	camera_to_clip = Perspective(.1f, 100, field_of_view, WIDTH, HEIGHT);
@@ -1243,6 +1246,19 @@ void GameLoop()
 
 			switch(current_game_state)
 			{
+				case VertexTriangleTest:
+				{
+					Triangle t;
+
+					t.a.position = (v3){100,200,0};
+					t.b.position = (v3){200,100,0};
+					t.c.position = (v3){300,200,0};
+					t.a.uv = (v2){0,0};
+					t.b.uv = (v2){0,1};
+					t.c.uv = (v2){1,1};
+					RenderVertexTriangle(t, Shade2TexturedUnlit, &conan_texture);
+
+				} break;
 				case CleanRenderTest:
 				{
 					static Transform camera = {-1,{0,4,-50},{0,0,0},{1,1,1}};
@@ -3930,11 +3946,171 @@ void GameLoop()
 						BlendSprite(v.x*WIDTH/2-bigfist_mcpunchydude_icon.width/2,v.y*HEIGHT/2-bigfist_mcpunchydude_icon.width/2,bigfist_mcpunchydude_icon);
 					}
 
-				Clear();
-				Color vertexcolors[3] = {red, green, blue};
-				RenderTriangle((v3){200,220,0},(v3){400,20,0},(v3){600,220,0}, 0, ShadeVertexColors,vertexcolors);
+					Clear();
+					Color vertexcolors[3] = {red, green, blue};
+					RenderTriangle((v3){200,220,0},(v3){400,20,0},(v3){600,220,0}, 0, ShadeVertexColors,vertexcolors);
 
-				RenderTriangle((v3){200,430,0},(v3){400,230,0},(v3){600,430,0}, 0, ShadeVertexColors,vertexcolors);
+					RenderTriangle((v3){200,430,0},(v3){400,230,0},(v3){600,430,0}, 0, ShadeVertexColors,vertexcolors);
+				} break;
+				case IKMarionnette://TODO spellcheck marionnette
+				{
+					static bool init = false;
+					static float t = 0;
+					static float scale = 64;
+					static Transform hierarchy[4];
+
+					Transform* shoulder = &hierarchy[0];
+					Transform* elbow = &hierarchy[1];
+					Transform* wrist = &hierarchy[2];
+					Transform* wrist_effector = &hierarchy[3];
+
+					if(!init)
+					{
+						init = true;
+						(*shoulder) = DefaultTransform();
+						(*elbow) = DefaultTransform();
+						(*wrist) = DefaultTransform();
+						(*wrist_effector) = DefaultTransform();
+						shoulder -> position = (v3)v3_zero;
+						elbow -> position = (v3)v3_right;
+						wrist -> position = (v3){1, 0, 0};
+						wrist_effector -> position = (v3){ 1, 1, 0};
+
+						elbow -> parent = 0;
+						wrist -> parent = 1;
+					}
+
+					if(mousestate.leftbutton_down)
+					{
+						wrist_effector -> position.x = (mousestate.position.x-(WIDTH/2))/scale;
+						wrist_effector -> position.y = (mousestate.position.y-(HEIGHT/2))/-scale;
+					}
+
+
+					t+= timing.delta_time;
+					
+					v2 a = (v2){wrist_effector->position.x,wrist_effector->position.y};
+					v3 b_ = v3_Subtract(wrist->position,shoulder->position);
+					v2 b = (v2){b_.x,b_.y};
+					
+					a = v2_Normalized(a);
+					b = v2_Normalized(b);
+
+					float cosine = v2_DotProduct(a,b);
+					float angle = acos(cosine);
+					//shoulder -> rotation.z = angle;
+					angle *= 180/Pi;
+					printf("angle: %f\n", angle);
+
+
+					float arctangent = atan2(a.y,a.x);
+					printf("arctangent: %f\n",arctangent);
+
+					float d1 = v3_Magnitude(elbow->position);
+					float d2 = v3_Magnitude(wrist->position);
+					
+					Printv3(wrist->position);
+					printf("d2: %f\n", d2);
+
+ 					a = (v2){wrist_effector->position.x,wrist_effector->position.y};
+ 					Printv2(a);
+					float theta2 = acos(((a.x*a.x+a.y*a.y)-(d1*d1+d2*d2))/(2*d1*d2));
+					// if(isnan(theta2))
+					// 	theta2=2;
+					printf("theta2:%f\n",theta2);
+					if(v2_Magnitude(a) <= (d1+d2)){
+						elbow -> rotation.z = theta2;
+						if(v2_Magnitude(a) >= fabs(d1-d2))
+							elbow -> rotation.z = theta2;
+						else
+							elbow -> rotation.z = Pi;
+					}
+					else
+						elbow -> rotation.z = 0;
+
+					//shoulder -> rotation.z = arctangent;
+					//Render
+					{
+						
+						Clear();
+						v3 pos[3];
+						for (int i = 0; i < 4; ++i)
+						{
+							m4x4 to_world= WorldSpaceMatrix(i, hierarchy);
+							pos[i] = Transform_v3(to_world, (v3)v3_zero);
+							pos[i].x *= scale;
+							pos[i].y *= -scale;
+							pos[i].x += WIDTH/2;
+							pos[i].y += HEIGHT/2;
+						}
+
+						DrawLine(blue, pos[0].x,pos[0].y, pos[3].x,pos[3].y);
+						DrawLine(red, pos[0].x,pos[0].y, pos[1].x,pos[1].y);
+						DrawLine(green, pos[1].x,pos[1].y, pos[2].x,pos[2].y);
+						FillRectangle(red, pos[3].x-5, pos[3].y-5, 10,10);
+						static float offset = 0;
+						offset += timing.delta_time*10;
+						for (float i = 0; i < 30; i+=.01f)
+						{
+							float x = sin(i+offset)*15+50;
+							pixels[(int)(i*10)*WIDTH+(int)x] = red;
+						}
+					}
+
+				} break;
+				case HairTest:
+				{
+					Clear();
+					Draw_Circle(blue,WIDTH/2,HEIGHT/2,50,3.5f);
+					int follicle_count = 9;
+					int segment_count = 5;
+					int strand_length = 25;
+					static bool init = false;
+					static v2 hair[9][5];
+
+					if(!init)
+					{
+						init = true;
+						for (int i = 0; i < follicle_count; ++i)
+						{
+							float theta = i/(float)(follicle_count-1)*Pi;
+							hair[i][0]= (v2){cos(theta)*50,sin(theta)*50};
+							v2 pos = hair[i][0];
+
+							for (int o = 0; o < segment_count; ++o)
+							{
+								hair[i][o]= (v2){pos.x,pos.y+o*20};
+							}
+						}
+					}
+
+					for (int i = 0; i < follicle_count; ++i)
+					{
+						for (int o = 1; o < segment_count; ++o)
+						{
+							hair[i][o].y-=timing.delta_time*10;
+							if(v2_Distance(hair[i][o],hair[i][o-1]) > 50)
+								hair[i][o].y+=10;
+						}
+					}
+
+					for (int i = 0; i < follicle_count; ++i)
+					{
+						v2 pos = hair[i][0];
+						DrawRectangle(red,WIDTH/2+pos.x-5,HEIGHT/2-pos.y-5,10,10);
+												
+						for (int o = 1; o < segment_count; ++o)
+						{
+							DrawLine(green,
+								WIDTH/2 + hair[i][o].x,
+								HEIGHT/2 - hair[i][o].y,
+								WIDTH/2 + hair[i][o-1].x,
+								HEIGHT/2 - hair[i][o-1].y);
+						}
+					}
+
+
+					
 				} break;
 				default:
 				{

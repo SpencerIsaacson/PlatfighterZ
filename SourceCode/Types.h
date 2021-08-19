@@ -229,6 +229,7 @@ typedef struct
 } Bitmap;
 
 typedef Color (*Shader)(v3 barycentric_point, int triangle_index, void* shader_state);
+typedef Color (*Shader2)(Triangle t, v3 barycentric_point, void* shader_state);
 
 typedef struct Material
 {

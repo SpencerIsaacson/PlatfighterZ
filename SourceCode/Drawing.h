@@ -918,6 +918,87 @@ Color ShadeTexturedUnlit(v3 v, int triangle_index, void* texture_pointer)
 	return texture.pixels[texture_index];
 }
 
+Color Shade2TexturedUnlit(Triangle t, v3 v, void* texture_pointer)
+{
+	Bitmap texture = *((Bitmap*)texture_pointer);
+	v2 v_uv = FromBaryCentricSpace(v.x, v.y, v.z, t.a.uv, t.b.uv, t.c.uv);
+
+	v_uv.y = 1-v_uv.y;
+	v_uv.x *= texture.width-1;
+	v_uv.y *= texture.height-1;
+	
+	int texture_index = (int)v_uv.y*texture.width+(int)v_uv.x;
+
+	Clamp(&texture_index, 0, texture.width*texture.height - 1);
+	return texture.pixels[texture_index];
+}
+
+Color Shade2ColorGouraud(Triangle t, v3 bary, void* color)
+{
+
+	for (int i = 0; i < mesh.normals_count; ++i)
+	{
+			v3 backward = { 0,0,-1 };
+			v3 light_vector = Transform_v3(Rotation(0, light_rotation, 0), backward);
+			
+			float dot = v3_DotProduct(Transform_v3(Rotation(object_transform.rotation.x,object_transform.rotation.y,object_transform.rotation.z), normals_workspace[i]), light_vector); //TODO account for transform hierarchies and local space
+
+			if (dot < 0)
+				dot = 0;
+
+			if (!isnan(dot))//TODO - remove, just a temporary fix
+			{
+				lighting = (byte)(dot * 255);
+			}
+			else
+				lighting = 0;
+
+	byte a_l = lighting[index_workspace[i+0]];
+	byte b_l = lighting[index_workspace[i+1]];
+	byte c_l = lighting[index_workspace[i+2]];
+
+	int ambient = 100;
+	if(a_l < ambient)
+		a_l = ambient;
+	if(b_l < ambient)
+		b_l = ambient;	
+	if(c_l < ambient)
+		c_l = ambient;
+
+	Color a = *((Color*)color), b = *((Color*)color), c = *((Color*)color);
+
+	byte* p = (byte*)&a;
+	p[0] = (a_l) * p[0] / 255;
+	p[1] = (a_l) * p[1] / 255;
+	p[2] = (a_l) * p[2] / 255;
+	p = (byte*)&b;
+	p[0] = (b_l) * p[0] / 255;
+	p[1] = (b_l) * p[1] / 255;
+	p[2] = (b_l) * p[2] / 255;
+	p = (byte*)&c;
+	p[0] = (c_l) * p[0] / 255;
+	p[1] = (c_l) * p[1] / 255;
+	p[2] = (c_l) * p[2] / 255;	
+
+    Color result;
+    byte* r_p = (byte*)(&result);
+    byte* a_p = (byte*)(&a);
+    byte* b_p = (byte*)(&b);
+    byte* c_p = (byte*)(&c);
+
+    r_p[0] = a_p[0] * bary.x + b_p[0] * bary.y + c_p[0] * bary.z;
+    r_p[1] = a_p[1] * bary.x + b_p[1] * bary.y + c_p[1] * bary.z;
+    r_p[2] = a_p[2] * bary.x + b_p[2] * bary.y + c_p[2] * bary.z;
+	return result;
+}
+
+Color ShadeTexturedGouraud(Triangle t, v3 v, void* texture_pointer)
+{
+	Color result = Shade2TexturedUnlit(t, v, texture_pointer);
+	result = Shade2ColorGouraud(t, v, &result);
+	return result;
+}
+
 Color ShadeSolidColor(v3 v, int triangle_index, void* color)
 {
 	return *((Color*)color);
@@ -1165,6 +1246,49 @@ void RenderTriangle(v3 a, v3 b, v3 c, int triangle_index, Shader shader, void* s
 			}
 		}
 	}	
+}
+
+Color Shade2Red(Triangle t, v3 v, void* state)
+{
+	return red;
+}
+void RenderVertexTriangle(Triangle t, Shader2 shader, void* shader_state)
+{
+	int x_min = (int)GetMin3(t.a.position.x, t.b.position.x, t.c.position.x);
+	int y_min = (int)GetMin3(t.a.position.y, t.b.position.y, t.c.position.y);
+	int x_max = (int)GetMax3(t.a.position.x, t.b.position.x, t.c.position.x);
+	int y_max = (int)GetMax3(t.a.position.y, t.b.position.y, t.c.position.y);
+
+	Clamp(&x_min, 0, WIDTH-1);
+	Clamp(&x_max, 0, WIDTH-1);
+	Clamp(&y_min, 0, HEIGHT-1);
+	Clamp(&y_max, 0, HEIGHT-1);
+
+	v2 a2 = (v2){t.a.position.x,t.a.position.y};
+	v2 b2 = (v2){t.b.position.x,t.b.position.y};
+	v2 c2 = (v2){t.c.position.x,t.c.position.y};
+
+	for (int _x = x_min; _x <= x_max; _x++)
+	{
+		for (int _y = y_min; _y <= y_max; _y++)
+		{
+			v3 v = ToBarycentricSpace(_x, _y, a2,b2,c2);
+			bool in_triangle = !(v.x < 0 || v.y < 0 || v.z < 0);
+			if(in_triangle)
+			{
+				int i = _y * WIDTH + _x;
+
+				//get interpolated z value of current pixel
+			    float depth = t.a.position.z * v.x + t.b.position.z * v.y + t.c.position.z * v.z;
+
+				if(depth <= z_buffer[i])
+				{
+					pixels[i] = shader(t, v, shader_state);
+					z_buffer[i] = depth;
+				}
+			}
+		}
+	}		
 }
 
 Mesh AppendMesh(Mesh a, Mesh b)

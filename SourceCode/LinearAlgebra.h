@@ -1,4 +1,5 @@
 #define m4x4_identity {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}
+#define v3_right {1, 0, 0}
 #define v3_forward { 0, 0, 1 }
 #define v3_backward { 0, 0, -1 }
 #define v3_zero { 0, 0, 0 }
@@ -91,7 +92,10 @@ v3 v3_Divide(v3 v, float s)
 	return (v3){ v.x / s, v.y / s, v.z / s };
 }
 
-float v3_DotProduct(v3 a, v3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+float v3_DotProduct(v3 a, v3 b) 
+{ 
+	return a.x * b.x + a.y * b.y + a.z * b.z;
+}
 
 v3 v3_CrossProduct(v3 a, v3 b)
 {
@@ -142,6 +146,11 @@ v2 v2_Scale(v2 v, float s)
 v2 v2_Divide(v2 v, float s)
 {
 	return (v2){ v.x / s, v.y / s};
+}
+
+float v2_DotProduct(v2 a, v2 b) 
+{ 
+	return a.x * b.x + a.y * b.y; 
 }
 
 float v2_Magnitude(v2 v)
