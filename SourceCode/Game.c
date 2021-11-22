@@ -49,6 +49,7 @@ typedef enum GameStates
 	IKMarionnette,
 	HairTest,
 	VertexTriangleTest,
+	SuperSampleTest,
 	state_count
 } GameStates;
 
@@ -409,6 +410,30 @@ Mesh GetMeshFromArena(int mesh_address)
 	return result;
 }
 
+void CalculateTangentsAndBitangents(Vertex *vert0, Vertex *vert1, Vertex *vert2) {
+    v3 delta_pos1 = v3_Subtract(vert1->position, vert0->position);
+    v3 delta_pos2 = v3_Subtract(vert2->position, vert0->position);
+
+    v2 delta_uv1 = v2_Subtract(vert1->uv, vert0->uv);
+    v2 delta_uv2 = v2_Subtract(vert2->uv, vert0->uv);
+
+    float r = 1.0f / (delta_uv1.x * delta_uv2.y - delta_uv1.y * delta_uv2.x);
+    v3 tangent   = v3_Scale( v3_Subtract(v3_Scale(delta_pos1, delta_uv2.y), v3_Scale(delta_pos2,delta_uv1.y)), r);
+    v3 bitangent = v3_Scale( v3_Subtract(v3_Scale(delta_pos2, delta_uv1.x), v3_Scale(delta_pos1,delta_uv2.x)), r);
+
+    // note(josh): we += here instead of = because in the case of indexing we could hit
+    // the same vertex more than once, so we want an "average" of all the tangents/bitangents
+    // for that vertex. explained here under the "Indexing" heading
+    // http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-13-normal-mapping/#indexing
+
+    vert0->tangent = v3_Add(vert0->tangent, tangent);
+    vert1->tangent = v3_Add(vert1->tangent, tangent);
+    vert2->tangent = v3_Add(vert2->tangent, tangent);
+
+    vert0->bitangent = v3_Add(vert0->bitangent, bitangent);
+    vert1->bitangent = v3_Add(vert1->bitangent, bitangent);
+    vert2->bitangent = v3_Add(vert2->bitangent, bitangent);
+}
 
 typedef enum
 {
@@ -763,7 +788,7 @@ void InitEverything()
 	timing.STANDARD_TIMESTEP = 1 / timing.TARGET_FRAMERATE;
 	timing.time_scale = 1.0f;
 	timing.fixed_framerate = false;
-	current_game_state = VertexTriangleTest;
+	current_game_state = SplashScreenState;
 	view_debug = false;
 	float field_of_view = Tau / 6.0f;
 	camera_to_clip = Perspective(.1f, 100, field_of_view, WIDTH, HEIGHT);
@@ -1246,18 +1271,143 @@ void GameLoop()
 
 			switch(current_game_state)
 			{
+				case SuperSampleTest:
+				{
+					static bool init = false;
+					Triangle t;
+					static Color pixel_copy[640*480];
+					static Color half_buffer[320*240];
+						typedef struct FooStruct
+						{
+							Bitmap color_map;
+							Bitmap normal_map;
+						} FooStruct;					
+
+						FooStruct foos = {conan_texture,conan_normals};
+					if(!init)
+					{
+						init = true;
+
+						t.a.position = (v3){100,400,0};
+						t.b.position = (v3){400,100,0};
+						t.c.position = (v3){600,400,0};
+						t.a.uv = (v2){0,0};
+						t.b.uv = (v2){0,1};
+						t.c.uv = (v2){1,1};
+						t.a.normal = (v3)v3_backward;
+						t.b.normal = (v3)v3_backward;
+						t.c.normal = (v3)v3_backward;
+						light_rotation=Tau/3;
+						//RenderVertexTriangle(t, Shade2TexturedNormalMapped, &foos);	
+
+					}
+					for (int y = 0; y < 240; ++y)
+					for (int x = 0; x < 320; ++x)
+					{
+						Color colors[4];
+						Color a = pixel_copy[y*2*WIDTH+x*2];
+						Color b = pixel_copy[y*2*WIDTH+x*2+1];
+						Color c = pixel_copy[(y*2+1)*WIDTH+x*2];
+						Color d = pixel_copy[(y*2+1)*WIDTH+x*2+1];
+
+						Color e = LerpColor(a,b,.5f);
+						Color f = LerpColor(c,d,.5f);
+						Color g = LerpColor(e,f,.5f);
+
+						half_buffer[y*320+x] = 0;
+					}
+
+					static float theta = 0;
+					theta+=timing.delta_time;
+					light_rotation +=.2f;
+					memset(pixel_copy,0,640*480*4);
+					Transform camera = DefaultTransform();
+					camera.position.z =-10;
+					Transform object_transform=DefaultTransform();
+					object_transform.position.z = 10;
+					object_transform.position.y =-10;
+					object_transform.rotation.y = Tau/6;
+					Clear();
+					ClearZBuffer();
+					RenderMesh(conan_mesh, object_transform, camera, ShadeTexturedNormalMapped, &foos);
+					memcpy(pixel_copy,pixels,640*480*4);
+					Clear();
+					for (int y = 0; y < 240; ++y)
+					for (int x = 0; x < 320; ++x)
+					{
+						Color colors[4];
+						Color a = pixel_copy[y*2*WIDTH+x*2];
+						Color b = pixel_copy[y*2*WIDTH+x*2+1];
+						Color c = pixel_copy[(y*2+1)*WIDTH+x*2];
+						Color d = pixel_copy[(y*2+1)*WIDTH+x*2+1];
+
+						Color e = LerpColor(a,b,.5f);
+						Color f = LerpColor(c,d,.5f);
+						Color g = LerpColor(e,f,.5f);
+
+						half_buffer[y*320+x] = g;
+					}
+					for (int y = 0; y < 240; ++y)
+					for (int x = 0; x < 320; ++x)
+					{
+						pixels[y*WIDTH+x] = half_buffer[y*320+x];
+					}
+				} break;
 				case VertexTriangleTest:
 				{
-					Triangle t;
+					static Triangle t;
+					static bool init;
+					if(!init)
+					{
+						init = true;
+						t.a.position = (v3){30,400,0};
+						t.b.position = (v3){320,100,0};
+						t.c.position = (v3){610,400,0};
+						t.a.uv = (v2){0,0};
+						t.b.uv = (v2){0,1};
+						t.c.uv = (v2){1,1};
+						t.a.normal = (v3)v3_backward;
+						t.b.normal = (v3)v3_backward;
+						t.c.normal = (v3)v3_backward;
+						CalculateTangentsAndBitangents(&t.a, &t.b, &t.c);
+						
+						t.a.tangent = v3_Scale(v3_Normalized(t.a.tangent),20);
+						t.a.bitangent = v3_Scale(v3_Normalized(t.a.bitangent),20);
 
-					t.a.position = (v3){100,200,0};
-					t.b.position = (v3){200,100,0};
-					t.c.position = (v3){300,200,0};
-					t.a.uv = (v2){0,0};
-					t.b.uv = (v2){0,1};
-					t.c.uv = (v2){1,1};
-					RenderVertexTriangle(t, Shade2TexturedUnlit, &conan_texture);
+						t.b.tangent = v3_Scale(v3_Normalized(t.b.tangent),20);
+						t.b.bitangent = v3_Scale(v3_Normalized(t.b.bitangent),20);	
 
+						t.c.tangent = v3_Scale(v3_Normalized(t.c.tangent),20);
+						t.c.bitangent = v3_Scale(v3_Normalized(t.c.bitangent),20);		
+					}
+					
+					typedef struct FooStruct
+					{
+						Bitmap color_map;
+						Bitmap normal_map;
+					} FooStruct;					
+
+					FooStruct foos = {conan_texture,conan_normals};
+					Clear();
+					ClearZBuffer();
+					RenderVertexTriangle(t, Shade2TexturedNormalMapped, &foos);
+					v3 foo = v3_Add(t.a.position, t.a.tangent);
+					DrawLine(red, t.a.position.x, t.a.position.y, foo.x, foo.y);
+					foo = v3_Add(t.a.position, t.a.bitangent);
+					DrawLine(green, t.a.position.x, t.a.position.y, foo.x, foo.y);
+
+
+
+					foo = v3_Add(t.b.position, t.b.tangent);
+					DrawLine(red, t.b.position.x, t.b.position.y, foo.x, foo.y);
+					foo = v3_Add(t.b.position, t.b.bitangent);
+					DrawLine(green, t.b.position.x, t.b.position.y, foo.x, foo.y);					
+
+					foo = v3_Add(t.c.position, t.c.tangent);
+					DrawLine(red, t.c.position.x, t.c.position.y, foo.x, foo.y);
+					foo = v3_Add(t.c.position, t.c.bitangent);
+					DrawLine(green, t.c.position.x, t.c.position.y, foo.x, foo.y);
+					light_rotation +=.1f;
 				} break;
 				case CleanRenderTest:
 				{
@@ -1311,10 +1461,9 @@ void GameLoop()
 					{
 						Bitmap color_map;
 						Bitmap normal_map;
-						v3 rotation; 
 					};
 
-					struct FooStruct foos = {conan_texture,conan_normals,object_transform.rotation};
+					struct FooStruct foos = {conan_texture,conan_normals};
 
 					light_rotation += timing.delta_time;
 
@@ -2189,6 +2338,10 @@ void GameLoop()
 							if(gameplay_state.players[i].selected_character < 0)
 								gameplay_state.players[i].selected_character += 4;
 							gameplay_state.players[i].selected_character %= 4;
+
+							gameplay_state.players[i].selected_character %= 2; //temp
+
+
 						}
 					}
 					else
@@ -4175,7 +4328,6 @@ SDL_Joystick* gGameController = NULL;
 
 int main(int argc, char* argv[])
 {
-	printf("This big: %d\n", sizeof(Animation));
 	StartTiming();
     if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_JOYSTICK|SDL_INIT_AUDIO) < 0)
         return;
@@ -4217,6 +4369,7 @@ int main(int argc, char* argv[])
     SDL_Surface* surface;
 
 	InitEverything();
+
 	//SDL_SetWindowFullscreen(window,SDL_WINDOW_FULLSCREEN_DESKTOP);
     surface = SDL_GetWindowSurface(window);
     pixels = surface->pixels;

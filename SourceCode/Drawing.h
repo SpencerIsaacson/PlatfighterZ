@@ -891,6 +891,7 @@ byte lighting[workspace_size];
 
 
 
+float light_rotation = 0;
 
 Color ShadeWhite(v3 v, int triangle_index, void* dont_use)
 {
@@ -935,29 +936,41 @@ Color Shade2TexturedUnlit(Triangle t, v3 v, void* texture_pointer)
 
 Color Shade2ColorGouraud(Triangle t, v3 bary, void* color)
 {
-
-	for (int i = 0; i < mesh.normals_count; ++i)
+	v3 backward = { 0,0,-1 };
+	v3 light_vector = Transform_v3(Rotation(0, light_rotation, 0), backward);
+	
+	byte lightinga[3];
+	for (int i = 0; i < 3; ++i)
 	{
-			v3 backward = { 0,0,-1 };
-			v3 light_vector = Transform_v3(Rotation(0, light_rotation, 0), backward);
-			
-			float dot = v3_DotProduct(Transform_v3(Rotation(object_transform.rotation.x,object_transform.rotation.y,object_transform.rotation.z), normals_workspace[i]), light_vector); //TODO account for transform hierarchies and local space
+		byte lighting;
+		v3 normal;
+		if(i == 0)
+			normal = t.a.normal;
+		else if(i == 1)
+			normal = t.b.normal;
+		else if(i == 2)
+			normal = t.c.normal;
+		float dot = v3_DotProduct(normal, light_vector);
 
-			if (dot < 0)
-				dot = 0;
+		if (dot < 0)
+			dot = 0;
 
-			if (!isnan(dot))//TODO - remove, just a temporary fix
-			{
-				lighting = (byte)(dot * 255);
-			}
-			else
-				lighting = 0;
+		if (!isnan(dot))//TODO - remove, just a temporary fix
+		{
+			lighting = (byte)(dot * 255);
+		}
+		else
+			lighting = 0;
 
-	byte a_l = lighting[index_workspace[i+0]];
-	byte b_l = lighting[index_workspace[i+1]];
-	byte c_l = lighting[index_workspace[i+2]];
 
-	int ambient = 100;
+		lightinga[i] = lighting;
+	}
+	
+	byte a_l = lightinga[0];
+	byte b_l = lightinga[1];
+	byte c_l = lightinga[2];
+
+	int ambient = 0;
 	if(a_l < ambient)
 		a_l = ambient;
 	if(b_l < ambient)
@@ -992,11 +1005,154 @@ Color Shade2ColorGouraud(Triangle t, v3 bary, void* color)
 	return result;
 }
 
-Color ShadeTexturedGouraud(Triangle t, v3 v, void* texture_pointer)
+Color Shade2TexturedGouraud(Triangle t, v3 v, void* texture_pointer)
 {
 	Color result = Shade2TexturedUnlit(t, v, texture_pointer);
 	result = Shade2ColorGouraud(t, v, &result);
 	return result;
+}
+
+Color Shade2TexturedNormalMapped(Triangle t, v3 v, void* shader_state)
+{
+	
+	v3 tangent_a = t.a.tangent;
+	v3 tangent_b = t.b.tangent;
+	v3 tangent_c = t.c.tangent;
+	
+	v3 bitangent_a = t.a.bitangent;
+	v3 bitangent_b = t.b.bitangent;
+	v3 bitangent_c = t.c.bitangent;
+	//CalculateTangentSpace TODO do only once per triangle
+	{
+		tangent_a = Transform_v3
+		(
+			(m4x4)
+			{
+				t.a.tangent.x, t.a.tangent.y, t.a.tangent.z, 0,
+				t.a.bitangent.x, t.a.bitangent.y, t.a.bitangent.z,0,
+				t.a.normal.x,t.a.normal.y,t.a.normal.z, 0,
+				0,0,0,1
+			}, 
+			tangent_a
+		);
+
+		tangent_b = Transform_v3
+		(
+			(m4x4)
+			{
+				t.b.tangent.x, t.b.tangent.y, t.b.tangent.z, 0,
+				t.b.bitangent.x, t.b.bitangent.y, t.b.bitangent.z,0,
+				t.b.normal.x,t.b.normal.y,t.b.normal.z, 0,
+				0,0,0,1
+			}, 
+			tangent_b
+		);
+		tangent_c = Transform_v3
+		(
+			(m4x4)
+			{
+				t.c.tangent.x, t.c.tangent.y, t.c.tangent.z, 0,
+				t.c.bitangent.x, t.c.bitangent.y, t.c.bitangent.z,0,
+				t.c.normal.x,t.c.normal.y,t.c.normal.z, 0,
+				0,0,0,1
+			}, 
+			tangent_c
+		);
+
+		bitangent_a = Transform_v3
+		(
+			(m4x4)
+			{
+				t.a.tangent.x, t.a.tangent.y, t.a.tangent.z, 0,
+				t.a.bitangent.x, t.a.bitangent.y, t.a.bitangent.z,0,
+				t.a.normal.x,t.a.normal.y,t.a.normal.z, 0,
+				0,0,0,1
+			}, 
+			bitangent_a
+		);
+
+		bitangent_b = Transform_v3
+		(
+			(m4x4)
+			{
+				t.b.tangent.x, t.b.tangent.y, t.b.tangent.z, 0,
+				t.b.bitangent.x, t.b.bitangent.y, t.b.bitangent.z,0,
+				t.b.normal.x,t.b.normal.y,t.b.normal.z, 0,
+				0,0,0,1
+			}, 
+			bitangent_b
+		);
+		bitangent_c = Transform_v3
+		(
+			(m4x4)
+			{
+				t.c.tangent.x, t.c.tangent.y, t.c.tangent.z, 0,
+				t.c.bitangent.x, t.c.bitangent.y, t.c.bitangent.z,0,
+				t.c.normal.x,t.c.normal.y,t.c.normal.z, 0,
+				0,0,0,1
+			}, 
+			bitangent_c
+		);		
+
+		//TODO barycentric interpolate	
+	}
+
+	typedef struct FooStruct
+	{
+		Bitmap color_map;
+		Bitmap normal_map;
+	} FooStruct;
+
+	FooStruct* foos = (FooStruct*)shader_state;
+
+	Bitmap color_map = foos -> color_map;
+	Bitmap normal_map = foos -> normal_map;
+
+	v2 v_uv = FromBaryCentricSpace(v.x, v.y, v.z, t.a.uv, t.b.uv, t.c.uv);
+	v2 v_uv_color = v_uv;
+	v2 v_uv_normal = v_uv;
+
+	v_uv_normal.y = 1-v_uv.y;
+	v_uv_normal.x *= normal_map.width-1;
+	v_uv_normal.y *= normal_map.height-1;
+	
+	int texture_index = (int)v_uv_normal.y*normal_map.width+(int)v_uv_normal.x;
+
+	Clamp(&texture_index, 0, normal_map.width*normal_map.height - 1);
+	Color tangent_color = normal_map.pixels[texture_index];
+
+	byte* color_channels = (byte*)&tangent_color;
+
+	v3 normal;
+	normal.x = color_channels[2] / 128.0f - 1;
+	normal.y = color_channels[1] / 128.0f - 1;
+	normal.z = color_channels[0] / 128.0f - 1;
+	//todo get normal from tangent space into world space
+	v3 backward = { 0,0,-1 };
+	v3 light_vector = Transform_v3(Rotation(0, light_rotation, 0), backward);
+
+	float dot = v3_DotProduct(normal, light_vector); //TODO account for transform hierarchies and local space
+	
+	Clamp_Float(&dot, 0, 1);
+
+	byte lighting = (byte)(dot * 255);
+
+	byte ambient = 20;
+
+	lighting = (lighting < ambient) ? ambient : lighting;
+	v_uv_color.y = 1-v_uv.y;
+	v_uv_color.x *= color_map.width-1;
+	v_uv_color.y *= color_map.height-1;
+	
+	texture_index = (int)v_uv_color.y*color_map.width+(int)v_uv_color.x;
+
+	Clamp(&texture_index, 0, color_map.width*color_map.height - 1);
+	Color color = color_map.pixels[texture_index];
+	color_channels = (byte*)&color;
+	color_channels[0] = lighting * color_channels[0] / 255;
+	color_channels[1] = lighting * color_channels[1] / 255;
+	color_channels[2] = lighting * color_channels[2] / 255;
+	return color;	
 }
 
 Color ShadeSolidColor(v3 v, int triangle_index, void* color)
@@ -1132,8 +1288,6 @@ Color ShadeTexturedFlatShaded(v3 v, int triangle_index, void* texture_pointer)
 	return result;
 }
 
-float light_rotation = 0;
-
 
 Color ShadeTexturedNormalMapped(v3 v, int triangle_index, void* shader_state)
 {
@@ -1141,7 +1295,6 @@ Color ShadeTexturedNormalMapped(v3 v, int triangle_index, void* shader_state)
 	{
 		Bitmap color_map;
 		Bitmap normal_map;
-		v3 rotation;
 	} FooStruct;
 
 	FooStruct* foos = (FooStruct*)shader_state;
@@ -1151,7 +1304,6 @@ Color ShadeTexturedNormalMapped(v3 v, int triangle_index, void* shader_state)
 	Bitmap* texture_maps = (Bitmap*)shader_state;
 	Bitmap color_map = foos -> color_map;
 	Bitmap normal_map = foos -> normal_map;
-	v3 rotation  = foos -> rotation;
 
 	int i = triangle_index*3;
 
@@ -1169,9 +1321,9 @@ Color ShadeTexturedNormalMapped(v3 v, int triangle_index, void* shader_state)
 	int texture_index = (int)v_uv_normal.y*normal_map.width+(int)v_uv_normal.x;
 
 	Clamp(&texture_index, 0, normal_map.width*normal_map.height - 1);
-	Color normal_color = normal_map.pixels[texture_index];
+	Color tangent_color = normal_map.pixels[texture_index];
 
-	byte* color_channels = (byte*)&normal_color;
+	byte* color_channels = (byte*)&tangent_color;
 
 	v3 normal;
 	normal.x = color_channels[2] / 128.0f - 1;
@@ -1186,6 +1338,7 @@ Color ShadeTexturedNormalMapped(v3 v, int triangle_index, void* shader_state)
 
 	if (dot < 0)
 	dot = 0;
+	Clamp_Float(&dot, 0, 1);
 	byte lighting;
 	if (!isnan(dot))//TODO - remove, just a temporary fix
 	{
@@ -1409,8 +1562,6 @@ void DrawUVMap(Mesh mesh, float scale)
 bool perform_backface_culling = true;
 bool perform_clipping = true;
 bool orthographic = false;
-
-Triangle render_workspace[workspace_size];
 
 m4x4 ObjectToClipMatrix(Transform object_transform, Transform camera)
 {

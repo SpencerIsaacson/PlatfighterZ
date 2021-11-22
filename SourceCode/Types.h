@@ -153,6 +153,8 @@ typedef struct Vertex
 {
 	v3 position;
 	v3 normal;
+	v3 tangent;
+	v3 bitangent;
 	v2 uv;
 	Color color;
 } Vertex;
