@@ -7,7 +7,7 @@ int GetID(string message) // TODO replace naive "hash" with 32 bit cycle redunda
 			id += message.characters[i];
 		}
 
-		id %= message.length;
+		id %= message.length+1;
 	}
 
 	return id;

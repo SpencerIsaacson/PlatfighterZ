@@ -1,0 +1,1 @@
+tcc -I"Dependencies\SDL_Headers" SourceCode/Client.c -luser32 Dependencies/SDL2.dll -bench

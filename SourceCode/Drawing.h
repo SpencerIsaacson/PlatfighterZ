@@ -1,4 +1,3 @@
-
 #define red 0xFFFF0000
 #define green 0xFF00FF00
 #define blue 0xFF0000FF
@@ -15,6 +14,18 @@
 
 #define gray 0xFF666666
 #define grey gray
+
+Color* pixels;
+int WIDTH, HEIGHT;
+int pixel_count;
+float* z_buffer;
+
+InitViewport(int width, int height)
+{
+    WIDTH = width;
+    HEIGHT = height;
+    pixel_count = WIDTH*HEIGHT;
+}
 
 void Clear()
 {
@@ -144,9 +155,11 @@ void FillHorizontalGradient(Color color1, Color color2)
 
 }
 
-Noise()
+Noise(float noise_level)
 {
-	srand(10);
+	srand(clock());
+	Clamp_Float(&noise_level,0,1);
+	
 	for(int i = 0; i < pixel_count; i++)
 	{
 		byte foo =(byte)((rand()/(double)RAND_MAX) * UCHAR_MAX);;
@@ -155,7 +168,8 @@ Noise()
 		p[0] = foo;
 		p[1] = foo;
 		p[2] = foo;
-		pixels[i] = LerpColor(pixels[i], random_color,.04f);
+
+		pixels[i] = LerpColor(pixels[i], random_color,noise_level);
 	}
 }
 
@@ -339,7 +353,7 @@ Mesh LoadMeshWithUVindices(char* path)
 		}
 	}
 
-	close_file(fp);
+	fclose(fp);
 	return return_mesh;
 }
 
@@ -449,14 +463,16 @@ Mesh LoadMesh(char* path)
 		}
 	}
 
-	close_file(fp);
+	fclose(fp);
 	return return_mesh;
 }
 
 void DrawHorizontal(Color color, int y)
 {
-	for (int i = y * WIDTH; i < y * WIDTH + WIDTH; i++)
-		PutPixel_ByIndex(color, i);
+	for (int x = 0; x < WIDTH; ++x)
+	{
+		PutPixel_ByPosition(color, x, y);
+	}
 }
 
 void DrawHorizontalSegment(Color color, int y, int x1, int x2)
@@ -472,9 +488,9 @@ void DrawHorizontalSegment(Color color, int y, int x1, int x2)
 
 void DrawVertical(uint color, int x)
 {
-	for (int i = x; i < pixel_count - WIDTH - x; i += WIDTH)
+	for (int y = 0; y < HEIGHT; ++y)
 	{
-		pixels[i] = color;
+		PutPixel_ByPosition(color, x, y);
 	}
 }
 
@@ -722,6 +738,11 @@ v2 FromBaryCentricSpace(float b1, float b2, float b3, v2 a, v2 b, v2 c)
 	return result;
 }
 
+char char_dict[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', ' ', '.', ':', ',', '_', '[', ']', '-', '+', '!', '?' };
+#define char_dict_count 47 //TODO don't rely on this magic number long term, at least until you've verified it will stay the same
+CharSprite font_set[char_dict_count];
+Bitmap font_set2[char_dict_count];
+
 void FillSprites(CharSprite* sprites, int count)
 {
 	for (int i = 0; i < count; i++)
@@ -785,6 +806,26 @@ void DrawString(string s, int x, int y)
 			if (a == char_dict[o])
 			{
 				DrawCharacter(font_set[o], x + i * 9, y);
+				//todo break and see how much time is saved
+			}
+
+		}
+	}
+}
+
+
+void DrawStringBetter(string s, int x, int y)
+{
+	int _x = x;
+	for (int i = 0; i < s.length; i++)
+	{
+		char a = tolower(s.characters[i]);
+		for (int o = 0; o < char_dict_count; o++)
+		{
+			if (a == char_dict[o])
+			{
+				BlendSprite(_x, y, font_set2[o]);
+				_x += font_set2[i].width+1;
 				//todo break and see how much time is saved
 			}
 
@@ -1558,6 +1599,7 @@ void DrawUVMap(Mesh mesh, float scale)
 
 }
 
+m4x4 camera_to_clip;
 
 bool perform_backface_culling = true;
 bool perform_clipping = true;

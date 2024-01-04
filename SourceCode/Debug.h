@@ -67,7 +67,7 @@ void PrintMesh(Mesh mesh)
 		Printv3(mesh.normals[i]);
 }
 
-
+#if GAME
 void PrintIndexedMesh(int mesh_address)
 {
 	IndexedMesh* mesh = (IndexedMesh*)(&mesh_arena[mesh_address]);
@@ -101,3 +101,4 @@ void PrintIndexedMesh(int mesh_address)
 	for (int i = 0; i < (*mesh).normals_count; i++)
 		Printv3(normals[i]);	
 }
+#endif

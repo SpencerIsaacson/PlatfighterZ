@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <assert.h>
 #include <ctype.h>
 #include <math.h>
@@ -10,21 +11,8 @@
 #include "SDL.h"
 #include "Assets.h"
 #include "IO.h"
-
-#define Tau 6.28318530717958f
-#define Pi 3.14159265358979f
-
-#define open_file fopen
-#define seek_position fseek
-#define read_bytes fread
-#define write_bytes fwrite
-#define close_file fclose
-
 #include "Types.h"
-
-//math and stuff
-float GetMin3(float a, float b, float c);
-float GetMax3(float a, float b, float c);
+#include "Utilities.h"
 
 typedef enum GameStates
 {
@@ -73,102 +61,6 @@ GameStates current_game_state;
 Timing timing;
 
 #include "LinearAlgebra.h"
-
-void Clamp(int* value, int low, int high)
-{
-	if(*value < low)
-		*value = low;
-	if(*value > high)
-		*value = high;
-}
-
-void Clamp_Float(float* value, float low, float high)
-{
-	if(*value < low)
-		*value = low;
-	if(*value > high)
-		*value = high;
-}
-v2 Lerp_v2(v2 a, v2 b, float t)
-{
-	v2 v;
-	v.x = a.x + (t * (b.x - a.x));
-	v.y = a.y + (t * (b.y - a.y));
-	return v;
-}
-
-float Lerp_Float(float a, float b, float t)
-{
-	return a + t * (b - a);
-}
-
-
-
-float Sample(KeyFrame a, KeyFrame b, float frame)
-{
-    float t = .5f;
-    float step = .25f;
-	v2 c1 = { a.frame, a.value };
-	v2 c2 = { a.frame + a.right_handle_x, a.value + a.right_handle_y };
-	v2 c3 = { b.frame + b.left_handle_x, b.value + b.left_handle_y };
-	v2 c4 = { b.frame, b.value };
-
-    while (true)
-    {
-        v2 d = Lerp_v2(c1, c2, t);
-        v2 e = Lerp_v2(c2, c3, t);
-        v2 f = Lerp_v2(c3, c4, t);
-        v2 g = Lerp_v2(d, e, t);
-        v2 h = Lerp_v2(e, f, t);
-        v2 i = Lerp_v2(g, h, t);
-
-        if (i.x > frame)
-            t -= step;
-        else
-            t += step;
-
-        step /= 2;
-
-        if (fabs(i.x - frame) < .001f)
-            return i.y;
-    }
-}
-
-v2 Sample2_v2(v2 c1, v2 c2, v2 c3, v2 c4, float x)
-{
-	float t = (x - c1.x) / (c4.x - c1.x);
-
-	v2 d = Lerp_v2(c1, c2, t);
-	v2 e = Lerp_v2(c2, c3, t);
-	v2 f = Lerp_v2(c3, c4, t);
-
-	v2 g = Lerp_v2(d, e, t);
-	v2 h = Lerp_v2(e, f, t);
-	
-	v2 i = Lerp_v2(g, h, t);
-
-	return i;
-}
-
-void AnimateProperty(AnimationCurve curve, float frame, float* property)
-{
-	for (size_t o = 0; o < curve.keyframes_count; o++)
-	{
-		KeyFrame keyframe = curve.keyframes[o];
-	}
-
-	int n = curve.keyframes_count;
-	for (int i = 0; i < n - 1; i++)
-	{
-		KeyFrame a = curve.keyframes[i];
-		KeyFrame b = curve.keyframes[i + 1];
-		if (frame >= a.frame && frame <= b.frame)
-		{
-			*property = Sample(a, b, frame);
-			return;
-		}
-	}
-}
 
 typedef struct BoxCollider
 {
@@ -287,24 +179,7 @@ void SortByDepth(Triangle a[], int length)
 	QuickSort(a, 0, length - 1);
 }
 
-typedef struct
-{
-	byte rows[8];
-} CharSprite;
-
-char char_dict[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', ' ', '.', ':', ',', '_', '[', ']', '-', };
-#define char_dict_count 44 //TODO don't rely on this magic number long term, at least until you've verified it will stay the same
-CharSprite font_set[char_dict_count];
-
-string WrapString(char* message)
-{
-	return (string){.characters = message, .length = strlen(message)};
-}
-
 m4x4 camera_to_clip;
-int WIDTH, HEIGHT, pixel_count;
-Color* pixels;
-float* z_buffer;
 Mesh conan_mesh;
 Mesh guy_mesh;
 Mesh cube_mesh;
@@ -473,20 +348,12 @@ SplashScreen splash;
 
 Bitmap title_screen_background;
 
-
-InitViewport(int width, int height)
-{
-	WIDTH = width;
-	HEIGHT = height;
-	pixel_count = WIDTH*HEIGHT;
-}
-
 int frames_captured = 0;
 #define frames_to_capture 300
-#define region_x 640
-#define region_y 240
-#define region_width 640
-#define region_height 480
+#define region_x 0
+#define region_y 0
+#define region_width 1280
+#define region_height 720
 
 uint screen_captures[frames_to_capture][region_width*region_height];
 void CaptureScreen()
@@ -505,10 +372,10 @@ void CaptureScreen()
 	else if(!written)
 	{
 		written = true;
-		FILE* file_pointer = open_file("Assets/screen_captures", "wb");
-		write_bytes(screen_captures, region_width*region_height*4, frames_to_capture, file_pointer);
-		close_file(file_pointer);
-		file_pointer = open_file("Assets/screen_captures_minified", "wb");
+		FILE* file_pointer = fopen("Assets/screen_captures", "wb");
+		fwrite(screen_captures, region_width*region_height*4, frames_to_capture, file_pointer);
+		fclose(file_pointer);
+		file_pointer = fopen("Assets/screen_captures_minified", "wb");
 		byte* minified = malloc(region_width*region_height*3*frames_to_capture);
 
 		byte* old = (byte*)screen_captures;
@@ -519,26 +386,13 @@ void CaptureScreen()
 				o++;			
 			minified[i] = old[o];
 		}
-		write_bytes(minified, region_width*region_height*3, frames_to_capture, file_pointer);
-		close_file(file_pointer);
+		fwrite(minified, region_width*region_height*3, frames_to_capture, file_pointer);
+		fclose(file_pointer);
 		free(minified);
 		frames_captured = 0;
 		printf("wrote screen capture files");
 	}
 }
-
-float GetMin3(float a, float b, float c)
-{
-	float r = (a < b) ? a : b;
-	return (r < c) ? r : c;
-}
-
-float GetMax3(float a, float b, float c)
-{
-	float r = (a > b) ? a : b;
-	return (r > c) ? r : c;
-}
-
 
 typedef struct
 {
@@ -591,16 +445,16 @@ void SetWeights()
 		skinned_demo.weights[i] = weight;
 	}
 
-	FILE* file_pointer = open_file("Assets/weight_indices", "r");
-	seek_position(file_pointer, 0L, SEEK_END);
+	FILE* file_pointer = fopen("Assets/weight_indices", "r");
+	fseek(file_pointer, 0L, SEEK_END);
 
 	int file_size = ftell(file_pointer);
 	skinned_demo.weight_indices_count = file_size / sizeof(Weight_Index);
 	skinned_demo.weight_indices = malloc(file_size);
 
 	rewind(file_pointer);
-	read_bytes(skinned_demo.weight_indices, sizeof(Weight_Index), skinned_demo.weight_indices_count, file_pointer);
-	close_file(file_pointer);
+	fread(skinned_demo.weight_indices, sizeof(Weight_Index), skinned_demo.weight_indices_count, file_pointer);
+	fclose(file_pointer);
 
 	int delta = bigfist_mcpunchydude_mesh.vertices_count - skinned_demo.mesh.vertices_count;
 	int delta2 = delta/2;
@@ -618,7 +472,7 @@ void SetWeights()
 
 uint* LoadPolygonColors(char* path)//TODO fix endianness of file so you can read into memory in one go
 {
-	FILE* file_pointer = open_file(path, "r");
+	FILE* file_pointer = fopen(path, "r");
 
 	int color_count = 0;
 	while (true)
@@ -646,7 +500,7 @@ uint* LoadPolygonColors(char* path)//TODO fix endianness of file so you can read
 		colors[i] = (a << 24) | (b << 16) | (g << 8) | r;
 	}
 
-	close_file(file_pointer);
+	fclose(file_pointer);
 	return colors;
 }
 
@@ -668,10 +522,10 @@ Skeleton LoadTransformHierarchy(char* path)
 	int joint_count = 0;
 	int file_size = 0;
 
-	FILE* file_pointer = open_file(path, "r");
+	FILE* file_pointer = fopen(path, "r");
 	Transform* hierarchy;
 
-	seek_position(file_pointer, 0L, SEEK_END);
+	fseek(file_pointer, 0L, SEEK_END);
 
 	file_size = ftell(file_pointer);
 	joint_count = file_size / sizeof(Transform);
@@ -679,8 +533,8 @@ Skeleton LoadTransformHierarchy(char* path)
 	hierarchy = malloc(file_size);
 
 	rewind(file_pointer);
-	read_bytes(hierarchy, sizeof(Transform), joint_count, file_pointer);
-	close_file(file_pointer);
+	fread(hierarchy, sizeof(Transform), joint_count, file_pointer);
+	fclose(file_pointer);
 
 	Skeleton skel;
 	skel.joint_count = joint_count;
@@ -787,17 +641,17 @@ void InitEverything()
 	timing.TARGET_FRAMERATE = 30.0f;
 	timing.STANDARD_TIMESTEP = 1 / timing.TARGET_FRAMERATE;
 	timing.time_scale = 1.0f;
-	timing.fixed_framerate = false;
-	current_game_state = SplashScreenState;
+	timing.fixed_framerate = true;
+	current_game_state = Gameplay;
 	view_debug = false;
 	float field_of_view = Tau / 6.0f;
 	camera_to_clip = Perspective(.1f, 100, field_of_view, WIDTH, HEIGHT);
 
 	//Init HitboxAnimations
 	{
-		FILE* file_pointer = open_file("Assets/kick.hit", "r");
-		read_bytes(&selected_hitbox_animation,sizeof(HitboxAnimationOld),1,file_pointer);
-		close_file(file_pointer);
+		FILE* file_pointer = fopen("Assets/kick.hit", "r");
+		fread(&selected_hitbox_animation,sizeof(HitboxAnimationOld),1,file_pointer);
+		fclose(file_pointer);
 	}
 
 	#include "animations.c_asset"
@@ -806,24 +660,24 @@ void InitEverything()
 	{
 		title = WrapString("Platfighter Z");
 		press_space = WrapString("Press Space");
-		FILE* file_pointer = open_file("Assets/title_screen", "r");
+		FILE* file_pointer = fopen("Assets/title_screen", "r");
 		int width = 1920, height = 1080;
 		uint* pixels = malloc(sizeof(uint) * width * height);
-		read_bytes(pixels, 4, width * height, file_pointer);
+		fread(pixels, 4, width * height, file_pointer);
 		title_screen_background.pixels = pixels;
 		title_screen_background.width = width;
 		title_screen_background.height = height;
 
-		close_file(file_pointer);		
+		fclose(file_pointer);		
 	}
 
 	//Init MeshDemo
 	{
 		//Load FontSet
 		{
-			FILE* file_pointer = open_file("Assets/font_set", "rb");
-			read_bytes(font_set, 8, char_dict_count, file_pointer);
-			close_file(file_pointer);
+			FILE* file_pointer = fopen("Assets/font_set", "rb");
+			fread(font_set, 8, char_dict_count, file_pointer);
+			fclose(file_pointer);
 		}
 
 		//Load Meshes
@@ -834,12 +688,12 @@ void InitEverything()
 			// teapot_mesh = LoadMesh("Assets/teapot.obj");
 			// face_mesh = LoadMeshWithUVindices("Assets/face_textured.obj");
 			
-			FILE* file_pointer = open_file("Assets/mesh_data", "rb");
-			seek_position(file_pointer, 0L, SEEK_END);
+			FILE* file_pointer = fopen("Assets/mesh_data", "rb");
+			fseek(file_pointer, 0L, SEEK_END);
 			int file_size = ftell(file_pointer);
 			rewind(file_pointer);
-			read_bytes(mesh_arena, file_size, 1, file_pointer);
-			close_file(file_pointer);
+			fread(mesh_arena, file_size, 1, file_pointer);
+			fclose(file_pointer);
 			arena_write_index = file_size;
 
 			conan_mesh = GetMeshFromArena(conan_arena_index);
@@ -863,9 +717,9 @@ void InitEverything()
 		// FillMeshArena(face_mesh);
 		// FillMeshArena(conan_mesh);
 
-		// FILE* file_pointer = open_file("Assets/mesh_data", "wb");
-		// write_bytes(mesh_arena,arena_write_index,1, file_pointer);
-		// close_file(file_pointer);
+		// FILE* file_pointer = fopen("Assets/mesh_data", "wb");
+		// fwrite(mesh_arena,arena_write_index,1, file_pointer);
+		// fclose(file_pointer);
 		//PrintMeshArenaData(conan_arena_index);
 		//PrintIndexedMesh(teapot_arena_index);
 
@@ -877,171 +731,171 @@ void InitEverything()
 
 			//guy_texture
 			{
-				file_pointer = open_file("Assets/guy.texture", "rb");
+				file_pointer = fopen("Assets/guy.texture", "rb");
 				width = 1024, height = 1024;
 				uint* pixels = malloc(sizeof(uint) * width * height);
 
-				read_bytes(pixels, 4, width * height, file_pointer);
+				fread(pixels, 4, width * height, file_pointer);
 				guy_texture.width = width;
 				guy_texture.height = height;
 				guy_texture.pixels = pixels;
-				close_file(file_pointer);
+				fclose(file_pointer);
 			}
 			
 			//guy_color_mask
 			{
-				file_pointer = open_file("Assets/guy_color_mask.texture", "rb");
+				file_pointer = fopen("Assets/guy_color_mask.texture", "rb");
 				width = 1024, height = 1024;
 				uint* pixels = malloc(sizeof(uint) * width * height);
 
-				read_bytes(pixels, 4, width * height, file_pointer);
+				fread(pixels, 4, width * height, file_pointer);
 				guy_color_mask.width = width;
 				guy_color_mask.height = height;
 				guy_color_mask.pixels = pixels;
-				close_file(file_pointer);
+				fclose(file_pointer);
 			}			
 			//conan_texture
 			{
-				file_pointer = open_file("Assets/conan.texture", "rb");
+				file_pointer = fopen("Assets/conan.texture", "rb");
 				width = 2048, height = 2048;
 				uint* pixels = malloc(sizeof(uint) * width * height);
 
-				read_bytes(pixels, 4, width * height, file_pointer);
+				fread(pixels, 4, width * height, file_pointer);
 				conan_texture.width = width;
 				conan_texture.height = height;
 				conan_texture.pixels = pixels;	
-				close_file(file_pointer);		
+				fclose(file_pointer);		
 			}
 
 			//conan_normals
 			{
-				file_pointer = open_file("Assets/conan_normals.texture", "rb");
+				file_pointer = fopen("Assets/conan_normals.texture", "rb");
 				width = 2048, height = 2048;
 				uint* pixels = malloc(sizeof(uint) * width * height);
 
-				read_bytes(pixels, 4, width * height, file_pointer);
+				fread(pixels, 4, width * height, file_pointer);
 				conan_normals.width = width;
 				conan_normals.height = height;
 				conan_normals.pixels = pixels;	
-				close_file(file_pointer);		
+				fclose(file_pointer);		
 			}
 
 			//face_texture
 			{
-				file_pointer = open_file("Assets/face.texture", "rb");
+				file_pointer = fopen("Assets/face.texture", "rb");
 				width = 1024, height = 1024;
 				uint* pixels = malloc(sizeof(uint) * width * height);
 
-				read_bytes(pixels, 4, width * height, file_pointer);
+				fread(pixels, 4, width * height, file_pointer);
 				face_texture.width = width;
 				face_texture.height = height;
 				face_texture.pixels = pixels;	
-				close_file(file_pointer);		
+				fclose(file_pointer);		
 			}
 
 			//block_texture
 			{
-				file_pointer = open_file("Assets/block.texture", "rb");
+				file_pointer = fopen("Assets/block.texture", "rb");
 				width = 128, height = 128;
 				uint* pixels = malloc(sizeof(uint) * width * height);
 
-				read_bytes(pixels, 4, width * height, file_pointer);
+				fread(pixels, 4, width * height, file_pointer);
 				block_texture.width = width;
 				block_texture.height = height;
 				block_texture.pixels = pixels;	
-				close_file(file_pointer);		
+				fclose(file_pointer);		
 			}
 
 			//cube2normals_texture
 			{
-				file_pointer = open_file("Assets/cube2normals.texture", "rb");
+				file_pointer = fopen("Assets/cube2normals.texture", "rb");
 				width = 1024, height = 1024;
 				uint* pixels = malloc(sizeof(uint) * width * height);
 
-				read_bytes(pixels, 4, width * height, file_pointer);
+				fread(pixels, 4, width * height, file_pointer);
 				cube2normals_texture.width = width;
 				cube2normals_texture.height = height;
 				cube2normals_texture.pixels = pixels;	
-				close_file(file_pointer);		
+				fclose(file_pointer);		
 			}
 
 			//bigfist_mcpunchydude_texture
 			{
-				file_pointer = open_file("Assets/bigfist_mcpunchydude.texture", "rb");
+				file_pointer = fopen("Assets/bigfist_mcpunchydude.texture", "rb");
 				width = 1024, height = 1024;
 				uint* pixels = malloc(sizeof(uint) * width * height);
 
-				read_bytes(pixels, 4, width * height, file_pointer);
+				fread(pixels, 4, width * height, file_pointer);
 				bigfist_mcpunchydude_texture.width = width;
 				bigfist_mcpunchydude_texture.height = height;
 				bigfist_mcpunchydude_texture.pixels = pixels;	
-				close_file(file_pointer);					
+				fclose(file_pointer);					
 				
 			}	
 
 			//bigfist_mcpunchydude_color_mask
 			{
-				file_pointer = open_file("Assets/bigfist_mcpunchydude_color_mask.texture", "rb");
+				file_pointer = fopen("Assets/bigfist_mcpunchydude_color_mask.texture", "rb");
 				width = 1024, height = 1024;
 				uint* pixels = malloc(sizeof(uint) * width * height);
 
-				read_bytes(pixels, 4, width * height, file_pointer);
+				fread(pixels, 4, width * height, file_pointer);
 				bigfist_mcpunchydude_color_mask.width = width;
 				bigfist_mcpunchydude_color_mask.height = height;
 				bigfist_mcpunchydude_color_mask.pixels = pixels;	
-				close_file(file_pointer);					
+				fclose(file_pointer);					
 				
 			}	
 
 			//Load Character Icons
 			{
 				{
-					file_pointer = open_file("Assets/bigfist_mcpunchydude_icon.texture", "rb");
+					file_pointer = fopen("Assets/bigfist_mcpunchydude_icon.texture", "rb");
 					width = 100, height = 100;
 					uint* pixels = malloc(sizeof(uint) * width * height);
 
-					read_bytes(pixels, 4, width * height, file_pointer);
+					fread(pixels, 4, width * height, file_pointer);
 					bigfist_mcpunchydude_icon.width = width;
 					bigfist_mcpunchydude_icon.height = height;
 					bigfist_mcpunchydude_icon.pixels = pixels;	
-					close_file(file_pointer);	
+					fclose(file_pointer);	
 				}
 
 				{
-					file_pointer = open_file("Assets/jeffrey_icon.texture", "rb");
+					file_pointer = fopen("Assets/jeffrey_icon.texture", "rb");
 					width = 100, height = 100;
 					uint* pixels = malloc(sizeof(uint) * width * height);
 
-					read_bytes(pixels, 4, width * height, file_pointer);
+					fread(pixels, 4, width * height, file_pointer);
 					jeffrey_icon.width = width;
 					jeffrey_icon.height = height;
 					jeffrey_icon.pixels = pixels;	
-					close_file(file_pointer);	
+					fclose(file_pointer);	
 				}
 
 				{
-					file_pointer = open_file("Assets/maestro_icon.texture", "rb");
+					file_pointer = fopen("Assets/maestro_icon.texture", "rb");
 					width = 100, height = 100;
 					uint* pixels = malloc(sizeof(uint) * width * height);
 
-					read_bytes(pixels, 4, width * height, file_pointer);
+					fread(pixels, 4, width * height, file_pointer);
 					maestro_icon.width = width;
 					maestro_icon.height = height;
 					maestro_icon.pixels = pixels;	
-					close_file(file_pointer);	
+					fclose(file_pointer);	
 				}
 
 				{
 
-					file_pointer = open_file("Assets/dr_meroink_icon.texture", "rb");
+					file_pointer = fopen("Assets/dr_meroink_icon.texture", "rb");
 					width = 100, height = 100;
 					uint* pixels = malloc(sizeof(uint) * width * height);
 
-					read_bytes(pixels, 4, width * height, file_pointer);
+					fread(pixels, 4, width * height, file_pointer);
 					dr_meroink_icon.width = width;
 					dr_meroink_icon.height = height;
 					dr_meroink_icon.pixels = pixels;	
-					close_file(file_pointer);
+					fclose(file_pointer);
 				}			
 			}				
 		}
@@ -1130,7 +984,7 @@ void InitEverything()
 
 	//Init GameplayState
 	{	
-		gameplay_state.initial_time = 99;
+		gameplay_state.initial_time = 299;
 		gameplay_state.max_health = 1;
 
 		gameplay_state.player_colors[0] = red;
@@ -1151,15 +1005,15 @@ void InitEverything()
 
 		//Load SplashScreen Image
 		{
-			FILE* file_pointer = open_file("Assets/viking_studios_logo", "r");
+			FILE* file_pointer = fopen("Assets/viking_studios_logo", "r");
 			int source_width = 1920, source_height = 1080;
 			uint* pixels = malloc(sizeof(uint) * source_width * source_height);
-			read_bytes(pixels, 4, source_width * source_height, file_pointer);
+			fread(pixels, 4, source_width * source_height, file_pointer);
 			splash.logo.width = source_width;
 			splash.logo.height = source_height;
 			splash.logo.pixels = pixels;
 
-			close_file(file_pointer);
+			fclose(file_pointer);
 
 			splash.logo.width = WIDTH;
 			splash.logo.height = HEIGHT;
@@ -2132,9 +1986,9 @@ void GameLoop()
 					{
 						char path[50] = "Assets/";
 						strcat(path,file_name);
-						FILE* file_pointer = open_file(path, "w");
-						write_bytes(&selected_hitbox_animation, sizeof(HitboxAnimation), 1, file_pointer);
-						close_file(file_pointer);						
+						FILE* file_pointer = fopen(path, "w");
+						fwrite(&selected_hitbox_animation, sizeof(HitboxAnimation), 1, file_pointer);
+						fclose(file_pointer);						
 						current_game_state = AnimationEditor;
 					}
 
@@ -2664,7 +2518,8 @@ void GameLoop()
                     static Skeleton skeletons[PLAYER_COUNT]; //TODO do NOT let this heap allocation stand for long, you don't need it.
                 	static PlayerMoveState player_move_state[PLAYER_COUNT];
                     v3 transformed_vertices[PLAYER_COUNT][1000];
-					
+					static bool capture = false;
+					static bool ai = true;
 					if(!init)
 					{
 						init = true;
@@ -2732,10 +2587,28 @@ void GameLoop()
 					{
 						if (KeyDownFresh(Keys_R))
 							ResetGame();
-
+						if(KeyDown(Keys_C))
+							capture = true;
 
 						light_rotation  = 0;
 
+
+						if(ai)
+						{
+							game_pads[1] = (PadState){0};
+							if(v3_Distance(gameplay_state.players[1].transform.position, gameplay_state.players[0].transform.position) > 2.9f)
+							{
+								if(gameplay_state.players[1].transform.position.x > gameplay_state.players[0].transform.position.x)
+									game_pads[1].left_stick.x = -1;
+								else
+									game_pads[1].left_stick.x = 1;
+							}
+							else
+							{
+								game_pads[1].left_stick.x = 0;
+								game_pads[1].buttons[2] = true;
+							}
+						}
 
 	                	char* movestatenames[6] = { "Idle", "Walk", "Jump", "Fall", "Punch", "Kick" };
 
@@ -2769,8 +2642,10 @@ void GameLoop()
 		                        else if (gameplay_state.players[player_index].velocity.x < -max_speed)
 		                            gameplay_state.players[player_index].velocity.x = -max_speed;
 
+		                        static bool can_double_jump[PLAYER_COUNT];
 		                        if (gameplay_state.players[player_index].grounded)
 		                        {
+		                        	can_double_jump[player_index] = true;
 		                            gameplay_state.players[player_index].velocity.y = ground_fall_velocity;
 
 		                            if (no_horizontal_input_since_landed[player_index]){
@@ -2806,19 +2681,18 @@ void GameLoop()
 						            static bool first = true;
 						            if(first) {
 						            	device_id = SDL_OpenAudioDevice(NULL, 0, &wav_spec, &obtained_spec, 0);
+							            SDL_LoadWAV("Assets/woosh.wav", &wav_spec, &wav_buffer, &wav_count);
 						            	first = false;
 						            }
 
+						           	 if(player_move_state[player_index] != Kick)
 		                             if (game_pads[player_index].buttons[2])
 		                             {
 		                             	if(!button_pressed)
 		                                //todo play woosh
 		                                {
-
-								            // SDL_LoadWAV("Assets/woosh.wav", &wav_spec, &wav_buffer, &wav_count);
-
-								            // SDL_QueueAudio(device_id, wav_buffer, wav_count);
-								            // SDL_PauseAudioDevice(device_id, 0);          	
+								            SDL_QueueAudio(device_id, wav_buffer, wav_count);
+								            SDL_PauseAudioDevice(device_id, 0);          	
 		                                }                             	
 		                                player_move_state[player_index] = Kick;
 		                                animator[player_index].current_frame = 1;
@@ -2854,6 +2728,12 @@ void GameLoop()
 		                            
 		                            static float last_input_y[PLAYER_COUNT];
 		                            
+		                            if(game_pads[player_index].buttons[1] && gameplay_state.players[player_index].velocity.y < 5.3f && can_double_jump[player_index])
+		                            {
+		                            	can_double_jump[player_index] = false;
+		                            	gameplay_state.players[player_index].velocity.y = jump_speed;
+		                            }
+
 		                            //if at jump apex, player can dart toward ground
 		                            can_fast_fall[player_index] = gameplay_state.players[player_index].velocity.y < 5.3f && gameplay_state.players[player_index].velocity.y > 0 && last_input_y[player_index] > -dead_zone;
 		                            if(can_fast_fall[player_index])
@@ -2862,7 +2742,7 @@ void GameLoop()
 		                            		gameplay_state.players[player_index].velocity.y = -20;
 		                            }
 
-		                            	last_input_y[player_index] = game_pads[player_index].left_stick.y;
+	                            	last_input_y[player_index] = game_pads[player_index].left_stick.y;
 		                            
 		                            // //fly
 		                            //gameplay_state.players[player_index].velocity.x = game_pads[player_index].left_stick.x * 10;
@@ -3100,12 +2980,13 @@ void GameLoop()
 
 												if(Intersect_RectangleF(a_rect, b_rect))
 												{
-													gameplay_state.players[i].current_health-=timing.delta_time/6;
+													gameplay_state.players[i].current_health-=timing.delta_time/2;
 													if(gameplay_state.players[i].current_health > 0)
 													{
 														static float knockback_scale=.1f;
 														knockback_scale = 1/(gameplay_state.players[i].current_health);
-
+														if(knockback_scale > 3)
+															knockback_scale = 3;
 														gameplay_state.players[i].velocity.x = 3*(knockback_scale);
 														gameplay_state.players[i].velocity.y = 8*(knockback_scale);
 														gameplay_state.players[i].transform.position.y += .1f;
@@ -3252,25 +3133,28 @@ void GameLoop()
 
 							for (int player_index = 0; player_index < PLAYER_COUNT; ++player_index)
 							{
-								FighterList fighter = gameplay_state.players[player_index].selected_character;
-								Mesh mesh = roster[fighter].mesh;
-								mesh.vertices = transformed_vertices[player_index];
-
-								typedef struct
+								if(!gameplay_state.players[player_index].defeated)
 								{
-									Color tint;
-									Bitmap color;
-									Bitmap mask;
-								} Material;
+									FighterList fighter = gameplay_state.players[player_index].selected_character;
+									Mesh mesh = roster[fighter].mesh;
+									mesh.vertices = transformed_vertices[player_index];
 
-								Material character_material = 
-								{
-									gameplay_state.player_colors[player_index], 
-									roster[gameplay_state.players[player_index].selected_character].texture,  
-									roster[gameplay_state.players[player_index].selected_character].color_mask
-								};
+									typedef struct
+									{
+										Color tint;
+										Bitmap color;
+										Bitmap mask;
+									} Material;
 
-								RenderMesh(mesh, gameplay_state.players[player_index].transform, camera, ShadeTexturedGouraudColorMasked, &character_material);
+									Material character_material = 
+									{
+										gameplay_state.player_colors[player_index], 
+										roster[fighter].texture,  
+										roster[fighter].color_mask
+									};
+
+									RenderMesh(mesh, gameplay_state.players[player_index].transform, camera, ShadeTexturedGouraudColorMasked, &character_material);
+								}
 							}
 
 							for (int player_index = 0; player_index < PLAYER_COUNT; ++player_index)
@@ -3427,6 +3311,8 @@ void GameLoop()
 							}
 						}
 					}
+					if(false)
+						CaptureScreen();
 				} break;
 				case ParticleState:
 				{
@@ -3527,8 +3413,8 @@ void GameLoop()
 					static bool play = false;
 					if(!loaded)
 					{
-						FILE* file_pointer = open_file("Assets/screen_captures", "rb");
-						read_bytes(screen_captures, region_width*region_height*4, frames_to_capture, file_pointer);
+						FILE* file_pointer = fopen("Assets/screen_captures", "rb");
+						fread(screen_captures, region_width*region_height*4, frames_to_capture, file_pointer);
 						loaded = true;
 					}
 					if(KeyDownFresh(Keys_Space))
@@ -4015,7 +3901,7 @@ void GameLoop()
 					if(!init)
 					{
 						init = true;
-						camera_to_clip = (m4x4)m4x4_identity;
+						camera_to_clip = m4x4_identity;
 						v2 center = {bigfist_mcpunchydude_icon.width/2,bigfist_mcpunchydude_icon.height/2};
 
 						for (int y = 0; y < bigfist_mcpunchydude_icon.height; ++y)
@@ -4261,9 +4147,6 @@ void GameLoop()
 								HEIGHT/2 - hair[i][o-1].y);
 						}
 					}
-
-
-					
 				} break;
 				default:
 				{

@@ -4,6 +4,8 @@ typedef struct MouseState
 	v2 delta;
 	bool leftbutton_down;
 	bool leftbutton_was_down;
+	bool rightbutton_down;
+	bool rightbutton_was_down;	
 	float scroll_amount;
 } MouseState;
 
@@ -83,7 +85,7 @@ void PollKeyboard()
 	for (int i = 0; i < 256; i++)
 		keys_stale[i] = keys_down[i];
 
-	GetKeyboardState(keyboard_state);
+	GetKeyboardState((PBYTE)(keyboard_state));
 
 	for (int i = 0; i < 256; i++)
 		keys_down[i] = keyboard_state[i] & 128;

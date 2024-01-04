@@ -365,120 +365,120 @@
 	//Punch Animation
 	{
 		defined_animations.punch_animation.looped = true;
-		defined_animations.punch_animation.animation_length = 30;
+		defined_animations.punch_animation.animation_length = 15;
 		defined_animations.punch_animation.curves_count = 16;
 
 		defined_animations.punch_animation.curves[0].transform_index = 1;
 		defined_animations.punch_animation.curves[0].channel_offset = POSY;
 		defined_animations.punch_animation.curves[0].keyframes_count = 2;
 		defined_animations.punch_animation.curves[0].keyframes[0] = ((KeyFrame) { 1, 2, 0, 0 });
-		defined_animations.punch_animation.curves[0].keyframes[1] = ((KeyFrame) { 30, 2, 0, 0 });
+		defined_animations.punch_animation.curves[0].keyframes[1] = ((KeyFrame) { 15, 2, 0, 0 });
 
 		defined_animations.punch_animation.curves[1].transform_index = 1;
 		defined_animations.punch_animation.curves[1].channel_offset = 4;
 		defined_animations.punch_animation.curves[1].keyframes_count = 2;
 		defined_animations.punch_animation.curves[1].keyframes[0] = ((KeyFrame) { 1, .3f, 0, 0 });
-		defined_animations.punch_animation.curves[1].keyframes[1] = ((KeyFrame) { 30, .3f, 0, 0 });
+		defined_animations.punch_animation.curves[1].keyframes[1] = ((KeyFrame) { 15, .3f, 0, 0 });
 
 		defined_animations.punch_animation.curves[2].transform_index = 2;
 		defined_animations.punch_animation.curves[2].channel_offset = 4;
 		defined_animations.punch_animation.curves[2].keyframes_count = 3;
 		defined_animations.punch_animation.curves[2].keyframes[0] = ((KeyFrame) { 1, .0f, 0, 0 });
-		defined_animations.punch_animation.curves[2].keyframes[1] = ((KeyFrame) { 15, -.9f, 0, 0 });
-		defined_animations.punch_animation.curves[2].keyframes[2] = ((KeyFrame) { 30, .0f, 0, 0 });			
+		defined_animations.punch_animation.curves[2].keyframes[1] = ((KeyFrame) { 7, -.9f, 0, 0 });
+		defined_animations.punch_animation.curves[2].keyframes[2] = ((KeyFrame) { 15, .0f, 0, 0 });			
 
 		defined_animations.punch_animation.curves[3].transform_index = 4;
 		defined_animations.punch_animation.curves[3].channel_offset = 5;
 		defined_animations.punch_animation.curves[3].keyframes_count = 2;
 		defined_animations.punch_animation.curves[3].keyframes[0] = ((KeyFrame) { 1, Tau/4.0f, 0, 0 });
-		defined_animations.punch_animation.curves[3].keyframes[1] = ((KeyFrame) { 30, Tau/4.0f, 0, 0 });
+		defined_animations.punch_animation.curves[3].keyframes[1] = ((KeyFrame) { 15, Tau/4.0f, 0, 0 });
 
 		defined_animations.punch_animation.curves[4].transform_index = 4;
 		defined_animations.punch_animation.curves[4].channel_offset = 4;
 		defined_animations.punch_animation.curves[4].keyframes_count = 3;
 		defined_animations.punch_animation.curves[4].keyframes[0] = ((KeyFrame) { 1, Tau/6.0f, 0, 0 });
-		defined_animations.punch_animation.curves[4].keyframes[1] = ((KeyFrame) { 15, -Tau/9.0f, 0, 0 });
-		defined_animations.punch_animation.curves[4].keyframes[2] = ((KeyFrame) { 30, Tau/6.0f, 0, 0 });
+		defined_animations.punch_animation.curves[4].keyframes[1] = ((KeyFrame) { 7, -Tau/9.0f, 0, 0 });
+		defined_animations.punch_animation.curves[4].keyframes[2] = ((KeyFrame) { 15, Tau/6.0f, 0, 0 });
 
 		defined_animations.punch_animation.curves[5].transform_index = 5;
 		defined_animations.punch_animation.curves[5].channel_offset = 4;
 		defined_animations.punch_animation.curves[5].keyframes_count = 2;
 		defined_animations.punch_animation.curves[5].keyframes[0] = ((KeyFrame) { 1, Tau/4.0f, 0, 0 });
-		defined_animations.punch_animation.curves[5].keyframes[1] = ((KeyFrame) { 30, Tau/4.0f, 0, 0 });
+		defined_animations.punch_animation.curves[5].keyframes[1] = ((KeyFrame) { 15, Tau/4.0f, 0, 0 });
 
 
 		defined_animations.punch_animation.curves[6].transform_index = 6;
 		defined_animations.punch_animation.curves[6].channel_offset = 5;
 		defined_animations.punch_animation.curves[6].keyframes_count = 3;
 		defined_animations.punch_animation.curves[6].keyframes[0] = ((KeyFrame) { 1, -Tau/4.0f, 0, 0 });
-		defined_animations.punch_animation.curves[6].keyframes[1] = ((KeyFrame) { 15, 0, 0, 0 });
-		defined_animations.punch_animation.curves[6].keyframes[2] = ((KeyFrame) { 30, -Tau/4.0f, 0, 0 });
+		defined_animations.punch_animation.curves[6].keyframes[1] = ((KeyFrame) { 7, 0, 0, 0 });
+		defined_animations.punch_animation.curves[6].keyframes[2] = ((KeyFrame) { 15, -Tau/4.0f, 0, 0 });
 
 		defined_animations.punch_animation.curves[7].transform_index = 6;
 		defined_animations.punch_animation.curves[7].channel_offset = 4;
 		defined_animations.punch_animation.curves[7].keyframes_count = 3;
 		defined_animations.punch_animation.curves[7].keyframes[0] = ((KeyFrame) { 1, -Tau/6.0f, 0, 0 });
-		defined_animations.punch_animation.curves[7].keyframes[1] = ((KeyFrame) { 15, -Tau/4.0f, 0, 0 });
-		defined_animations.punch_animation.curves[7].keyframes[2] = ((KeyFrame) { 30, -Tau/6.0f, 0, 0 });
+		defined_animations.punch_animation.curves[7].keyframes[1] = ((KeyFrame) { 7, -Tau/4.0f, 0, 0 });
+		defined_animations.punch_animation.curves[7].keyframes[2] = ((KeyFrame) { 15, -Tau/6.0f, 0, 0 });
 
 		defined_animations.punch_animation.curves[8].transform_index = 7;
 		defined_animations.punch_animation.curves[8].channel_offset = 4;
 		defined_animations.punch_animation.curves[8].keyframes_count = 3;
 		defined_animations.punch_animation.curves[8].keyframes[0] = ((KeyFrame) { 1, -Tau/4.0f, 0, 0 });
-		defined_animations.punch_animation.curves[8].keyframes[1] = ((KeyFrame) { 15, 0, 0, 0 });
-		defined_animations.punch_animation.curves[8].keyframes[2] = ((KeyFrame) { 30, -Tau/4.0f, 0, 0 });
+		defined_animations.punch_animation.curves[8].keyframes[1] = ((KeyFrame) { 7, 0, 0, 0 });
+		defined_animations.punch_animation.curves[8].keyframes[2] = ((KeyFrame) { 15, -Tau/4.0f, 0, 0 });
 
 		defined_animations.punch_animation.curves[9].transform_index = 8;
 		defined_animations.punch_animation.curves[9].channel_offset = 3;
 		defined_animations.punch_animation.curves[9].keyframes_count = 2;
 		defined_animations.punch_animation.curves[9].keyframes[0] = ((KeyFrame) { 1, 0, 0, 0 });
-		defined_animations.punch_animation.curves[9].keyframes[1] = ((KeyFrame) { 30, 0, 0, 0 });
+		defined_animations.punch_animation.curves[9].keyframes[1] = ((KeyFrame) { 15, 0, 0, 0 });
 
 		defined_animations.punch_animation.curves[10].transform_index = 9;
 		defined_animations.punch_animation.curves[10].channel_offset = 3;
 		defined_animations.punch_animation.curves[10].keyframes_count = 2;
 		defined_animations.punch_animation.curves[10].keyframes[0] = ((KeyFrame) { 1, 0, 0, 0 });
-		defined_animations.punch_animation.curves[10].keyframes[1] = ((KeyFrame) { 30, 0, 0, 0 });
+		defined_animations.punch_animation.curves[10].keyframes[1] = ((KeyFrame) { 15, 0, 0, 0 });
 
 		defined_animations.punch_animation.curves[11].transform_index = 11;
 		defined_animations.punch_animation.curves[11].channel_offset = 3;
 		defined_animations.punch_animation.curves[11].keyframes_count = 2;
 		defined_animations.punch_animation.curves[11].keyframes[0] = ((KeyFrame) { 1, 0.3f, 0, 0 });
-		defined_animations.punch_animation.curves[11].keyframes[1] = ((KeyFrame) { 30, 0.3f, 0, 0 });
+		defined_animations.punch_animation.curves[11].keyframes[1] = ((KeyFrame) { 15, 0.3f, 0, 0 });
 
 		defined_animations.punch_animation.curves[12].transform_index = 12;
 		defined_animations.punch_animation.curves[12].channel_offset = 3;
 		defined_animations.punch_animation.curves[12].keyframes_count = 2;
 		defined_animations.punch_animation.curves[12].keyframes[0] = ((KeyFrame) { 1, 0, 0, 0 });
-		defined_animations.punch_animation.curves[12].keyframes[1] = ((KeyFrame) { 30, 0, 0, 0 });
+		defined_animations.punch_animation.curves[12].keyframes[1] = ((KeyFrame) { 15, 0, 0, 0 });
 
 
 		defined_animations.punch_animation.curves[13].transform_index = 15;
 		defined_animations.punch_animation.curves[13].channel_offset = SCALEX;
 		defined_animations.punch_animation.curves[13].keyframes_count = 3;
 		defined_animations.punch_animation.curves[13].keyframes[0] = ((KeyFrame) { 1, 1, 0, 0 });
-		defined_animations.punch_animation.curves[13].keyframes[1] = ((KeyFrame) { 15, 1.2f, 0, 0 });
-		defined_animations.punch_animation.curves[13].keyframes[2] = ((KeyFrame) { 30, 1, 0, 0 });
+		defined_animations.punch_animation.curves[13].keyframes[1] = ((KeyFrame) { 7, 1.2f, 0, 0 });
+		defined_animations.punch_animation.curves[13].keyframes[2] = ((KeyFrame) { 15, 1, 0, 0 });
 
 		defined_animations.punch_animation.curves[14].transform_index = 15;
 		defined_animations.punch_animation.curves[14].channel_offset = SCALEY;
 		defined_animations.punch_animation.curves[14].keyframes_count = 3;
 		defined_animations.punch_animation.curves[14].keyframes[0] = ((KeyFrame) { 1, 1, 0, 0 });
-		defined_animations.punch_animation.curves[14].keyframes[1] = ((KeyFrame) { 15, 1.2f, 0, 0 });
-		defined_animations.punch_animation.curves[14].keyframes[2] = ((KeyFrame) { 30, 1, 0, 0 });		
+		defined_animations.punch_animation.curves[14].keyframes[1] = ((KeyFrame) { 7, 1.2f, 0, 0 });
+		defined_animations.punch_animation.curves[14].keyframes[2] = ((KeyFrame) { 15, 1, 0, 0 });		
 
 		defined_animations.punch_animation.curves[15].transform_index = 15;
 		defined_animations.punch_animation.curves[15].channel_offset = SCALEZ;
 		defined_animations.punch_animation.curves[15].keyframes_count = 3;
 		defined_animations.punch_animation.curves[15].keyframes[0] = ((KeyFrame) { 1, 1, 0, 0 });
-		defined_animations.punch_animation.curves[15].keyframes[1] = ((KeyFrame) { 15, 1.2f, 0, 0 });
-		defined_animations.punch_animation.curves[15].keyframes[2] = ((KeyFrame) { 30, 1, 0, 0 });
+		defined_animations.punch_animation.curves[15].keyframes[1] = ((KeyFrame) { 7, 1.2f, 0, 0 });
+		defined_animations.punch_animation.curves[15].keyframes[2] = ((KeyFrame) { 15, 1, 0, 0 });
 
 		defined_animations.punch_animation.hitframes[0] = (HitboxAnimation)
 		{
 			Defend, 
 			{0,2.5f,1,5},
-			30
+			7
 		};
 
 		defined_animations.punch_animation.hitframes[1] = (HitboxAnimation)
@@ -509,14 +509,14 @@
 		
 		defined_animations.punch_animation.hitframes[2].curves[0].keyframes_count = 3;
 		defined_animations.punch_animation.hitframes[2].curves[0].keyframes[0] = ((KeyFrame) { 1, 0, 0, 0, 0, 0 });
-		defined_animations.punch_animation.hitframes[2].curves[0].keyframes[1] = ((KeyFrame) { 15, 2, 0, 0, 0, 0 });
-		defined_animations.punch_animation.hitframes[2].curves[0].keyframes[2] = ((KeyFrame) { 30, 0, 0, 0, 0, 0 });		
+		defined_animations.punch_animation.hitframes[2].curves[0].keyframes[1] = ((KeyFrame) { 7, 2, 0, 0, 0, 0 });
+		defined_animations.punch_animation.hitframes[2].curves[0].keyframes[2] = ((KeyFrame) { 15, 0, 0, 0, 0, 0 });		
 
 
 		defined_animations.punch_animation.hitframes[2].hitstate_anim.state_frame_count = 3;
 		defined_animations.punch_animation.hitframes[2].hitstate_anim.keys[0] = 1;
-		defined_animations.punch_animation.hitframes[2].hitstate_anim.keys[1] = 12; 
-		defined_animations.punch_animation.hitframes[2].hitstate_anim.keys[2] = 16;
+		defined_animations.punch_animation.hitframes[2].hitstate_anim.keys[1] = 6; 
+		defined_animations.punch_animation.hitframes[2].hitstate_anim.keys[2] = 8;
 		defined_animations.punch_animation.hitframes[2].hitstate_anim.values[0] = Inactive;
 		defined_animations.punch_animation.hitframes[2].hitstate_anim.values[1] = Attack; 
 		defined_animations.punch_animation.hitframes[2].hitstate_anim.values[2] = Inactive;				

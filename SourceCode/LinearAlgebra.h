@@ -1,4 +1,4 @@
-#define m4x4_identity {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}
+#define m4x4_identity ((m4x4){1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1})
 #define v3_right {1, 0, 0}
 #define v3_forward { 0, 0, 1 }
 #define v3_backward { 0, 0, -1 }

@@ -1,6 +1,3 @@
-#define bool char
-#define true 1
-#define false 0
 #define byte unsigned char
 #define uint unsigned int
 
@@ -34,8 +31,6 @@ typedef struct
 {
 	float x, y, z, w;
 } Vec4;
-
-
 
 typedef struct
 {
@@ -223,12 +218,22 @@ typedef struct
 	bool was_grounded;
 } Player;
 
+typedef struct
+{
+	byte rows[8];
+} CharSprite;
 
 typedef struct
 {
 	int width, height;
 	uint* pixels;
 } Bitmap;
+
+typedef struct
+{
+	int width, height;
+	Color pixels[1];
+} Texture;
 
 typedef Color (*Shader)(v3 barycentric_point, int triangle_index, void* shader_state);
 typedef Color (*Shader2)(Triangle t, v3 barycentric_point, void* shader_state);
@@ -241,6 +246,7 @@ typedef struct Material
 
 typedef struct Entity
 {
+	struct Entity* parent;
 	Transform transform;
 	IndexedMesh mesh;
 	Material material;
