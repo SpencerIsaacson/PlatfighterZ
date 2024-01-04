@@ -2643,6 +2643,8 @@ void GameLoop()
 		                            gameplay_state.players[player_index].velocity.x = -max_speed;
 
 		                        static bool can_double_jump[PLAYER_COUNT];
+		                        static float last_input_y[PLAYER_COUNT];
+
 		                        if (gameplay_state.players[player_index].grounded)
 		                        {
 		                        	can_double_jump[player_index] = true;
@@ -2661,16 +2663,33 @@ void GameLoop()
 		                            else if(player_move_state[player_index] != Kick && player_move_state[player_index] != Punch)
 		                            	player_move_state[player_index] = Idle;
 
-		                            if (game_pads[player_index].buttons[1])
-		                            {
-		                                gameplay_state.players[player_index].velocity.y = jump_speed;
-		                                player_move_state[player_index] = Jump;
-		                                animator[player_index].current_frame = 1;
-		                                for (int i = 0; i < skeletons[player_index].joint_count; ++i)
-		                                {
-		                                	skeletons[player_index].joints[i].rotation = (v3)v3_zero;
-		                                }
-		                            }
+									static float jump_time[PLAYER_COUNT];
+									if (game_pads[player_index].buttons[1])
+									{
+										jump_time[player_index] += timing.delta_time;
+									}
+
+									float jump_vel = 0;
+									if(jump_time[player_index] > .125f)
+									{
+										jump_vel = jump_speed;
+									}
+									else if((jump_time[player_index] > 0) && !game_pads[player_index].buttons[1])
+									{
+										jump_vel = jump_speed/2;
+									}
+
+									if(jump_vel != 0)
+									{
+										jump_time[player_index] = 0;
+									    gameplay_state.players[player_index].velocity.y = jump_vel;
+									    player_move_state[player_index] = Jump;
+									    animator[player_index].current_frame = 1;
+									    for (int i = 0; i < skeletons[player_index].joint_count; ++i)
+									    {
+									    	skeletons[player_index].joints[i].rotation = (v3)v3_zero;
+									    }
+									}
 
 		                            static bool button_pressed;
 						            static SDL_AudioDeviceID device_id;
@@ -2726,7 +2745,7 @@ void GameLoop()
 		                            no_horizontal_input_since_landed[player_index] = true;
 		                            gameplay_state.players[player_index].velocity.y -= gravity * timing.delta_time;
 		                            
-		                            static float last_input_y[PLAYER_COUNT];
+		                            
 		                            
 		                            if(game_pads[player_index].buttons[1] && gameplay_state.players[player_index].velocity.y < 5.3f && can_double_jump[player_index])
 		                            {
@@ -2735,20 +2754,21 @@ void GameLoop()
 		                            }
 
 		                            //if at jump apex, player can dart toward ground
-		                            can_fast_fall[player_index] = gameplay_state.players[player_index].velocity.y < 5.3f && gameplay_state.players[player_index].velocity.y > 0 && last_input_y[player_index] > -dead_zone;
+		                            can_fast_fall[player_index] = gameplay_state.players[player_index].velocity.y > 0 && last_input_y[player_index] > -dead_zone;
 		                            if(can_fast_fall[player_index])
 		                            {
 		                            	if(game_pads[player_index].left_stick.y < -.2f)
 		                            		gameplay_state.players[player_index].velocity.y = -20;
 		                            }
 
-	                            	last_input_y[player_index] = game_pads[player_index].left_stick.y;
 		                            
 		                            // //fly
 		                            //gameplay_state.players[player_index].velocity.x = game_pads[player_index].left_stick.x * 10;
 		                            //gameplay_state.players[player_index].velocity.y = game_pads[player_index].left_stick.y * 10;
 		                           
 		                        }
+                            	
+                            	last_input_y[player_index] = game_pads[player_index].left_stick.y;
 
 		                        float old_x = gameplay_state.players[player_index].transform.position.x;
 		                        gameplay_state.players[player_index].transform.position.x += gameplay_state.players[player_index].velocity.x * timing.delta_time;
